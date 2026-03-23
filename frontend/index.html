@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ethical AI Decision Checker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 900px;
+            width: 100%;
+            padding: 40px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .form-section {
+            margin-bottom: 30px;
+        }
+        
+        .form-section h2 {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 6px;
+            font-size: 14px;
+        }
+        
+        input[type="text"],
+        input[type="number"],
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        input:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .context-fields {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+        
+        .context-field {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .context-field:last-child {
+            margin-bottom: 0;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+
+        .btn-download {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            margin-top: 20px;
+            display: none;
+        }
+
+        .btn-download:hover {
+            box-shadow: 0 10px 25px rgba(39, 174, 96, 0.4);
+        }
+
+        .provider-badge {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 12px;
+            margin-left: 8px;
+            vertical-align: middle;
+            text-transform: uppercase;
+        }
+
+        .provider-claude { background: #e8e0f5; color: #764ba2; }
+        .provider-openai { background: #e0f0e0; color: #27ae60; }
+        .provider-mock   { background: #f0f0f0; color: #999; }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .results {
+            display: none;
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 2px solid #eee;
+        }
+        
+        .results.show {
+            display: block;
+        }
+        
+        .analysis-section {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .analysis-section h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .analysis-section p {
+            color: #666;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+        
+        .risk-flags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .risk-flag {
+            background: #fee;
+            color: #c33;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .confidence-score {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .confidence-bar {
+            flex: 1;
+            height: 8px;
+            background: #eee;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 4px;
+        }
+        
+        .error {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c33;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .error.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Ethical AI Decision Checker</h1>
+        <p class="subtitle">Evaluate decisions using ethical reasoning frameworks and detect risks</p>
+        
+        <form id="evaluationForm">
+            <div class="form-section">
+                <h2>Decision</h2>
+                <div class="form-group">
+                    <label for="decision">What decision are you evaluating?</label>
+                    <textarea id="decision" name="decision" placeholder="e.g., Reject job candidate" required></textarea>
+                </div>
+            </div>
+            
+            <div class="form-section">
+                <h2>Context</h2>
+                <div class="form-group">
+                    <label>Provide relevant context (at least one field required)</label>
+                    <div class="context-fields">
+                        <div class="context-field">
+                            <input type="text" id="ctx1_key" placeholder="Key (e.g., gender)" value="gender">
+                            <input type="text" id="ctx1_value" placeholder="Value (e.g., female)" value="">
+                        </div>
+                        <div class="context-field">
+                            <input type="text" id="ctx2_key" placeholder="Key (e.g., experience)" value="experience">
+                            <input type="text" id="ctx2_value" placeholder="Value (e.g., 5 years)" value="">
+                        </div>
+                        <div class="context-field">
+                            <input type="text" id="ctx3_key" placeholder="Key" value="">
+                            <input type="text" id="ctx3_value" placeholder="Value" value="">
+                        </div>
+                        <div class="context-field">
+                            <input type="text" id="ctx4_key" placeholder="Key" value="">
+                            <input type="text" id="ctx4_value" placeholder="Value" value="">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <button type="submit">Evaluate Decision</button>
+        </form>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p style="margin-top: 10px; color: #666;">Analyzing decision...</p>
+        </div>
+        
+        <div class="error" id="error"></div>
+        
+        <div class="results" id="results">
+            <h2>Analysis Results <span id="providerBadge" class="provider-badge"></span></h2>
+            
+            <div class="analysis-section">
+                <h3>📖 Kantian Ethics</h3>
+                <p id="kantian"></p>
+            </div>
+            
+            <div class="analysis-section">
+                <h3>⚖️ Utilitarianism</h3>
+                <p id="utilitarian"></p>
+            </div>
+            
+            <div class="analysis-section">
+                <h3>🎯 Virtue Ethics</h3>
+                <p id="virtue"></p>
+            </div>
+            
+            <div class="analysis-section">
+                <h3>⚠️ Risk Detection</h3>
+                <div id="riskContainer">
+                    <div class="risk-flags" id="riskFlags"></div>
+                </div>
+            </div>
+            
+            <div class="analysis-section">
+                <h3>Confidence Score</h3>
+                <div class="confidence-score">
+                    <span id="confidenceValue">--</span>
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" id="confidenceFill" style="width: 0%;"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="analysis-section">
+                <h3>💡 Recommendation</h3>
+                <p id="recommendation"></p>
+            </div>
+
+            <button class="btn-download" id="btnDownload" onclick="downloadReport()">
+                ⬇️ Download PDF Report
+            </button>
+        </div>
+    </div>
+    
+    <script>
+        const form = document.getElementById('evaluationForm');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        const error = document.getElementById('error');
+
+        // Store last result for PDF download
+        let lastDecision = '';
+        let lastContext = {};
+        let lastAnalysis = {};
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const context = {};
+            for (let i = 1; i <= 4; i++) {
+                const key = document.getElementById(`ctx${i}_key`).value.trim();
+                const value = document.getElementById(`ctx${i}_value`).value.trim();
+                if (key && value) context[key] = value;
+            }
+
+            const decision = document.getElementById('decision').value.trim();
+
+            if (!decision) { showError('Please enter a decision'); return; }
+            if (Object.keys(context).length === 0) { showError('Please provide at least one context field'); return; }
+
+            try {
+                loading.style.display = 'block';
+                error.classList.remove('show');
+                results.classList.remove('show');
+                document.getElementById('btnDownload').style.display = 'none';
+
+                const response = await fetch('http://localhost:8000/evaluate-decision', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ decision, context })
+                });
+
+                if (!response.ok) throw new Error(`API error: ${response.status}`);
+
+                const data = await response.json();
+
+                // Store for PDF
+                lastDecision = decision;
+                lastContext = context;
+                lastAnalysis = data;
+
+                displayResults(data);
+
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                loading.style.display = 'none';
+            }
+        });
+
+        function displayResults(data) {
+            document.getElementById('kantian').textContent = data.kantian_analysis;
+            document.getElementById('utilitarian').textContent = data.utilitarian_analysis;
+            document.getElementById('virtue').textContent = data.virtue_ethics_analysis;
+            document.getElementById('recommendation').textContent = data.recommendation;
+
+            // Provider badge
+            const badge = document.getElementById('providerBadge');
+            const provider = data.provider || 'unknown';
+            badge.textContent = provider;
+            badge.className = `provider-badge provider-${provider}`;
+
+            // Risk flags
+            const riskContainer = document.getElementById('riskFlags');
+            riskContainer.innerHTML = '';
+            if (data.risk_flags.length > 0) {
+                data.risk_flags.forEach(flag => {
+                    const span = document.createElement('span');
+                    span.className = 'risk-flag';
+                    span.textContent = flag;
+                    riskContainer.appendChild(span);
+                });
+            } else {
+                riskContainer.innerHTML = '<p style="color: #999; font-size: 14px;">No significant risks detected</p>';
+            }
+
+            // Confidence score
+            const score = data.confidence_score;
+            document.getElementById('confidenceValue').textContent = `${(score * 100).toFixed(0)}%`;
+            document.getElementById('confidenceFill').style.width = `${score * 100}%`;
+
+            results.classList.add('show');
+            document.getElementById('btnDownload').style.display = 'inline-block';
+        }
+
+        async function downloadReport() {
+            const btn = document.getElementById('btnDownload');
+            btn.textContent = '⏳ Generating PDF...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('http://localhost:8000/generate-report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        decision: lastDecision,
+                        context: lastContext,
+                        analysis: lastAnalysis
+                    })
+                });
+
+                if (!response.ok) throw new Error('Report generation failed');
+
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'ethical-analysis-report.pdf';
+                a.click();
+                URL.revokeObjectURL(url);
+
+            } catch (err) {
+                showError('Could not generate PDF: ' + err.message);
+            } finally {
+                btn.textContent = '⬇️ Download PDF Report';
+                btn.disabled = false;
+            }
+        }
+
+        function showError(message) {
+            error.textContent = message;
+            error.classList.add('show');
+        }
+    </script>
+</body>
+</html>
