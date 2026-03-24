@@ -1,8 +1,7 @@
 """FastAPI backend for ethical decision evaluation."""
 
-import json
 import os
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -10,19 +9,31 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 
 from pydantic import BaseModel
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from .llm_orchestrator import LLMOrchestrator
 from .report_generator import generate_pdf
 from .risk_detector import detect_all_risks
+from . import auth
+from . import database
+
+
+@asynccontextmanager
+async def lifespan(*_):
+    database.init_db()
+    yield
+
 
 # Initialize FastAPI app
 app = FastAPI(
     title="Ethical AI Decision Checker",
     description="API for evaluating decisions using ethical reasoning frameworks",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -33,16 +44,36 @@ app.add_middleware(
 )
 
 orchestrator = LLMOrchestrator()
+_bearer = HTTPBearer(auto_error=False)
 
+
+# ── Auth helpers ──────────────────────────────────────────────────────────────
+
+def get_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
+) -> dict:
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    user = auth.get_user(credentials.credentials)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
+    return user
+
+
+# ── Auth schemas ──────────────────────────────────────────────────────────────
+
+class GoogleAuthRequest(BaseModel):
+    credential: str   # Google ID token from frontend
+
+
+# ── Decision schemas ──────────────────────────────────────────────────────────
 
 class DecisionRequest(BaseModel):
-    """Request schema for decision evaluation."""
     decision: str
     context: Dict[str, Any]
 
 
 class EthicalAnalysis(BaseModel):
-    """Response schema for ethical analysis."""
     kantian_analysis: str
     utilitarian_analysis: str
     virtue_ethics_analysis: str
@@ -53,43 +84,87 @@ class EthicalAnalysis(BaseModel):
 
 
 class ReportRequest(BaseModel):
-    """Request schema for PDF report generation."""
     decision: str
     context: Dict[str, Any]
     analysis: Dict[str, Any]
 
 
+# ── Auth endpoints ────────────────────────────────────────────────────────────
+
+@app.post("/auth/google")
+async def google_auth(req: GoogleAuthRequest):
+    """Verify Google ID token and return a session token."""
+    user_info = auth.verify_google_token(req.credential)
+    if not user_info:
+        raise HTTPException(status_code=401, detail="Invalid Google credential")
+    token = auth.create_session(user_info)
+    return {
+        "token":   token,
+        "name":    user_info["name"],
+        "picture": user_info["picture"],
+    }
 
 
-@app.post("/evaluate-decision", response_model=EthicalAnalysis)
-async def evaluate_decision(request: DecisionRequest) -> EthicalAnalysis:
-    """
-    Evaluate a decision using ethical reasoning frameworks.
-    
-    Returns analysis from Kantian ethics, Utilitarianism, and Virtue ethics,
-    along with detected risk flags and recommendations.
-    """
+@app.post("/auth/guest")
+async def guest_auth():
+    """Create a temporary guest session — no sign-in required."""
+    token, user_info = auth.create_guest_session()
+    return {"token": token, "name": user_info["name"], "picture": "", "is_guest": True}
+
+
+@app.post("/logout")
+async def logout(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
+):
+    if credentials:
+        auth.logout(credentials.credentials)
+    return {"ok": True}
+
+
+@app.get("/me")
+async def me(user: dict = Depends(get_current_user)):
+    return {"name": user["name"], "picture": user["picture"]}
+
+
+@app.get("/my-stats")
+async def my_stats(user: dict = Depends(get_current_user)):
+    """Return aggregate usage stats — no PII."""
+    return database.get_stats(user["sub"])
+
+
+# ── Protected endpoints ───────────────────────────────────────────────────────
+
+@app.post("/evaluate-decision", response_model=EthicalAnalysis, dependencies=[Depends(get_current_user)])
+async def evaluate_decision(
+    request: DecisionRequest,
+    user: dict = Depends(get_current_user),
+) -> EthicalAnalysis:
+    """Evaluate a decision using ethical reasoning frameworks."""
     if not request.decision or not request.decision.strip():
         raise HTTPException(status_code=400, detail="Decision cannot be empty")
-    
     if not request.context:
         raise HTTPException(status_code=400, detail="Context cannot be empty")
-    
-    # Get LLM analysis via orchestrator (Claude → OpenAI fallback)
+
     llm_analysis = orchestrator.evaluate(request.decision, request.context)
-    
-    # Detect risks
     risk_flags = detect_all_risks(request.decision, request.context)
-    
-    # Merge with LLM-detected risks
+
     if llm_analysis.get("risk_flags"):
         risk_flags = sorted(list(set(risk_flags) | set(llm_analysis["risk_flags"])))
-    
-    # Ensure confidence score is valid
+
     confidence_score = llm_analysis.get("confidence_score", 0.5)
     if not isinstance(confidence_score, (int, float)) or confidence_score < 0 or confidence_score > 1:
         confidence_score = 0.5
-    
+
+    # Log metadata — no PII, no decision text, no context values
+    database.log_request(
+        google_sub=user["sub"],
+        decision=request.decision,
+        context=request.context,
+        provider=llm_analysis.get("provider", "unknown"),
+        confidence=confidence_score,
+        risk_flags=risk_flags,
+    )
+
     return EthicalAnalysis(
         kantian_analysis=llm_analysis.get("kantian_analysis", ""),
         utilitarian_analysis=llm_analysis.get("utilitarian_analysis", ""),
@@ -101,7 +176,7 @@ async def evaluate_decision(request: DecisionRequest) -> EthicalAnalysis:
     )
 
 
-@app.post("/generate-report")
+@app.post("/generate-report", dependencies=[Depends(get_current_user)])
 async def generate_report(request: ReportRequest) -> Response:
     """Generate a PDF report for a completed ethical analysis."""
     try:
@@ -115,9 +190,10 @@ async def generate_report(request: ReportRequest) -> Response:
         raise HTTPException(status_code=500, detail=f"Report generation failed: {str(e)}")
 
 
+# ── Public endpoints ──────────────────────────────────────────────────────────
+
 @app.get("/health-check")
 async def health_check():
-    """Health check endpoint."""
     return {
         "status": "healthy",
         "service": "ethical-ai-decision-checker",

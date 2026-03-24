@@ -6,3 +6,7 @@ __pycache__/
 *.pdf
 .DS_Store
 .pytest_cache/
+data/
+mobile/node_modules/
+mobile/.expo/
+ios/**/*.xcuserstate

@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ethical AI</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -229,20 +230,32 @@
     .provider-openai { background: rgba(52,211,153,0.2); color: var(--green); border: 1px solid rgba(52,211,153,0.3); }
     .provider-mock   { background: rgba(255,255,255,0.08); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.15); }
 
-    /* Framework cards with lazy-fade */
+    /* Framework cards with lazy-fade + accordion */
     .framework-card {
       background: var(--glass);
       backdrop-filter: var(--blur);
       -webkit-backdrop-filter: var(--blur);
       border: 1px solid var(--glass-border);
       border-radius: var(--radius);
-      padding: 22px;
       margin-bottom: 12px;
       opacity: 0;
       transform: translateY(14px);
       transition: opacity 0.45s ease, transform 0.45s ease;
+      overflow: hidden;
     }
     .framework-card.visible { opacity: 1 !important; transform: translateY(0) !important; }
+
+    /* Accordion header — always visible, acts as toggle */
+    .framework-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 22px;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .framework-header:hover { background: rgba(255,255,255,0.05); }
 
     .framework-label {
       display: flex;
@@ -253,7 +266,6 @@
       letter-spacing: 1px;
       text-transform: uppercase;
       color: var(--accent);
-      margin-bottom: 10px;
     }
     .framework-label .dot {
       width: 6px; height: 6px;
@@ -261,6 +273,27 @@
       background: var(--accent);
       box-shadow: 0 0 8px var(--accent);
     }
+
+    .accordion-chevron {
+      font-size: 12px;
+      color: var(--text-muted);
+      transition: transform 0.3s ease;
+      line-height: 1;
+    }
+    .framework-card.open .accordion-chevron { transform: rotate(180deg); }
+
+    /* Accordion body — collapsed by default */
+    .framework-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.4s cubic-bezier(0.4,0,0.2,1), padding 0.3s ease;
+      padding: 0 22px;
+    }
+    .framework-card.open .framework-body {
+      max-height: 600px;
+      padding: 0 22px 20px;
+    }
+
     .framework-card p {
       font-size: 14px;
       line-height: 1.7;
@@ -364,10 +397,147 @@
       margin-bottom: 12px;
     }
 
+    /* ── Auth screen ── */
+    .auth-screen {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 20px;
+    }
+    .auth-card {
+      background: var(--glass);
+      backdrop-filter: var(--blur);
+      -webkit-backdrop-filter: var(--blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+      padding: 40px 36px;
+      width: 100%;
+      max-width: 400px;
+    }
+    .auth-icon {
+      font-size: 42px;
+      text-align: center;
+      display: block;
+      margin-bottom: 10px;
+      filter: drop-shadow(0 0 20px rgba(167,139,250,0.6));
+    }
+    .auth-title {
+      font-size: 24px;
+      font-weight: 700;
+      text-align: center;
+      background: linear-gradient(135deg, #e0d7ff, #a78bfa, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 4px;
+    }
+    .auth-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .auth-field {
+      margin-bottom: 14px;
+    }
+    .auth-field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .auth-error {
+      display: none;
+      background: rgba(248,113,113,0.15);
+      border: 1px solid rgba(248,113,113,0.35);
+      border-radius: var(--radius-sm);
+      color: #fca5a5;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+      text-align: center;
+    }
+    .auth-toggle {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .auth-toggle a {
+      color: var(--accent);
+      cursor: pointer;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .auth-toggle a:hover { text-decoration: underline; }
+
+    /* Google button wrapper */
+    .google-btn-wrap {
+      display: flex;
+      justify-content: center;
+      margin-top: 8px;
+    }
+    .google-btn-wrap iframe { border-radius: 12px !important; }
+
+    /* ── User bar (top of app) ── */
+    .user-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--glass);
+      backdrop-filter: var(--blur);
+      -webkit-backdrop-filter: var(--blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-sm);
+      padding: 10px 18px;
+      margin-bottom: 24px;
+    }
+    .user-bar-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent);
+    }
+    .user-bar-name span { color: var(--text-muted); font-weight: 400; margin-right: 4px; }
+    .btn-logout {
+      background: rgba(248,113,113,0.12);
+      border: 1px solid rgba(248,113,113,0.25);
+      border-radius: 8px;
+      color: #fca5a5;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: inherit;
+      padding: 5px 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-logout:hover { background: rgba(248,113,113,0.22); }
+
+    .guest-badge {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 20px;
+      background: rgba(251,191,36,0.12);
+      color: var(--yellow);
+      border: 1px solid rgba(251,191,36,0.25);
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+
     @media (max-width: 480px) {
       .context-row { grid-template-columns: 1fr; }
       .page { padding: 24px 16px 48px; }
       .header h1 { font-size: 24px; }
+      .auth-card { padding: 32px 24px; }
     }
   </style>
 </head>
@@ -376,7 +546,50 @@
   <div class="orb orb2"></div>
   <div class="orb orb3"></div>
 
-  <div class="page">
+  <!-- ── Auth screen ── -->
+  <div class="auth-screen" id="authScreen">
+    <div class="auth-card">
+      <span class="auth-icon">⚖️</span>
+      <div class="auth-title">Ethical AI</div>
+      <div class="auth-sub">AI-powered ethical reasoning &amp; risk detection</div>
+
+      <div class="auth-error" id="authError"></div>
+
+      <div style="margin:28px 0 8px;text-align:center;font-size:12px;color:var(--text-muted);letter-spacing:0.5px;">
+        SIGN IN TO CONTINUE
+      </div>
+
+      <div class="google-btn-wrap" id="googleBtnContainer"></div>
+
+      <div style="display:flex;align-items:center;gap:10px;margin-top:18px;">
+        <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+        <span style="font-size:11px;color:var(--text-muted);">OR</span>
+        <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+      </div>
+
+      <button id="btnGuest" class="btn" style="
+        margin-top:14px;
+        background:rgba(255,255,255,0.07);
+        border:1px solid rgba(255,255,255,0.15);
+        color:var(--text-muted);
+        font-size:14px;
+        letter-spacing:0.2px;
+      ">Continue as Guest</button>
+
+      <div style="margin-top:16px;text-align:center;font-size:11px;color:rgba(255,255,255,0.3);line-height:1.6;">
+        Your personal data is never stored.<br>Only anonymised usage metadata is logged.
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Main app (hidden until logged in) ── -->
+  <div class="page" id="mainApp" style="display:none;">
+
+    <!-- User bar -->
+    <div class="user-bar">
+      <div class="user-bar-name"><span>Signed in as</span><span id="displayUsername"></span></div>
+      <button class="btn-logout" id="btnLogout">Sign Out</button>
+    </div>
 
     <!-- Header -->
     <div class="header">
@@ -410,6 +623,20 @@
             <input type="text" id="ctx4_value" placeholder="Value">
           </div>
         </div>
+        <button type="button" id="btnAddCtx" style="
+          margin-top:10px;
+          background:rgba(167,139,250,0.1);
+          border:1px dashed rgba(167,139,250,0.35);
+          border-radius:var(--radius-sm);
+          color:var(--accent);
+          font-size:13px;
+          font-weight:600;
+          font-family:inherit;
+          padding:9px 16px;
+          cursor:pointer;
+          width:100%;
+          transition:background 0.2s,border-color 0.2s;
+        ">+ Add Field</button>
       </div>
     </div>
 
@@ -439,20 +666,35 @@
         <span class="provider-badge" id="providerBadge"></span>
       </div>
 
-      <!-- Frameworks (lazy fade-in) -->
+      <!-- Frameworks (lazy fade-in + accordion) -->
       <div class="framework-card" id="cardKantian">
-        <div class="framework-label"><span class="dot"></span>Kantian Ethics</div>
-        <p id="txtKantian"></p>
+        <div class="framework-header" onclick="toggleAccordion('cardKantian')">
+          <div class="framework-label"><span class="dot"></span>Kantian Ethics</div>
+          <span class="accordion-chevron">▼</span>
+        </div>
+        <div class="framework-body">
+          <p id="txtKantian"></p>
+        </div>
       </div>
 
       <div class="framework-card" id="cardUtilitarian">
-        <div class="framework-label" style="--accent:#818cf8;"><span class="dot" style="background:#818cf8;box-shadow:0 0 8px #818cf8;"></span>Utilitarianism</div>
-        <p id="txtUtilitarian"></p>
+        <div class="framework-header" onclick="toggleAccordion('cardUtilitarian')">
+          <div class="framework-label" style="--accent:#818cf8;"><span class="dot" style="background:#818cf8;box-shadow:0 0 8px #818cf8;"></span>Utilitarianism</div>
+          <span class="accordion-chevron">▼</span>
+        </div>
+        <div class="framework-body">
+          <p id="txtUtilitarian"></p>
+        </div>
       </div>
 
       <div class="framework-card" id="cardVirtue">
-        <div class="framework-label" style="--accent:#c084fc;"><span class="dot" style="background:#c084fc;box-shadow:0 0 8px #c084fc;"></span>Virtue Ethics</div>
-        <p id="txtVirtue"></p>
+        <div class="framework-header" onclick="toggleAccordion('cardVirtue')">
+          <div class="framework-label" style="--accent:#c084fc;"><span class="dot" style="background:#c084fc;box-shadow:0 0 8px #c084fc;"></span>Virtue Ethics</div>
+          <span class="accordion-chevron">▼</span>
+        </div>
+        <div class="framework-body">
+          <p id="txtVirtue"></p>
+        </div>
       </div>
 
       <!-- Risk flags -->
@@ -489,17 +731,192 @@
   </div>
 
   <script>
-    let lastDecision = '', lastContext = {}, lastAnalysis = {};
+    const API = 'http://localhost:8000';
+    // Replace with your actual Google Client ID after setup
+    const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID_HERE';
 
-    // Script is at bottom of body — DOM is already ready, attach directly
+    let lastDecision = '', lastContext = {}, lastAnalysis = {};
+    let sessionToken   = localStorage.getItem('token') || null;
+    let sessionName    = localStorage.getItem('userName') || null;
+    let sessionPic     = localStorage.getItem('userPic') || null;
+    let sessionIsGuest = localStorage.getItem('isGuest') === 'true';
+
+    // ── Auth helpers ────────────────────────────────────────────────────────
+
+    function authHeaders() {
+      return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionToken}` };
+    }
+
+    function showAuthScreen() {
+      document.getElementById('authScreen').style.display = 'flex';
+      document.getElementById('mainApp').style.display = 'none';
+    }
+
+    function showMainApp() {
+      document.getElementById('authScreen').style.display = 'none';
+      document.getElementById('mainApp').style.display = 'block';
+      const nameEl = document.getElementById('displayUsername');
+      nameEl.textContent = sessionName || 'User';
+      if (sessionIsGuest) {
+        nameEl.insertAdjacentHTML('afterend', '<span class="guest-badge">Guest</span>');
+      } else if (sessionPic) {
+        nameEl.insertAdjacentHTML('beforebegin',
+          `<img src="${sessionPic}" style="width:24px;height:24px;border-radius:50%;margin-right:8px;vertical-align:middle;">`
+        );
+      }
+    }
+
+    // On load: restore session (Google only — guests start fresh each visit)
+    (async () => {
+      if (sessionToken && !sessionIsGuest) {
+        try {
+          const res = await fetch(`${API}/me`, { headers: authHeaders() });
+          if (res.ok) { showMainApp(); return; }
+        } catch (_) {}
+        ['token','userName','userPic','isGuest'].forEach(k => localStorage.removeItem(k));
+        sessionToken = sessionName = sessionPic = null;
+        sessionIsGuest = false;
+      } else if (sessionIsGuest) {
+        // Clear stale guest session — guests don't persist across page loads
+        ['token','userName','userPic','isGuest'].forEach(k => localStorage.removeItem(k));
+        sessionToken = sessionName = sessionPic = null;
+        sessionIsGuest = false;
+      }
+      showAuthScreen();
+      initGoogleSignIn();
+    })();
+
+    // ── Google Sign-In ──────────────────────────────────────────────────────
+
+    function initGoogleSignIn() {
+      // Wait for GSI script to load
+      const interval = setInterval(() => {
+        if (!window.google) return;
+        clearInterval(interval);
+
+        google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleGoogleCredential,
+          auto_select: false,
+        });
+
+        google.accounts.id.renderButton(
+          document.getElementById('googleBtnContainer'),
+          {
+            theme: 'filled_black',
+            size: 'large',
+            shape: 'pill',
+            text: 'signin_with',
+            logo_alignment: 'center',
+            width: 280,
+          }
+        );
+      }, 100);
+    }
+
+    async function handleGoogleCredential(response) {
+      const errEl = document.getElementById('authError');
+      errEl.style.display = 'none';
+      try {
+        const res = await fetch(`${API}/auth/google`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ credential: response.credential }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          errEl.textContent = data.detail || 'Sign-in failed.';
+          errEl.style.display = 'block';
+          return;
+        }
+        sessionToken = data.token;
+        sessionName  = data.name;
+        sessionPic   = data.picture;
+        localStorage.setItem('token', sessionToken);
+        localStorage.setItem('userName', sessionName);
+        localStorage.setItem('userPic', sessionPic);
+        showMainApp();
+      } catch (e) {
+        errEl.textContent = 'Cannot connect to server.';
+        errEl.style.display = 'block';
+      }
+    }
+
+    // ── Guest sign-in ───────────────────────────────────────────────────────
+
+    document.getElementById('btnGuest').addEventListener('click', async () => {
+      const btn = document.getElementById('btnGuest');
+      btn.textContent = '…';
+      btn.disabled = true;
+      try {
+        const res  = await fetch(`${API}/auth/guest`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Guest sign-in failed');
+        sessionToken   = data.token;
+        sessionName    = 'Guest';
+        sessionPic     = '';
+        sessionIsGuest = true;
+        localStorage.setItem('token',   sessionToken);
+        localStorage.setItem('userName', sessionName);
+        localStorage.setItem('userPic',  '');
+        localStorage.setItem('isGuest',  'true');
+        showMainApp();
+      } catch (e) {
+        const errEl = document.getElementById('authError');
+        errEl.textContent = e.message;
+        errEl.style.display = 'block';
+      } finally {
+        btn.textContent = 'Continue as Guest';
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById('btnLogout').addEventListener('click', async () => {
+      await fetch(`${API}/logout`, { method: 'POST', headers: authHeaders() }).catch(() => {});
+      if (window.google) google.accounts.id.disableAutoSelect();
+      ['token','userName','userPic','isGuest'].forEach(k => localStorage.removeItem(k));
+      sessionToken = sessionName = sessionPic = null;
+      sessionIsGuest = false;
+      // Clean up user bar decorations
+      document.getElementById('displayUsername').textContent = '';
+      document.querySelector('.user-bar img')?.remove();
+      document.querySelector('.guest-badge')?.remove();
+      showAuthScreen();
+      initGoogleSignIn();
+    });
+
+    // ── App logic ───────────────────────────────────────────────────────────
+
+    function toggleAccordion(id) {
+      document.getElementById(id).classList.toggle('open');
+    }
+
+    let ctxCount = 4;
+    document.getElementById('btnAddCtx').addEventListener('click', () => {
+      ctxCount++;
+      const row = document.createElement('div');
+      row.className = 'context-row';
+      row.style.marginBottom = '8px';
+      row.style.marginTop = '8px';
+      row.innerHTML = `
+        <input type="text" id="ctx${ctxCount}_key" placeholder="Field name" style="color:var(--accent);font-weight:600;">
+        <input type="text" id="ctx${ctxCount}_value" placeholder="Value">
+      `;
+      document.getElementById('contextRows').appendChild(row);
+      row.querySelector('input').focus();
+    });
+
     document.getElementById('btnEvaluate').addEventListener('click', evaluate);
     document.getElementById('btnDownload').addEventListener('click', downloadReport);
 
     function buildContext() {
       const ctx = {};
-      for (let i = 1; i <= 4; i++) {
-        const k = document.getElementById(`ctx${i}_key`).value.trim();
-        const v = document.getElementById(`ctx${i}_value`).value.trim();
+      for (let i = 1; i <= ctxCount; i++) {
+        const kEl = document.getElementById(`ctx${i}_key`);
+        const vEl = document.getElementById(`ctx${i}_value`);
+        if (!kEl || !vEl) continue;
+        const k = kEl.value.trim();
+        const v = vEl.value.trim();
         if (k && v) ctx[k] = v;
       }
       return ctx;
@@ -534,9 +951,9 @@
       });
 
       try {
-        const res = await fetch('http://localhost:8000/evaluate-decision', {
+        const res = await fetch(`${API}/evaluate-decision`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders(),
           body: JSON.stringify({ decision, context })
         });
         if (!res.ok) throw new Error(`API error ${res.status}`);
@@ -556,6 +973,11 @@
     }
 
     function renderResults(data) {
+      // Collapse all framework accordions for fresh render
+      ['cardKantian','cardUtilitarian','cardVirtue'].forEach(id => {
+        document.getElementById(id).classList.remove('open');
+      });
+
       // Populate text
       document.getElementById('txtKantian').textContent    = data.kantian_analysis;
       document.getElementById('txtUtilitarian').textContent = data.utilitarian_analysis;
@@ -614,9 +1036,9 @@
       btn.textContent = '⏳  Generating PDF…';
       btn.disabled = true;
       try {
-        const res = await fetch('http://localhost:8000/generate-report', {
+        const res = await fetch(`${API}/generate-report`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders(),
           body: JSON.stringify({ decision: lastDecision, context: lastContext, analysis: lastAnalysis })
         });
         if (!res.ok) throw new Error('Report generation failed');
