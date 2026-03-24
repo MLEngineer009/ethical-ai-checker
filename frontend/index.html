@@ -1,487 +1,643 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ethical AI Decision Checker</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        
-        .container {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            max-width: 900px;
-            width: 100%;
-            padding: 40px;
-        }
-        
-        h1 {
-            color: #333;
-            margin-bottom: 10px;
-            font-size: 28px;
-        }
-        
-        .subtitle {
-            color: #666;
-            margin-bottom: 30px;
-            font-size: 14px;
-        }
-        
-        .form-section {
-            margin-bottom: 30px;
-        }
-        
-        .form-section h2 {
-            font-size: 16px;
-            color: #333;
-            margin-bottom: 15px;
-            border-bottom: 2px solid #667eea;
-            padding-bottom: 10px;
-        }
-        
-        .form-group {
-            margin-bottom: 15px;
-        }
-        
-        label {
-            display: block;
-            font-weight: 500;
-            color: #333;
-            margin-bottom: 6px;
-            font-size: 14px;
-        }
-        
-        input[type="text"],
-        input[type="number"],
-        textarea {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 14px;
-            font-family: inherit;
-        }
-        
-        textarea {
-            resize: vertical;
-            min-height: 80px;
-        }
-        
-        input:focus,
-        textarea:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-        
-        .context-fields {
-            background: #f9f9f9;
-            padding: 15px;
-            border-radius: 6px;
-            margin-top: 10px;
-        }
-        
-        .context-field {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 10px;
-        }
-        
-        .context-field:last-child {
-            margin-bottom: 0;
-        }
-        
-        button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 12px 30px;
-            border: none;
-            border-radius: 6px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
-        }
-        
-        button:active {
-            transform: translateY(0);
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ethical AI</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        .btn-download {
-            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
-            margin-top: 20px;
-            display: none;
-        }
+    :root {
+      --blur: blur(24px);
+      --glass: rgba(255,255,255,0.12);
+      --glass-border: rgba(255,255,255,0.22);
+      --glass-hover: rgba(255,255,255,0.18);
+      --accent: #a78bfa;
+      --accent2: #818cf8;
+      --green: #34d399;
+      --red: #f87171;
+      --yellow: #fbbf24;
+      --text: rgba(255,255,255,0.95);
+      --text-muted: rgba(255,255,255,0.55);
+      --radius: 20px;
+      --radius-sm: 12px;
+      --shadow: 0 8px 32px rgba(0,0,0,0.3);
+      --shadow-lg: 0 20px 60px rgba(0,0,0,0.4);
+    }
 
-        .btn-download:hover {
-            box-shadow: 0 10px 25px rgba(39, 174, 96, 0.4);
-        }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
 
-        .provider-badge {
-            display: inline-block;
-            font-size: 11px;
-            font-weight: 600;
-            padding: 3px 10px;
-            border-radius: 12px;
-            margin-left: 8px;
-            vertical-align: middle;
-            text-transform: uppercase;
-        }
+    /* Animated background orbs */
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.25;
+      pointer-events: none;
+      animation: drift 18s ease-in-out infinite alternate;
+    }
+    .orb1 { width: 500px; height: 500px; background: #7c3aed; top: -100px; left: -100px; animation-delay: 0s; }
+    .orb2 { width: 400px; height: 400px; background: #2563eb; bottom: -100px; right: -80px; animation-delay: -6s; }
+    .orb3 { width: 300px; height: 300px; background: #db2777; top: 40%; left: 60%; animation-delay: -12s; }
+    @keyframes drift {
+      from { transform: translate(0, 0) scale(1); }
+      to   { transform: translate(40px, 30px) scale(1.1); }
+    }
 
-        .provider-claude { background: #e8e0f5; color: #764ba2; }
-        .provider-openai { background: #e0f0e0; color: #27ae60; }
-        .provider-mock   { background: #f0f0f0; color: #999; }
-        
-        .loading {
-            display: none;
-            text-align: center;
-            margin: 20px 0;
-        }
-        
-        .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .results {
-            display: none;
-            margin-top: 40px;
-            padding-top: 30px;
-            border-top: 2px solid #eee;
-        }
-        
-        .results.show {
-            display: block;
-        }
-        
-        .analysis-section {
-            background: #f9f9f9;
-            padding: 20px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            border-left: 4px solid #667eea;
-        }
-        
-        .analysis-section h3 {
-            color: #333;
-            margin-bottom: 10px;
-            font-size: 16px;
-        }
-        
-        .analysis-section p {
-            color: #666;
-            line-height: 1.6;
-            font-size: 14px;
-        }
-        
-        .risk-flags {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin: 15px 0;
-        }
-        
-        .risk-flag {
-            background: #fee;
-            color: #c33;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-        
-        .confidence-score {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin: 15px 0;
-        }
-        
-        .confidence-bar {
-            flex: 1;
-            height: 8px;
-            background: #eee;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        
-        .confidence-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-            border-radius: 4px;
-        }
-        
-        .error {
-            background: #fee;
-            border: 1px solid #fcc;
-            color: #c33;
-            padding: 15px;
-            border-radius: 6px;
-            margin-top: 15px;
-            display: none;
-        }
-        
-        .error.show {
-            display: block;
-        }
-    </style>
+    .page {
+      position: relative;
+      z-index: 1;
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 40px 20px 60px;
+    }
+
+    /* ── Header ── */
+    .header {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+    .header .icon {
+      font-size: 48px;
+      display: block;
+      margin-bottom: 12px;
+      filter: drop-shadow(0 0 20px rgba(167,139,250,0.6));
+    }
+    .header h1 {
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #e0d7ff, #a78bfa, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .header p {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-top: 6px;
+      letter-spacing: 0.2px;
+    }
+
+    /* ── Glass card ── */
+    .card {
+      background: var(--glass);
+      backdrop-filter: var(--blur);
+      -webkit-backdrop-filter: var(--blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 28px;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 14px;
+    }
+
+    /* ── Form ── */
+    textarea, input[type="text"] {
+      width: 100%;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 15px;
+      font-family: inherit;
+      padding: 14px 16px;
+      outline: none;
+      transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+      -webkit-appearance: none;
+    }
+    textarea { resize: vertical; min-height: 90px; line-height: 1.5; }
+    textarea:focus, input[type="text"]:focus {
+      border-color: var(--accent);
+      background: rgba(167,139,250,0.1);
+      box-shadow: 0 0 0 3px rgba(167,139,250,0.2);
+    }
+    textarea::placeholder, input::placeholder { color: var(--text-muted); }
+
+    .context-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 4px;
+    }
+    .context-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 16px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.2px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      color: white;
+      box-shadow: 0 4px 20px rgba(124,58,237,0.45);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(124,58,237,0.55); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .btn-download {
+      background: linear-gradient(135deg, #059669, #10b981);
+      color: white;
+      box-shadow: 0 4px 20px rgba(16,185,129,0.35);
+      margin-top: 6px;
+    }
+    .btn-download:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(16,185,129,0.5); }
+    .btn-download:active { transform: translateY(0); }
+    .btn-download:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* ── Loading spinner ── */
+    .loading-wrap {
+      display: none;
+      text-align: center;
+      padding: 32px 0;
+    }
+    .spinner {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      border: 3px solid rgba(167,139,250,0.2);
+      border-top-color: var(--accent);
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 14px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-wrap p { font-size: 14px; color: var(--text-muted); }
+
+    /* ── Error ── */
+    .error-box {
+      display: none;
+      background: rgba(248,113,113,0.2);
+      border: 1px solid rgba(248,113,113,0.5);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      color: #ff9999;
+      font-size: 15px;
+      font-weight: 600;
+      margin-top: 12px;
+      text-align: center;
+    }
+
+    /* ── Results ── */
+    .results { display: none; }
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .result-header h2 {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .provider-badge {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+    .provider-claude { background: rgba(167,139,250,0.2); color: var(--accent); border: 1px solid rgba(167,139,250,0.3); }
+    .provider-openai { background: rgba(52,211,153,0.2); color: var(--green); border: 1px solid rgba(52,211,153,0.3); }
+    .provider-mock   { background: rgba(255,255,255,0.08); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.15); }
+
+    /* Framework cards with lazy-fade */
+    .framework-card {
+      background: var(--glass);
+      backdrop-filter: var(--blur);
+      -webkit-backdrop-filter: var(--blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      padding: 22px;
+      margin-bottom: 12px;
+      opacity: 0;
+      transform: translateY(14px);
+      transition: opacity 0.45s ease, transform 0.45s ease;
+    }
+    .framework-card.visible { opacity: 1 !important; transform: translateY(0) !important; }
+
+    .framework-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 10px;
+    }
+    .framework-label .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+    }
+    .framework-card p {
+      font-size: 14px;
+      line-height: 1.7;
+      color: rgba(255,255,255,0.8);
+    }
+
+    /* Risk flags */
+    .risk-section { opacity: 0; transform: translateY(14px); transition: opacity 0.45s ease, transform 0.45s ease; }
+    .risk-section.visible { opacity: 1 !important; transform: translateY(0) !important; }
+
+    .risk-wrap { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .risk-chip {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      padding: 5px 12px;
+      border-radius: 20px;
+      background: rgba(248,113,113,0.15);
+      color: #fca5a5;
+      border: 1px solid rgba(248,113,113,0.25);
+    }
+    .no-risk {
+      font-size: 14px;
+      color: var(--green);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    /* Confidence */
+    .confidence-section { opacity: 0; transform: translateY(14px); transition: opacity 0.45s ease, transform 0.45s ease; }
+    .confidence-section.visible { opacity: 1 !important; transform: translateY(0) !important; }
+
+    .confidence-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-top: 10px;
+    }
+    .confidence-value {
+      font-size: 28px;
+      font-weight: 700;
+      min-width: 60px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .confidence-bar-bg {
+      flex: 1;
+      height: 8px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .confidence-bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, #7c3aed, #818cf8);
+      width: 0%;
+      transition: width 1s cubic-bezier(0.4,0,0.2,1);
+      box-shadow: 0 0 12px rgba(129,140,248,0.6);
+    }
+
+    /* Recommendation */
+    .rec-section { opacity: 0; transform: translateY(14px); transition: opacity 0.45s ease, transform 0.45s ease; }
+    .rec-section.visible { opacity: 1 !important; transform: translateY(0) !important; }
+    .rec-text {
+      font-size: 14px;
+      line-height: 1.75;
+      color: rgba(255,255,255,0.85);
+      margin-top: 10px;
+      white-space: pre-line;
+    }
+
+    /* Download btn section */
+    .download-section { opacity: 0; transform: translateY(14px); transition: opacity 0.45s ease, transform 0.45s ease; }
+    .download-section.visible { opacity: 1 !important; transform: translateY(0) !important; }
+
+    /* Skeleton loader */
+    .skeleton {
+      background: linear-gradient(90deg, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.06) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 8px;
+      height: 14px;
+      margin-bottom: 8px;
+    }
+    .skeleton.wide { width: 100%; }
+    .skeleton.med  { width: 75%; }
+    .skeleton.short{ width: 45%; }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+
+    .skeleton-card {
+      background: var(--glass);
+      backdrop-filter: var(--blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      padding: 22px;
+      margin-bottom: 12px;
+    }
+
+    @media (max-width: 480px) {
+      .context-row { grid-template-columns: 1fr; }
+      .page { padding: 24px 16px 48px; }
+      .header h1 { font-size: 24px; }
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🤖 Ethical AI Decision Checker</h1>
-        <p class="subtitle">Evaluate decisions using ethical reasoning frameworks and detect risks</p>
-        
-        <form id="evaluationForm">
-            <div class="form-section">
-                <h2>Decision</h2>
-                <div class="form-group">
-                    <label for="decision">What decision are you evaluating?</label>
-                    <textarea id="decision" name="decision" placeholder="e.g., Reject job candidate" required></textarea>
-                </div>
-            </div>
-            
-            <div class="form-section">
-                <h2>Context</h2>
-                <div class="form-group">
-                    <label>Provide relevant context (at least one field required)</label>
-                    <div class="context-fields">
-                        <div class="context-field">
-                            <input type="text" id="ctx1_key" placeholder="Key (e.g., gender)" value="gender">
-                            <input type="text" id="ctx1_value" placeholder="Value (e.g., female)" value="">
-                        </div>
-                        <div class="context-field">
-                            <input type="text" id="ctx2_key" placeholder="Key (e.g., experience)" value="experience">
-                            <input type="text" id="ctx2_value" placeholder="Value (e.g., 5 years)" value="">
-                        </div>
-                        <div class="context-field">
-                            <input type="text" id="ctx3_key" placeholder="Key" value="">
-                            <input type="text" id="ctx3_value" placeholder="Value" value="">
-                        </div>
-                        <div class="context-field">
-                            <input type="text" id="ctx4_key" placeholder="Key" value="">
-                            <input type="text" id="ctx4_value" placeholder="Value" value="">
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <button type="submit">Evaluate Decision</button>
-        </form>
-        
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <p style="margin-top: 10px; color: #666;">Analyzing decision...</p>
-        </div>
-        
-        <div class="error" id="error"></div>
-        
-        <div class="results" id="results">
-            <h2>Analysis Results <span id="providerBadge" class="provider-badge"></span></h2>
-            
-            <div class="analysis-section">
-                <h3>📖 Kantian Ethics</h3>
-                <p id="kantian"></p>
-            </div>
-            
-            <div class="analysis-section">
-                <h3>⚖️ Utilitarianism</h3>
-                <p id="utilitarian"></p>
-            </div>
-            
-            <div class="analysis-section">
-                <h3>🎯 Virtue Ethics</h3>
-                <p id="virtue"></p>
-            </div>
-            
-            <div class="analysis-section">
-                <h3>⚠️ Risk Detection</h3>
-                <div id="riskContainer">
-                    <div class="risk-flags" id="riskFlags"></div>
-                </div>
-            </div>
-            
-            <div class="analysis-section">
-                <h3>Confidence Score</h3>
-                <div class="confidence-score">
-                    <span id="confidenceValue">--</span>
-                    <div class="confidence-bar">
-                        <div class="confidence-fill" id="confidenceFill" style="width: 0%;"></div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="analysis-section">
-                <h3>💡 Recommendation</h3>
-                <p id="recommendation"></p>
-            </div>
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+  <div class="orb orb3"></div>
 
-            <button class="btn-download" id="btnDownload" onclick="downloadReport()">
-                ⬇️ Download PDF Report
-            </button>
-        </div>
+  <div class="page">
+
+    <!-- Header -->
+    <div class="header">
+      <span class="icon">⚖️</span>
+      <h1>Ethical AI</h1>
+      <p>AI-powered ethical reasoning &amp; risk detection</p>
     </div>
-    
-    <script>
-        const form = document.getElementById('evaluationForm');
-        const loading = document.getElementById('loading');
-        const results = document.getElementById('results');
-        const error = document.getElementById('error');
 
-        // Store last result for PDF download
-        let lastDecision = '';
-        let lastContext = {};
-        let lastAnalysis = {};
+    <!-- Input card -->
+    <div class="card">
+      <div class="card-title">Decision</div>
+      <textarea id="decision" placeholder="Describe the decision being evaluated…" rows="3"></textarea>
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
+      <div style="margin-top: 20px;">
+        <div class="card-title">Context  <span style="font-weight:400;font-size:10px;color:var(--text-muted);letter-spacing:0;">— fill in at least one value</span></div>
+        <div id="contextRows">
+          <div class="context-row" style="margin-bottom:8px;">
+            <input type="text" id="ctx1_key"   value="gender"     placeholder="Field name" style="color:var(--accent);font-weight:600;">
+            <input type="text" id="ctx1_value" placeholder="e.g. female">
+          </div>
+          <div class="context-row" style="margin-bottom:8px;">
+            <input type="text" id="ctx2_key"   value="experience" placeholder="Field name" style="color:var(--accent);font-weight:600;">
+            <input type="text" id="ctx2_value" placeholder="e.g. 5 years">
+          </div>
+          <div class="context-row" style="margin-bottom:8px;">
+            <input type="text" id="ctx3_key"   placeholder="Field name" style="color:var(--accent);font-weight:600;">
+            <input type="text" id="ctx3_value" placeholder="Value">
+          </div>
+          <div class="context-row">
+            <input type="text" id="ctx4_key"   placeholder="Field name" style="color:var(--accent);font-weight:600;">
+            <input type="text" id="ctx4_value" placeholder="Value">
+          </div>
+        </div>
+      </div>
+    </div>
 
-            const context = {};
-            for (let i = 1; i <= 4; i++) {
-                const key = document.getElementById(`ctx${i}_key`).value.trim();
-                const value = document.getElementById(`ctx${i}_value`).value.trim();
-                if (key && value) context[key] = value;
-            }
+    <button class="btn btn-primary" id="btnEvaluate">
+      Evaluate Decision
+    </button>
 
-            const decision = document.getElementById('decision').value.trim();
+    <!-- Error -->
+    <div class="error-box" id="errorBox"></div>
 
-            if (!decision) { showError('Please enter a decision'); return; }
-            if (Object.keys(context).length === 0) { showError('Please provide at least one context field'); return; }
+    <!-- Loading skeletons -->
+    <div class="loading-wrap" id="loadingWrap">
+      <div class="spinner"></div>
+      <p>Analysing through ethical frameworks…</p>
+      <div style="margin-top:20px;">
+        <div class="skeleton-card"><div class="skeleton wide"></div><div class="skeleton med"></div><div class="skeleton short"></div></div>
+        <div class="skeleton-card"><div class="skeleton wide"></div><div class="skeleton med"></div><div class="skeleton short"></div></div>
+        <div class="skeleton-card"><div class="skeleton wide"></div><div class="skeleton med"></div></div>
+      </div>
+    </div>
 
-            try {
-                loading.style.display = 'block';
-                error.classList.remove('show');
-                results.classList.remove('show');
-                document.getElementById('btnDownload').style.display = 'none';
+    <!-- Results -->
+    <div class="results" id="resultsSection">
 
-                const response = await fetch('http://localhost:8000/evaluate-decision', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ decision, context })
-                });
+      <div class="result-header" style="margin-bottom:16px;">
+        <h2>Analysis</h2>
+        <span class="provider-badge" id="providerBadge"></span>
+      </div>
 
-                if (!response.ok) throw new Error(`API error: ${response.status}`);
+      <!-- Frameworks (lazy fade-in) -->
+      <div class="framework-card" id="cardKantian">
+        <div class="framework-label"><span class="dot"></span>Kantian Ethics</div>
+        <p id="txtKantian"></p>
+      </div>
 
-                const data = await response.json();
+      <div class="framework-card" id="cardUtilitarian">
+        <div class="framework-label" style="--accent:#818cf8;"><span class="dot" style="background:#818cf8;box-shadow:0 0 8px #818cf8;"></span>Utilitarianism</div>
+        <p id="txtUtilitarian"></p>
+      </div>
 
-                // Store for PDF
-                lastDecision = decision;
-                lastContext = context;
-                lastAnalysis = data;
+      <div class="framework-card" id="cardVirtue">
+        <div class="framework-label" style="--accent:#c084fc;"><span class="dot" style="background:#c084fc;box-shadow:0 0 8px #c084fc;"></span>Virtue Ethics</div>
+        <p id="txtVirtue"></p>
+      </div>
 
-                displayResults(data);
+      <!-- Risk flags -->
+      <div class="card risk-section" id="riskSection">
+        <div class="card-title">⚠️ Risk Detection</div>
+        <div class="risk-wrap" id="riskWrap"></div>
+      </div>
 
-            } catch (err) {
-                showError(err.message);
-            } finally {
-                loading.style.display = 'none';
-            }
+      <!-- Confidence -->
+      <div class="card confidence-section" id="confSection">
+        <div class="card-title">Confidence Score</div>
+        <div class="confidence-row">
+          <div class="confidence-value" id="confValue">—</div>
+          <div class="confidence-bar-bg">
+            <div class="confidence-bar-fill" id="confBar"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recommendation -->
+      <div class="card rec-section" id="recSection">
+        <div class="card-title">💡 Recommendation</div>
+        <div class="rec-text" id="txtRec"></div>
+      </div>
+
+      <!-- Download -->
+      <div class="download-section" id="dlSection">
+        <button class="btn btn-download" id="btnDownload">
+          ⬇&nbsp; Download PDF Report
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    let lastDecision = '', lastContext = {}, lastAnalysis = {};
+
+    // Script is at bottom of body — DOM is already ready, attach directly
+    document.getElementById('btnEvaluate').addEventListener('click', evaluate);
+    document.getElementById('btnDownload').addEventListener('click', downloadReport);
+
+    function buildContext() {
+      const ctx = {};
+      for (let i = 1; i <= 4; i++) {
+        const k = document.getElementById(`ctx${i}_key`).value.trim();
+        const v = document.getElementById(`ctx${i}_value`).value.trim();
+        if (k && v) ctx[k] = v;
+      }
+      return ctx;
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('errorBox');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    function clearError() {
+      document.getElementById('errorBox').style.display = 'none';
+    }
+
+    async function evaluate() {
+      clearError();
+      const decision = document.getElementById('decision').value.trim();
+      const context  = buildContext();
+
+      if (!decision)                    return showError('Please enter a decision.');
+      if (!Object.keys(context).length) return showError('Please provide at least one context field.');
+
+      // Hide results, show loading
+      document.getElementById('resultsSection').style.display = 'none';
+      document.getElementById('loadingWrap').style.display = 'block';
+      document.getElementById('btnEvaluate').disabled = true;
+
+      // Reset card visibility for re-animation
+      ['cardKantian','cardUtilitarian','cardVirtue','riskSection','confSection','recSection','dlSection'].forEach(id => {
+        document.getElementById(id).classList.remove('visible');
+      });
+
+      try {
+        const res = await fetch('http://localhost:8000/evaluate-decision', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ decision, context })
         });
+        if (!res.ok) throw new Error(`API error ${res.status}`);
+        const data = await res.json();
 
-        function displayResults(data) {
-            document.getElementById('kantian').textContent = data.kantian_analysis;
-            document.getElementById('utilitarian').textContent = data.utilitarian_analysis;
-            document.getElementById('virtue').textContent = data.virtue_ethics_analysis;
-            document.getElementById('recommendation').textContent = data.recommendation;
+        lastDecision = decision;
+        lastContext  = context;
+        lastAnalysis = data;
 
-            // Provider badge
-            const badge = document.getElementById('providerBadge');
-            const provider = data.provider || 'unknown';
-            badge.textContent = provider;
-            badge.className = `provider-badge provider-${provider}`;
+        renderResults(data);
+      } catch (e) {
+        showError(e.message);
+      } finally {
+        document.getElementById('loadingWrap').style.display = 'none';
+        document.getElementById('btnEvaluate').disabled = false;
+      }
+    }
 
-            // Risk flags
-            const riskContainer = document.getElementById('riskFlags');
-            riskContainer.innerHTML = '';
-            if (data.risk_flags.length > 0) {
-                data.risk_flags.forEach(flag => {
-                    const span = document.createElement('span');
-                    span.className = 'risk-flag';
-                    span.textContent = flag;
-                    riskContainer.appendChild(span);
-                });
-            } else {
-                riskContainer.innerHTML = '<p style="color: #999; font-size: 14px;">No significant risks detected</p>';
-            }
+    function renderResults(data) {
+      // Populate text
+      document.getElementById('txtKantian').textContent    = data.kantian_analysis;
+      document.getElementById('txtUtilitarian').textContent = data.utilitarian_analysis;
+      document.getElementById('txtVirtue').textContent      = data.virtue_ethics_analysis;
+      document.getElementById('txtRec').textContent         = data.recommendation;
 
-            // Confidence score
-            const score = data.confidence_score;
-            document.getElementById('confidenceValue').textContent = `${(score * 100).toFixed(0)}%`;
-            document.getElementById('confidenceFill').style.width = `${score * 100}%`;
+      // Provider badge
+      const prov = data.provider || 'unknown';
+      const badge = document.getElementById('providerBadge');
+      badge.textContent = prov;
+      badge.className = `provider-badge provider-${prov}`;
 
-            results.classList.add('show');
-            document.getElementById('btnDownload').style.display = 'inline-block';
-        }
+      // Risk flags
+      const wrap = document.getElementById('riskWrap');
+      wrap.innerHTML = '';
+      if (data.risk_flags && data.risk_flags.length) {
+        data.risk_flags.forEach(f => {
+          const chip = document.createElement('span');
+          chip.className = 'risk-chip';
+          chip.textContent = f.replace(/_/g, ' ');
+          wrap.appendChild(chip);
+        });
+      } else {
+        wrap.innerHTML = '<div class="no-risk">✅ No significant risks detected</div>';
+      }
 
-        async function downloadReport() {
-            const btn = document.getElementById('btnDownload');
-            btn.textContent = '⏳ Generating PDF...';
-            btn.disabled = true;
+      // Show results container
+      const resultsEl = document.getElementById('resultsSection');
+      resultsEl.style.display = 'block';
 
-            try {
-                const response = await fetch('http://localhost:8000/generate-report', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        decision: lastDecision,
-                        context: lastContext,
-                        analysis: lastAnalysis
-                    })
-                });
+      // Use requestAnimationFrame to ensure DOM is painted before animating
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const order = ['cardKantian','cardUtilitarian','cardVirtue','riskSection','confSection','recSection','dlSection'];
+          order.forEach((id, i) => {
+            setTimeout(() => document.getElementById(id).classList.add('visible'), i * 100);
+          });
 
-                if (!response.ok) throw new Error('Report generation failed');
+          // Confidence bar
+          const score = data.confidence_score || 0;
+          document.getElementById('confValue').textContent = `${Math.round(score * 100)}%`;
+          setTimeout(() => {
+            document.getElementById('confBar').style.width = `${score * 100}%`;
+          }, 400);
+        });
+      });
 
-                const blob = await response.blob();
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'ethical-analysis-report.pdf';
-                a.click();
-                URL.revokeObjectURL(url);
+      // Scroll to results
+      setTimeout(() => {
+        resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 80);
+    }
 
-            } catch (err) {
-                showError('Could not generate PDF: ' + err.message);
-            } finally {
-                btn.textContent = '⬇️ Download PDF Report';
-                btn.disabled = false;
-            }
-        }
+    async function downloadReport() {
+      const btn = document.getElementById('btnDownload');
+      btn.textContent = '⏳  Generating PDF…';
+      btn.disabled = true;
+      try {
+        const res = await fetch('http://localhost:8000/generate-report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ decision: lastDecision, context: lastContext, analysis: lastAnalysis })
+        });
+        if (!res.ok) throw new Error('Report generation failed');
+        const blob = await res.blob();
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = 'ethical-analysis-report.pdf';
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        showError('Could not generate PDF: ' + e.message);
+      } finally {
+        btn.textContent = '⬇\u00A0 Download PDF Report';
+        btn.disabled = false;
+      }
+    }
 
-        function showError(message) {
-            error.textContent = message;
-            error.classList.add('show');
-        }
-    </script>
+    document.addEventListener('keydown', e => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') evaluate();
+    });
+  </script>
 </body>
 </html>

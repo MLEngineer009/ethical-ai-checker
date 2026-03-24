@@ -11,6 +11,7 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 from pydantic import BaseModel
 import uvicorn
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 
 from .llm_orchestrator import LLMOrchestrator
@@ -22,6 +23,13 @@ app = FastAPI(
     title="Ethical AI Decision Checker",
     description="API for evaluating decisions using ethical reasoning frameworks",
     version="1.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 orchestrator = LLMOrchestrator()
