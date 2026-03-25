@@ -1,117 +1,195 @@
-"""Integration tests for ethical decision evaluation API."""
+"""Integration tests for FastAPI endpoints — LLM calls are mocked."""
 
 import pytest
+from unittest.mock import patch
 from fastapi.testclient import TestClient
-import sys
-import os
-from pathlib import Path
 
-# Add project root to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
+from backend import auth
 from backend.main import app
 
-client = TestClient(app)
+
+@pytest.fixture()
+def client():
+    with TestClient(app, raise_server_exceptions=False) as c:
+        yield c
 
 
-def test_health_check():
-    """Test health check endpoint."""
-    response = client.get("/health-check")
-    assert response.status_code == 200
-    assert response.json()["status"] == "healthy"
+@pytest.fixture()
+def guest_headers():
+    token, _ = auth.create_guest_session()
+    headers = {"Authorization": f"Bearer {token}"}
+    yield headers
+    auth.logout(token)
 
 
-def test_evaluate_decision_hiring_bias():
-    """Test detection of hiring bias based on gender."""
-    response = client.post("/evaluate-decision", json={
-        "decision": "Reject job candidate",
-        "context": {
-            "experience": 5,
-            "education": "non-elite",
-            "gender": "female"
-        }
-    })
-    
-    assert response.status_code == 200
-    data = response.json()
-    
-    assert "kantian_analysis" in data
-    assert "utilitarian_analysis" in data
-    assert "virtue_ethics_analysis" in data
-    assert isinstance(data["risk_flags"], list)
-    assert "bias" in data["risk_flags"]
-    assert 0 <= data["confidence_score"] <= 1
-    assert "recommendation" in data
+MOCK_ANALYSIS = {
+    "kantian_analysis": "K analysis",
+    "utilitarian_analysis": "U analysis",
+    "virtue_ethics_analysis": "V analysis",
+    "risk_flags": ["bias"],
+    "confidence_score": 0.8,
+    "recommendation": "Proceed with caution",
+    "provider": "mock",
+}
+
+DECISION_PAYLOAD = {
+    "decision": "Reject job candidate",
+    "context": {"gender": "female", "experience": 5},
+}
 
 
-def test_evaluate_decision_loan_discrimination():
-    """Test detection of loan discrimination based on zip code."""
-    response = client.post("/evaluate-decision", json={
-        "decision": "Reject loan application",
-        "context": {
-            "credit_score": 720,
-            "income": 75000,
-            "zip_code": "90210"
-        }
-    })
-    
-    assert response.status_code == 200
-    data = response.json()
-    
-    assert "bias" in data["risk_flags"]
-    assert len(data["risk_flags"]) > 0
+class TestHealthCheck:
+    def test_returns_200(self, client):
+        assert client.get("/health-check").status_code == 200
+
+    def test_status_is_healthy(self, client):
+        assert client.get("/health-check").json()["status"] == "healthy"
+
+    def test_providers_key_present(self, client):
+        assert "providers" in client.get("/health-check").json()
+
+    def test_root_endpoint(self, client):
+        assert client.get("/").status_code in (200,)
 
 
-def test_evaluate_decision_missing_decision():
-    """Test error handling for missing decision."""
-    response = client.post("/evaluate-decision", json={
-        "decision": "",
-        "context": {"experience": 5}
-    })
-    
-    assert response.status_code == 400
+class TestGuestAuth:
+    def test_returns_200(self, client):
+        assert client.post("/auth/guest").status_code == 200
+
+    def test_returns_token(self, client):
+        assert "token" in client.post("/auth/guest").json()
+
+    def test_returns_guest_name(self, client):
+        assert client.post("/auth/guest").json()["name"] == "Guest"
+
+    def test_is_guest_true(self, client):
+        assert client.post("/auth/guest").json()["is_guest"] is True
+
+    def test_tokens_differ_across_calls(self, client):
+        t1 = client.post("/auth/guest").json()["token"]
+        t2 = client.post("/auth/guest").json()["token"]
+        assert t1 != t2
 
 
-def test_evaluate_decision_missing_context():
-    """Test error handling for missing context."""
-    response = client.post("/evaluate-decision", json={
-        "decision": "Reject candidate",
-        "context": {}
-    })
-    
-    assert response.status_code == 400
+class TestGoogleAuth:
+    def test_invalid_credential_returns_401(self, client):
+        assert client.post("/auth/google", json={"credential": "bad-token"}).status_code == 401
+
+    def test_valid_credential_returns_token(self, client):
+        mock_info = {"sub": "g-123", "name": "Alice", "picture": "https://pic.com/a.jpg"}
+        with patch("backend.auth.verify_google_token", return_value=mock_info):
+            r = client.post("/auth/google", json={"credential": "valid-token"})
+        assert r.status_code == 200
+        assert r.json()["name"] == "Alice"
 
 
-def test_response_schema():
-    """Test that response conforms to schema."""
-    response = client.post("/evaluate-decision", json={
-        "decision": "Approve promotion",
-        "context": {
-            "performance": "excellent",
-            "years_employed": 3
-        }
-    })
-    
-    assert response.status_code == 200
-    data = response.json()
-    
-    # Verify all required fields exist
-    required_fields = [
-        "kantian_analysis",
-        "utilitarian_analysis", 
-        "virtue_ethics_analysis",
-        "risk_flags",
-        "confidence_score",
-        "recommendation"
-    ]
-    
-    for field in required_fields:
-        assert field in data
-    
-    # Verify types
-    assert isinstance(data["kantian_analysis"], str)
-    assert isinstance(data["utilitarian_analysis"], str)
-    assert isinstance(data["virtue_ethics_analysis"], str)
-    assert isinstance(data["risk_flags"], list)
-    assert isinstance(data["confidence_score"], (int, float))
-    assert isinstance(data["recommendation"], str)
+class TestLogout:
+    def test_with_valid_token(self, client, guest_headers):
+        r = client.post("/logout", headers=guest_headers)
+        assert r.status_code == 200
+        assert r.json()["ok"] is True
+
+    def test_without_token(self, client):
+        assert client.post("/logout").status_code == 200
+
+
+class TestMe:
+    def test_unauthenticated_returns_401(self, client):
+        assert client.get("/me").status_code == 401
+
+    def test_authenticated_returns_guest_name(self, client, guest_headers):
+        r = client.get("/me", headers=guest_headers)
+        assert r.status_code == 200
+        assert r.json()["name"] == "Guest"
+
+    def test_invalid_token_returns_401(self, client):
+        r = client.get("/me", headers={"Authorization": "Bearer not-real"})
+        assert r.status_code == 401
+
+
+class TestMyStats:
+    def test_unauthenticated_returns_401(self, client):
+        assert client.get("/my-stats").status_code == 401
+
+    def test_authenticated_returns_stats(self, client, guest_headers):
+        r = client.get("/my-stats", headers=guest_headers)
+        assert r.status_code == 200
+        assert "total_requests" in r.json()
+
+    def test_fresh_user_has_zero_requests(self, client, guest_headers):
+        assert client.get("/my-stats", headers=guest_headers).json()["total_requests"] == 0
+
+
+class TestEvaluateDecision:
+    def test_unauthenticated_returns_401(self, client):
+        assert client.post("/evaluate-decision", json=DECISION_PAYLOAD).status_code == 401
+
+    def test_empty_decision_returns_400(self, client, guest_headers):
+        r = client.post("/evaluate-decision",
+                        json={"decision": "", "context": {"x": 1}},
+                        headers=guest_headers)
+        assert r.status_code == 400
+
+    def test_whitespace_decision_returns_400(self, client, guest_headers):
+        r = client.post("/evaluate-decision",
+                        json={"decision": "   ", "context": {"x": 1}},
+                        headers=guest_headers)
+        assert r.status_code == 400
+
+    def test_empty_context_returns_400(self, client, guest_headers):
+        r = client.post("/evaluate-decision",
+                        json={"decision": "Reject", "context": {}},
+                        headers=guest_headers)
+        assert r.status_code == 400
+
+    def test_valid_request_returns_200(self, client, guest_headers):
+        with patch("backend.main.orchestrator.evaluate", return_value=MOCK_ANALYSIS):
+            r = client.post("/evaluate-decision", json=DECISION_PAYLOAD, headers=guest_headers)
+        assert r.status_code == 200
+
+    def test_response_has_all_fields(self, client, guest_headers):
+        with patch("backend.main.orchestrator.evaluate", return_value=MOCK_ANALYSIS):
+            data = client.post("/evaluate-decision", json=DECISION_PAYLOAD, headers=guest_headers).json()
+        for key in ("kantian_analysis", "utilitarian_analysis", "virtue_ethics_analysis",
+                    "risk_flags", "confidence_score", "recommendation", "provider"):
+            assert key in data
+
+    def test_heuristic_bias_flag_merged(self, client, guest_headers):
+        no_flags = {**MOCK_ANALYSIS, "risk_flags": []}
+        with patch("backend.main.orchestrator.evaluate", return_value=no_flags):
+            data = client.post("/evaluate-decision", json=DECISION_PAYLOAD, headers=guest_headers).json()
+        assert "bias" in data["risk_flags"]
+
+    def test_confidence_in_range(self, client, guest_headers):
+        with patch("backend.main.orchestrator.evaluate", return_value=MOCK_ANALYSIS):
+            score = client.post("/evaluate-decision", json=DECISION_PAYLOAD, headers=guest_headers).json()["confidence_score"]
+        assert 0 <= score <= 1
+
+    def test_out_of_range_confidence_defaults_to_half(self, client, guest_headers):
+        bad = {**MOCK_ANALYSIS, "confidence_score": 99}
+        with patch("backend.main.orchestrator.evaluate", return_value=bad):
+            score = client.post("/evaluate-decision", json=DECISION_PAYLOAD, headers=guest_headers).json()["confidence_score"]
+        assert score == 0.5
+
+
+class TestGenerateReport:
+    PAYLOAD = {"decision": "Reject", "context": {"gender": "female"}, "analysis": MOCK_ANALYSIS}
+
+    def test_unauthenticated_returns_401(self, client):
+        assert client.post("/generate-report", json=self.PAYLOAD).status_code == 401
+
+    def test_returns_pdf(self, client, guest_headers):
+        with patch("backend.main.generate_pdf", return_value=b"%PDF-fake"):
+            r = client.post("/generate-report", json=self.PAYLOAD, headers=guest_headers)
+        assert r.status_code == 200
+        assert r.headers["content-type"] == "application/pdf"
+
+    def test_content_disposition(self, client, guest_headers):
+        with patch("backend.main.generate_pdf", return_value=b"%PDF-fake"):
+            r = client.post("/generate-report", json=self.PAYLOAD, headers=guest_headers)
+        assert "attachment" in r.headers.get("content-disposition", "")
+
+    def test_generation_error_returns_500(self, client, guest_headers):
+        with patch("backend.main.generate_pdf", side_effect=RuntimeError("fail")):
+            r = client.post("/generate-report", json=self.PAYLOAD, headers=guest_headers)
+        assert r.status_code == 500

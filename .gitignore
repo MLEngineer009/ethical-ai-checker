@@ -10,3 +10,5 @@ data/
 mobile/node_modules/
 mobile/.expo/
 ios/**/*.xcuserstate
+.coverage
+docs/coverage/
