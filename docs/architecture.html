@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ethical AI Decision Checker — Architecture</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: rgba(255,255,255,0.04);
+    --border: rgba(255,255,255,0.08);
+    --accent: #7c6fe0;
+    --accent2: #4ecdc4;
+    --accent3: #f7931e;
+    --text: #e8e8f0;
+    --muted: #888;
+    --green: #4ade80;
+    --red: #f87171;
+    --yellow: #fbbf24;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* NAV */
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(10,10,15,0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 40px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .nav-logo { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }
+  .nav-logo span { color: var(--accent); }
+  .nav-links { display: flex; gap: 28px; }
+  .nav-links a { color: var(--muted); text-decoration: none; font-size: 14px; transition: color .2s; }
+  .nav-links a:hover { color: var(--text); }
+
+  /* HERO */
+  .hero {
+    text-align: center;
+    padding: 80px 40px 60px;
+    background: radial-gradient(ellipse 800px 400px at 50% 0%, rgba(124,111,224,0.12) 0%, transparent 70%);
+  }
+  .hero-badge {
+    display: inline-block;
+    background: rgba(124,111,224,0.15);
+    border: 1px solid rgba(124,111,224,0.3);
+    color: var(--accent);
+    font-size: 12px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+    padding: 5px 14px; border-radius: 20px; margin-bottom: 24px;
+  }
+  .hero h1 {
+    font-size: clamp(32px, 5vw, 56px);
+    font-weight: 800;
+    letter-spacing: -1.5px;
+    background: linear-gradient(135deg, #fff 30%, var(--accent) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 16px;
+  }
+  .hero p { color: var(--muted); font-size: 18px; max-width: 540px; margin: 0 auto; }
+
+  /* LAYOUT */
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 40px; }
+  section { padding: 60px 0; border-top: 1px solid var(--border); }
+  h2 {
+    font-size: 26px; font-weight: 700; letter-spacing: -0.5px;
+    margin-bottom: 8px;
+  }
+  .section-sub { color: var(--muted); font-size: 15px; margin-bottom: 36px; }
+
+  /* CARDS */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+  }
+  .card-grid { display: grid; gap: 16px; }
+  .card-grid.cols-3 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .card-grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); }
+  .card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .card p { color: var(--muted); font-size: 14px; }
+  .card ul { color: var(--muted); font-size: 14px; padding-left: 18px; }
+  .card ul li { margin-bottom: 4px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot.purple { background: var(--accent); }
+  .dot.teal   { background: var(--accent2); }
+  .dot.orange { background: var(--accent3); }
+  .dot.green  { background: var(--green); }
+
+  /* ARCHITECTURE DIAGRAM */
+  .arch-diagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 40px;
+    overflow-x: auto;
+  }
+  .arch-row {
+    display: flex; align-items: center; justify-content: center;
+    gap: 20px; flex-wrap: wrap;
+  }
+  .arch-row + .arch-row { margin-top: 20px; }
+  .arch-box {
+    border-radius: 12px;
+    padding: 14px 20px;
+    text-align: center;
+    min-width: 140px;
+    font-size: 13px; font-weight: 600;
+    border: 1px solid transparent;
+  }
+  .arch-box.client-web   { background: rgba(124,111,224,0.15); border-color: rgba(124,111,224,0.4); color: #a89fe8; }
+  .arch-box.client-mob   { background: rgba(78,205,196,0.12); border-color: rgba(78,205,196,0.4); color: #6dd9d2; }
+  .arch-box.backend      { background: rgba(247,147,30,0.12); border-color: rgba(247,147,30,0.4); color: #f7b75e; }
+  .arch-box.llm          { background: rgba(74,222,128,0.1); border-color: rgba(74,222,128,0.35); color: #6ee7b7; }
+  .arch-box.db           { background: rgba(248,113,113,0.1); border-color: rgba(248,113,113,0.35); color: #fca5a5; }
+  .arch-box.auth         { background: rgba(251,191,36,0.1); border-color: rgba(251,191,36,0.35); color: #fde68a; }
+  .arch-box small { display: block; font-weight: 400; opacity: 0.7; font-size: 11px; margin-top: 3px; }
+  .arch-arrow {
+    font-size: 22px; color: var(--muted);
+    display: flex; align-items: center;
+  }
+  .arch-label {
+    font-size: 11px; color: var(--muted); text-align: center;
+    letter-spacing: 0.5px; margin: 8px 0;
+  }
+  .arch-divider {
+    width: 100%; height: 1px; background: var(--border);
+    margin: 20px 0; position: relative;
+  }
+  .arch-divider span {
+    position: absolute; left: 50%; transform: translateX(-50%) translateY(-50%);
+    background: var(--bg); padding: 0 12px;
+    font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase;
+  }
+
+  /* API ENDPOINTS TABLE */
+  table {
+    width: 100%; border-collapse: collapse; font-size: 13px;
+  }
+  th {
+    text-align: left; padding: 10px 14px;
+    color: var(--muted); font-weight: 600; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border);
+  }
+  td { padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .method {
+    display: inline-block; padding: 2px 8px; border-radius: 5px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+  }
+  .method.post { background: rgba(124,111,224,0.2); color: var(--accent); }
+  .method.get  { background: rgba(74,222,128,0.15); color: var(--green); }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 5px;
+    font-size: 11px; font-weight: 600;
+  }
+  .badge.auth { background: rgba(251,191,36,0.15); color: var(--yellow); }
+  .badge.pub  { background: rgba(255,255,255,0.08); color: var(--muted); }
+  code {
+    background: rgba(255,255,255,0.07); border-radius: 5px;
+    padding: 2px 6px; font-family: 'SF Mono', 'Menlo', monospace; font-size: 12px;
+  }
+
+  /* FLOW STEPS */
+  .flow { display: flex; flex-direction: column; gap: 0; }
+  .flow-step {
+    display: flex; gap: 20px; align-items: flex-start;
+  }
+  .flow-step + .flow-step { margin-top: 0; }
+  .flow-left { display: flex; flex-direction: column; align-items: center; }
+  .flow-num {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: rgba(124,111,224,0.2); border: 1px solid rgba(124,111,224,0.4);
+    color: var(--accent); font-size: 13px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .flow-line {
+    width: 1px; flex: 1; min-height: 24px;
+    background: linear-gradient(to bottom, rgba(124,111,224,0.3), transparent);
+    margin: 4px 0;
+  }
+  .flow-content { padding-bottom: 28px; }
+  .flow-content h4 { font-size: 14px; font-weight: 700; margin-bottom: 4px; line-height: 32px; }
+  .flow-content p { color: var(--muted); font-size: 13px; }
+
+  /* DEPLOY STEPS */
+  .deploy-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+  .deploy-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 24px;
+  }
+  .deploy-num {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: rgba(124,111,224,0.2); border: 1px solid rgba(124,111,224,0.3);
+    color: var(--accent); font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 14px;
+  }
+  .deploy-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+  .deploy-card p { color: var(--muted); font-size: 13px; margin-bottom: 10px; }
+  .deploy-card code { display: block; margin-top: 8px; padding: 8px 12px; line-height: 1.8; }
+  .platform-tag {
+    display: inline-block; padding: 3px 10px; border-radius: 20px;
+    font-size: 11px; font-weight: 600; margin-bottom: 10px;
+  }
+  .platform-tag.railway  { background: rgba(131,88,255,0.2); color: #a78bfa; }
+  .platform-tag.vercel   { background: rgba(255,255,255,0.1); color: #e2e8f0; }
+  .platform-tag.expo     { background: rgba(78,205,196,0.15); color: var(--accent2); }
+
+  /* STACK PILLS */
+  .stack-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .stack-pill {
+    background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+    border-radius: 20px; padding: 5px 14px;
+    font-size: 12px; font-weight: 500; color: var(--text);
+  }
+
+  /* DATA TABLE */
+  .data-table { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+
+  /* FOOTER */
+  footer {
+    text-align: center; padding: 40px;
+    color: var(--muted); font-size: 13px;
+    border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">Ethical AI <span>Checker</span></div>
+  <div class="nav-links">
+    <a href="#architecture">Architecture</a>
+    <a href="#api">API</a>
+    <a href="#auth">Auth Flow</a>
+    <a href="#data">Data</a>
+    <a href="#deploy">Deploy</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-badge">System Architecture v1.0</div>
+  <h1>Ethical AI Decision Checker</h1>
+  <p>A multi-platform AI reasoning system powered by Claude &amp; OpenAI with Google SSO, guest access, and PDF reports.</p>
+</div>
+
+<div class="container">
+
+  <!-- OVERVIEW -->
+  <section>
+    <h2>Overview</h2>
+    <p class="section-sub">Three client layers share a single FastAPI engine with LLM orchestration.</p>
+    <div class="card-grid cols-3">
+      <div class="card">
+        <h3><span class="dot purple"></span> Web Frontend</h3>
+        <p>iOS-style glassmorphism single-page app. Hosted on Vercel. Connects to backend via HTTPS.</p>
+        <div class="stack-list">
+          <span class="stack-pill">HTML5</span>
+          <span class="stack-pill">Vanilla JS</span>
+          <span class="stack-pill">CSS Glassmorphism</span>
+          <span class="stack-pill">Vercel</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3><span class="dot teal"></span> Mobile App</h3>
+        <p>React Native (Expo) app for iOS &amp; Android. Same API, native feel. Distributable via Expo EAS.</p>
+        <div class="stack-list">
+          <span class="stack-pill">React Native</span>
+          <span class="stack-pill">Expo</span>
+          <span class="stack-pill">TypeScript</span>
+          <span class="stack-pill">Expo EAS</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3><span class="dot orange"></span> Backend Engine</h3>
+        <p>FastAPI with LLM orchestrator: Claude primary, OpenAI fallback, mock last resort. Hosted on Railway.</p>
+        <div class="stack-list">
+          <span class="stack-pill">FastAPI</span>
+          <span class="stack-pill">Claude claude-opus-4-6</span>
+          <span class="stack-pill">GPT-4o-mini</span>
+          <span class="stack-pill">Railway</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ARCHITECTURE DIAGRAM -->
+  <section id="architecture">
+    <h2>System Architecture</h2>
+    <p class="section-sub">Request flow from client to LLM and back.</p>
+    <div class="arch-diagram">
+
+      <!-- Clients -->
+      <div class="arch-label">CLIENT LAYER</div>
+      <div class="arch-row">
+        <div class="arch-box client-web">
+          Web Browser
+          <small>frontend/index.html</small>
+        </div>
+        <div class="arch-box client-mob">
+          iOS / Android App
+          <small>mobile/ (Expo)</small>
+        </div>
+      </div>
+
+      <div class="arch-label" style="margin-top:20px;">HTTPS / REST API</div>
+      <div class="arch-row"><div class="arch-arrow">↓</div></div>
+
+      <!-- Auth -->
+      <div class="arch-divider"><span>Authentication</span></div>
+      <div class="arch-row">
+        <div class="arch-box auth">
+          Google OAuth 2.0
+          <small>GIS Token Verify</small>
+        </div>
+        <div class="arch-box auth">
+          Guest Session
+          <small>Anonymous Token</small>
+        </div>
+      </div>
+
+      <div class="arch-row"><div class="arch-arrow">↓</div></div>
+
+      <!-- Backend -->
+      <div class="arch-divider"><span>Backend — Railway</span></div>
+      <div class="arch-row">
+        <div class="arch-box backend">
+          FastAPI
+          <small>backend/main.py</small>
+        </div>
+      </div>
+      <div class="arch-row" style="gap:60px;">
+        <div class="arch-box backend">
+          LLM Orchestrator
+          <small>llm_orchestrator.py</small>
+        </div>
+        <div class="arch-box backend">
+          PDF Generator
+          <small>report_generator.py</small>
+        </div>
+        <div class="arch-box backend">
+          Risk Detector
+          <small>risk_detector.py</small>
+        </div>
+      </div>
+
+      <div class="arch-row"><div class="arch-arrow">↓</div></div>
+
+      <!-- LLMs -->
+      <div class="arch-divider"><span>LLM Layer</span></div>
+      <div class="arch-row">
+        <div class="arch-box llm">
+          Claude claude-opus-4-6
+          <small>Primary · Adaptive Thinking</small>
+        </div>
+        <div class="arch-arrow">→ fallback →</div>
+        <div class="arch-box llm">
+          GPT-4o-mini
+          <small>Fallback on rate limit</small>
+        </div>
+        <div class="arch-arrow">→ fallback →</div>
+        <div class="arch-box llm">
+          Mock Response
+          <small>Offline / no credits</small>
+        </div>
+      </div>
+
+      <div class="arch-row"><div class="arch-arrow">↓</div></div>
+
+      <!-- Storage -->
+      <div class="arch-divider"><span>Storage</span></div>
+      <div class="arch-row">
+        <div class="arch-box db">
+          SQLite
+          <small>Request metadata · No PII</small>
+        </div>
+        <div class="arch-box db">
+          In-Memory Sessions
+          <small>JWT tokens · 24hr TTL</small>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- API ENDPOINTS -->
+  <section id="api">
+    <h2>API Endpoints</h2>
+    <p class="section-sub">All endpoints served from the FastAPI backend on Railway.</p>
+    <div class="data-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Path</th>
+            <th>Access</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/auth/google</code></td>
+            <td><span class="badge pub">Public</span></td>
+            <td>Verify Google ID token, create session</td>
+          </tr>
+          <tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/auth/guest</code></td>
+            <td><span class="badge pub">Public</span></td>
+            <td>Create anonymous guest session</td>
+          </tr>
+          <tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/logout</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Invalidate session token</td>
+          </tr>
+          <tr>
+            <td><span class="method get">GET</span></td>
+            <td><code>/me</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Return current user name &amp; picture</td>
+          </tr>
+          <tr>
+            <td><span class="method get">GET</span></td>
+            <td><code>/my-stats</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Return anonymous usage stats for session</td>
+          </tr>
+          <tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/evaluate-decision</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Run ethical analysis via LLM orchestrator</td>
+          </tr>
+          <tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/generate-report</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Generate downloadable PDF report</td>
+          </tr>
+          <tr>
+            <td><span class="method get">GET</span></td>
+            <td><code>/health-check</code></td>
+            <td><span class="badge pub">Public</span></td>
+            <td>Provider status + uptime health check</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- AUTH FLOW -->
+  <section id="auth">
+    <h2>Authentication Flow</h2>
+    <p class="section-sub">Two paths: Google SSO or Guest. Both return a bearer token used for all subsequent requests.</p>
+    <div class="card-grid cols-2">
+      <div class="card">
+        <h3><span class="dot yellow" style="background:#fbbf24"></span> Google SSO Flow</h3>
+        <div class="flow" style="margin-top:20px;">
+          <div class="flow-step">
+            <div class="flow-left"><div class="flow-num">1</div><div class="flow-line"></div></div>
+            <div class="flow-content"><h4>Load GIS SDK</h4><p>Google Identity Services JS loaded on page init.</p></div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-left"><div class="flow-num">2</div><div class="flow-line"></div></div>
+            <div class="flow-content"><h4>User Clicks Sign In</h4><p>Google popup appears. User selects their account.</p></div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-left"><div class="flow-num">3</div><div class="flow-line"></div></div>
+            <div class="flow-content"><h4>ID Token Returned</h4><p>Google returns a signed JWT <code>credential</code> to the callback.</p></div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-left"><div class="flow-num">4</div><div class="flow-line"></div></div>
+            <div class="flow-content"><h4>POST /auth/google</h4><p>Token sent to backend. <code>google-auth</code> SDK verifies with Google's public keys.</p></div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-left"><div class="flow-num">5</div><div class="flow-line"></div></div>
+            <div class="flow-content"><h4>Session Created</h4><p>Backend returns opaque session token stored in <code>localStorage</code>.</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h3><span class="dot" style="background:#94a3b8"></span> Guest Flow</h3>
+        <div class="flow" style="margin-top:20px;">
+          <div class="flow-step">
+            <div class="flow-left"><div class="flow-num">1</div><div class="flow-line"></div></div>
+            <div class="flow-content"><h4>Click Continue as Guest</h4><p>No credentials required. Immediate access.</p></div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-left"><div class="flow-num">2</div><div class="flow-line"></div></div>
+            <div class="flow-content"><h4>POST /auth/guest</h4><p>Backend generates a random anonymous ID and session token.</p></div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-left"><div class="flow-num">3</div><div class="flow-line"></div></div>
+            <div class="flow-content"><h4>Token Stored</h4><p>Same bearer token stored in <code>localStorage</code>. Expires in 24 hours.</p></div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-left"><div class="flow-num">4</div><div class="flow-line"></div></div>
+            <div class="flow-content"><h4>Full Access</h4><p>Guest users get full evaluate + PDF features. No name/picture shown.</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DATA PRIVACY -->
+  <section id="data">
+    <h2>Data &amp; Privacy</h2>
+    <p class="section-sub">No personal data stored. Only anonymous request metadata for usage analytics.</p>
+    <div class="card-grid cols-2">
+      <div class="card">
+        <h3><span class="dot green"></span> What We Store</h3>
+        <ul style="margin-top:10px;">
+          <li>Anonymous session ID (SHA-256 hash, not reversible)</li>
+          <li>Request timestamp</li>
+          <li>Context field <strong>names</strong> only (not values)</li>
+          <li>Decision word count (not the text)</li>
+          <li>LLM provider used (claude / openai / mock)</li>
+          <li>Confidence score &amp; risk flag count</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3><span class="dot red" style="background:#f87171"></span> What We Never Store</h3>
+        <ul style="margin-top:10px;">
+          <li>User email or name</li>
+          <li>Google account details</li>
+          <li>The actual decision text</li>
+          <li>Context field values</li>
+          <li>IP addresses</li>
+          <li>Any personally identifiable information</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <h3>SQLite Schema</h3>
+      <code style="display:block; margin-top:12px; padding:16px; line-height:2; white-space:pre-wrap; background:rgba(0,0,0,0.3); border-radius:10px; font-size:12px;">CREATE TABLE request_logs (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  anon_id         TEXT,          -- SHA-256 of session sub, not reversible
+  timestamp       TEXT,          -- ISO 8601
+  provider        TEXT,          -- claude | openai | mock
+  confidence_score REAL,
+  risk_flag_count  INTEGER,
+  context_keys    TEXT,          -- JSON array of field names ["gender","role"]
+  decision_words  INTEGER        -- word count, not the text
+);</code>
+    </div>
+  </section>
+
+  <!-- LLM ORCHESTRATION -->
+  <section>
+    <h2>LLM Orchestration</h2>
+    <p class="section-sub">Automatic fallback chain ensures the service stays up even when an API is unavailable.</p>
+    <div class="card-grid cols-3">
+      <div class="card">
+        <h3><span class="dot green"></span> Primary — Claude</h3>
+        <p>claude-opus-4-6 with Adaptive Thinking enabled. Streaming response. Falls back on rate limits, auth errors, or credit exhaustion.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot teal"></span> Fallback — OpenAI</h3>
+        <p>GPT-4o-mini. Activated when Claude is unavailable. Falls back on RateLimit or AuthenticationError.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot" style="background:#94a3b8"></span> Last Resort — Mock</h3>
+        <p>Static structured response. Ensures the UI always renders. Labeled with <code>provider: mock</code> in response.</p>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <h3>Ethical Framework Analyses</h3>
+      <div class="card-grid cols-3" style="margin-top:14px;">
+        <div>
+          <h4 style="font-size:13px; margin-bottom:4px;">Kantian Ethics</h4>
+          <p style="font-size:13px; color:var(--muted);">Categorical imperative — could this decision be universalized?</p>
+        </div>
+        <div>
+          <h4 style="font-size:13px; margin-bottom:4px;">Utilitarian Analysis</h4>
+          <p style="font-size:13px; color:var(--muted);">Greatest good for the greatest number. Outcome-based scoring.</p>
+        </div>
+        <div>
+          <h4 style="font-size:13px; margin-bottom:4px;">Virtue Ethics</h4>
+          <p style="font-size:13px; color:var(--muted);">Does this reflect the character of a virtuous person?</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DEPLOYMENT -->
+  <section id="deploy">
+    <h2>Deployment Guide</h2>
+    <p class="section-sub">Three services, three platforms, all connected to the same backend.</p>
+    <div class="deploy-grid">
+      <div class="deploy-card">
+        <div class="deploy-num">1</div>
+        <span class="platform-tag railway">Railway — Backend</span>
+        <h3>Deploy FastAPI</h3>
+        <p>Connect GitHub repo. Railway auto-detects Python via <code>requirements.txt</code>.</p>
+        <code>railway.app → New Project<br>→ Deploy from GitHub<br>→ ethical-ai-checker<br>→ Add env vars → Deploy</code>
+        <p style="margin-top:12px;">Required env vars: <code>ANTHROPIC_API_KEY</code>, <code>OPENAI_API_KEY</code>, <code>GOOGLE_CLIENT_ID</code></p>
+      </div>
+      <div class="deploy-card">
+        <div class="deploy-num">2</div>
+        <span class="platform-tag vercel">Vercel — Web Frontend</span>
+        <h3>Deploy Web App</h3>
+        <p>Static HTML. Set root directory to <code>frontend/</code> in Vercel dashboard.</p>
+        <code>vercel.com → New Project<br>→ Import ethical-ai-checker<br>→ Root: frontend/<br>→ Deploy</code>
+        <p style="margin-top:12px;">Update <code>PROD_URL</code> in <code>frontend/index.html</code> to your Railway URL.</p>
+      </div>
+      <div class="deploy-card">
+        <div class="deploy-num">3</div>
+        <span class="platform-tag expo">Expo EAS — Mobile</span>
+        <h3>Build Mobile App</h3>
+        <p>Build and submit to App Store / Play Store via Expo EAS.</p>
+        <code>cd mobile<br>npm install -g eas-cli<br>eas login<br>eas build --platform ios<br>eas submit --platform ios</code>
+        <p style="margin-top:12px;">Update <code>PROD_URL</code> in <code>mobile/src/config.ts</code> to your Railway URL.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- STACK SUMMARY -->
+  <section>
+    <h2>Full Tech Stack</h2>
+    <p class="section-sub">Every library and service used across all layers.</p>
+    <div class="card-grid cols-2">
+      <div class="card">
+        <h3>Backend</h3>
+        <div class="stack-list">
+          <span class="stack-pill">Python 3.11+</span>
+          <span class="stack-pill">FastAPI</span>
+          <span class="stack-pill">Uvicorn</span>
+          <span class="stack-pill">Pydantic</span>
+          <span class="stack-pill">anthropic SDK</span>
+          <span class="stack-pill">openai SDK</span>
+          <span class="stack-pill">google-auth</span>
+          <span class="stack-pill">reportlab</span>
+          <span class="stack-pill">SQLite3</span>
+          <span class="stack-pill">python-dotenv</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Frontend &amp; Mobile</h3>
+        <div class="stack-list">
+          <span class="stack-pill">HTML5 / CSS3</span>
+          <span class="stack-pill">Vanilla JS</span>
+          <span class="stack-pill">Google Identity Services</span>
+          <span class="stack-pill">React Native</span>
+          <span class="stack-pill">Expo SDK</span>
+          <span class="stack-pill">TypeScript</span>
+          <span class="stack-pill">expo-linear-gradient</span>
+          <span class="stack-pill">expo-blur</span>
+          <span class="stack-pill">React Navigation</span>
+          <span class="stack-pill">AsyncStorage</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  Ethical AI Decision Checker &mdash; Architecture Documentation &mdash; Built with FastAPI + Claude claude-opus-4-6
+</footer>
+
+</body>
+</html>

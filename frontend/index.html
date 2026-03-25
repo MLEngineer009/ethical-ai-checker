@@ -731,7 +731,7 @@
   </div>
 
   <script>
-    const API = 'http://localhost:8000';
+    const API = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:8000' : 'https://ethical-ai-checker.up.railway.app';
     // Replace with your actual Google Client ID after setup
     const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID_HERE';
 

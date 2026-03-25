@@ -1,7 +1,8 @@
 // Update BASE_URL to your Mac's LAN IP when testing on a real device
 // e.g. "http://192.168.1.100:8000"
 // For simulator: "http://localhost:8000" works fine
-export const BASE_URL = "http://localhost:8000";
+import { API_BASE_URL } from "../config";
+export const BASE_URL = API_BASE_URL;
 
 export interface EthicalAnalysis {
   kantian_analysis: string;
