@@ -539,7 +539,33 @@
       .header h1 { font-size: 24px; }
       .auth-card { padding: 32px 24px; }
     }
-  </style>
+  
+    /* ── Category selector ── */
+    .category-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.8px;
+      text-transform: uppercase; color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+    .category-pills {
+      display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;
+    }
+    .cat-pill {
+      display: flex; align-items: center; gap: 6px;
+      padding: 7px 14px; border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.04);
+      color: var(--text-muted); font-size: 13px; font-weight: 500;
+      cursor: pointer; transition: all 0.18s ease;
+      user-select: none;
+    }
+    .cat-pill:hover { border-color: rgba(167,139,250,0.4); color: var(--text); }
+    .cat-pill.active {
+      background: rgba(167,139,250,0.18);
+      border-color: rgba(167,139,250,0.6);
+      color: var(--accent);
+      font-weight: 700;
+    }
+</style>
 </head>
 <body>
   <div class="orb orb1"></div>
@@ -596,6 +622,21 @@
       <span class="icon">⚖️</span>
       <h1>Ethical AI</h1>
       <p>AI-powered ethical reasoning &amp; risk detection</p>
+    </div>
+
+
+    <!-- Category selector -->
+    <div class="card" style="padding: 18px 20px;">
+      <div class="category-label">Decision Category</div>
+      <div class="category-pills" id="categoryPills">
+        <div class="cat-pill" data-cat="hiring">🧑‍💼 Hiring</div>
+        <div class="cat-pill" data-cat="workplace">🏢 Workplace</div>
+        <div class="cat-pill" data-cat="finance">💰 Finance</div>
+        <div class="cat-pill" data-cat="healthcare">🏥 Healthcare</div>
+        <div class="cat-pill" data-cat="policy">📋 Policy</div>
+        <div class="cat-pill" data-cat="personal">👤 Personal</div>
+        <div class="cat-pill active" data-cat="other">💡 Other</div>
+      </div>
     </div>
 
     <!-- Input card -->
@@ -909,6 +950,17 @@
     document.getElementById('btnEvaluate').addEventListener('click', evaluate);
     document.getElementById('btnDownload').addEventListener('click', downloadReport);
 
+    // Category pill selection
+    document.querySelectorAll('.cat-pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        selectedCategory = pill.dataset.cat;
+      });
+    });
+
+
+
     function buildContext() {
       const ctx = {};
       for (let i = 1; i <= ctxCount; i++) {
@@ -954,7 +1006,7 @@
         const res = await fetch(`${API}/evaluate-decision`, {
           method: 'POST',
           headers: authHeaders(),
-          body: JSON.stringify({ decision, context })
+          body: JSON.stringify({ decision, context, category: selectedCategory })
         });
         if (!res.ok) throw new Error(`API error ${res.status}`);
         const data = await res.json();

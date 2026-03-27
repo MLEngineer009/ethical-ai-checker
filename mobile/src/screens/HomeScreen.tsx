@@ -1,22 +1,33 @@
 import React, { useState } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
+  StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { GlassCard } from "../components/GlassCard";
 import { useAuth } from "../context/AuthContext";
-import { api, EthicalAnalysis } from "../services/api";
+import { api } from "../services/api";
 import { RootStackParamList } from "../../App";
 
 type Props = { navigation: NativeStackNavigationProp<RootStackParamList, "Home"> };
 
 interface ContextField { id: string; key: string; value: string; }
 
+const CATEGORIES = [
+  { key: "hiring",     label: "Hiring",     icon: "🧑‍💼" },
+  { key: "workplace",  label: "Workplace",  icon: "🏢" },
+  { key: "finance",    label: "Finance",    icon: "💰" },
+  { key: "healthcare", label: "Healthcare", icon: "🏥" },
+  { key: "policy",     label: "Policy",     icon: "📋" },
+  { key: "personal",   label: "Personal",   icon: "👤" },
+  { key: "other",      label: "Other",      icon: "💡" },
+];
+
 export function HomeScreen({ navigation }: Props) {
   const { user, signOut } = useAuth();
   const [decision, setDecision] = useState("");
+  const [category, setCategory] = useState("other");
   const [fields, setFields] = useState<ContextField[]>([
     { id: "1", key: "gender", value: "" },
     { id: "2", key: "experience", value: "" },
@@ -52,7 +63,7 @@ export function HomeScreen({ navigation }: Props) {
 
     setError(""); setLoading(true);
     try {
-      const result = await api.evaluate(trimmed, ctx, user.token);
+      const result = await api.evaluate(trimmed, ctx, user.token, category);
       navigation.navigate("Results", { analysis: result, decision: trimmed, context: ctx });
     } catch (e: any) {
       if (e.status === 401) { signOut(); return; }
@@ -88,6 +99,27 @@ export function HomeScreen({ navigation }: Props) {
             <Text style={styles.subtitle}>AI-powered ethical reasoning & risk detection</Text>
           </View>
 
+          {/* Category selector */}
+          <GlassCard>
+            <Text style={styles.label}>DECISION CATEGORY</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.pillRow}>
+              {CATEGORIES.map(cat => (
+                <TouchableOpacity
+                  key={cat.key}
+                  onPress={() => setCategory(cat.key)}
+                  style={[styles.pill, category === cat.key && styles.pillActive]}
+                  activeOpacity={0.75}
+                >
+                  <Text style={styles.pillIcon}>{cat.icon}</Text>
+                  <Text style={[styles.pillText, category === cat.key && styles.pillTextActive]}>
+                    {cat.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </GlassCard>
+
           {/* Decision */}
           <GlassCard>
             <Text style={styles.label}>DECISION</Text>
@@ -111,7 +143,7 @@ export function HomeScreen({ navigation }: Props) {
                 <Text style={styles.addBtnText}>+ Add Field</Text>
               </TouchableOpacity>
             </View>
-            {fields.map((f, i) => (
+            {fields.map((f) => (
               <View key={f.id} style={styles.fieldRow}>
                 <TextInput
                   value={f.key}
@@ -196,6 +228,22 @@ const styles = StyleSheet.create({
     fontSize: 11, fontWeight: "700", color: ACCENT,
     letterSpacing: 1.1, marginBottom: 10,
   },
+  // Category pills
+  pillRow: { flexDirection: "row", gap: 8, paddingBottom: 2 },
+  pill: {
+    flexDirection: "row", alignItems: "center", gap: 5,
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
+  },
+  pillActive: {
+    backgroundColor: "rgba(167,139,250,0.18)",
+    borderColor: "rgba(167,139,250,0.6)",
+  },
+  pillIcon: { fontSize: 14 },
+  pillText: { fontSize: 13, fontWeight: "500", color: "rgba(255,255,255,0.55)" },
+  pillTextActive: { color: ACCENT, fontWeight: "700" },
+  // Decision textarea
   textarea: {
     color: "#fff", fontSize: 15, minHeight: 90,
     backgroundColor: "rgba(255,255,255,0.06)",

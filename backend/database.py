@@ -18,7 +18,7 @@ def _connect() -> sqlite3.Connection:
 
 
 def init_db() -> None:
-    """Create tables if they don't exist."""
+    """Create tables if they don't exist, and migrate existing schemas."""
     with _connect() as conn:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS request_logs (
@@ -30,9 +30,15 @@ def init_db() -> None:
                 provider        TEXT NOT NULL,
                 confidence      REAL NOT NULL,
                 risk_count      INTEGER NOT NULL,
-                risk_categories TEXT NOT NULL
+                risk_categories TEXT NOT NULL,
+                category        TEXT NOT NULL DEFAULT 'other'
             )
         """)
+        # Migration: add category column to existing databases
+        try:
+            conn.execute("ALTER TABLE request_logs ADD COLUMN category TEXT NOT NULL DEFAULT 'other'")
+        except Exception:
+            pass  # column already exists
         conn.commit()
 
 
@@ -48,22 +54,24 @@ def log_request(
     provider: str,
     confidence: float,
     risk_flags: List[str],
+    category: str = "other",
 ) -> None:
     """Store metadata only — no decision text, no context values, no identity."""
     with _connect() as conn:
         conn.execute(
             """INSERT INTO request_logs
-               (anon_id, timestamp, context_keys, decision_words, provider, confidence, risk_count, risk_categories)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+               (anon_id, timestamp, context_keys, decision_words, provider, confidence, risk_count, risk_categories, category)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 anon_id(google_sub),
                 datetime.now(timezone.utc).isoformat(),
-                json.dumps(sorted(context.keys())),        # field names only, e.g. ["gender","role"]
-                len(decision.split()),                      # word count, not text
+                json.dumps(sorted(context.keys())),
+                len(decision.split()),
                 provider,
                 round(confidence, 3),
                 len(risk_flags),
-                json.dumps(sorted(risk_flags)),             # category names only
+                json.dumps(sorted(risk_flags)),
+                category,
             ),
         )
         conn.commit()
@@ -91,6 +99,7 @@ def get_stats(google_sub: str) -> Dict[str, Any]:
             "confidence": r["confidence"],
             "risk_count": r["risk_count"],
             "risk_categories": json.loads(r["risk_categories"]),
+            "category": r["category"],
         }
         for r in rows
     ]

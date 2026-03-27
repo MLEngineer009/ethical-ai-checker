@@ -61,10 +61,10 @@ export const api = {
   me: (token: string) =>
     request<{ name: string; picture: string }>("/me", { token }),
 
-  evaluate: (decision: string, context: Record<string, string>, token: string) =>
+  evaluate: (decision: string, context: Record<string, string>, token: string, category = "other") =>
     request<EthicalAnalysis>("/evaluate-decision", {
       method: "POST",
-      body: { decision, context },
+      body: { decision, context, category },
       token,
     }),
 

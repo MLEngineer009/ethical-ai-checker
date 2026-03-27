@@ -68,9 +68,12 @@ class GoogleAuthRequest(BaseModel):
 
 # ── Decision schemas ──────────────────────────────────────────────────────────
 
+VALID_CATEGORIES = {"hiring", "finance", "healthcare", "workplace", "policy", "personal", "other"}
+
 class DecisionRequest(BaseModel):
     decision: str
     context: Dict[str, Any]
+    category: str = "other"
 
 
 class EthicalAnalysis(BaseModel):
@@ -155,6 +158,8 @@ async def evaluate_decision(
     if not isinstance(confidence_score, (int, float)) or confidence_score < 0 or confidence_score > 1:
         confidence_score = 0.5
 
+    category = request.category if request.category in VALID_CATEGORIES else "other"
+
     # Log metadata — no PII, no decision text, no context values
     database.log_request(
         google_sub=user["sub"],
@@ -163,6 +168,7 @@ async def evaluate_decision(
         provider=llm_analysis.get("provider", "unknown"),
         confidence=confidence_score,
         risk_flags=risk_flags,
+        category=category,
     )
 
     return EthicalAnalysis(
