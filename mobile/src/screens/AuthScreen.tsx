@@ -45,8 +45,8 @@ export function AuthScreen() {
         {/* Icon + title */}
         <View style={styles.hero}>
           <Text style={styles.icon}>⚖️</Text>
-          <Text style={styles.title}>Ethical AI</Text>
-          <Text style={styles.subtitle}>AI-powered ethical reasoning & risk detection</Text>
+          <Text style={styles.title}>Pragma</Text>
+          <Text style={styles.subtitle}>Practical AI ethics for automated decisions</Text>
         </View>
 
         {/* Card */}

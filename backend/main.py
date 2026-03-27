@@ -30,7 +30,7 @@ async def lifespan(*_):
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="Ethical AI Decision Checker",
+    title="Pragma",
     description="API for evaluating decisions using ethical reasoning frameworks",
     version="1.0.0",
     lifespan=lifespan,
@@ -202,7 +202,7 @@ async def generate_report(request: ReportRequest) -> Response:
 async def health_check():
     return {
         "status": "healthy",
-        "service": "ethical-ai-decision-checker",
+        "service": "pragma",
         "providers": {
             "claude": orchestrator._claude is not None,
             "openai": orchestrator._openai is not None,
@@ -216,7 +216,7 @@ async def root():
     frontend_path = Path(__file__).parent.parent / "frontend" / "index.html"
     if frontend_path.exists():
         return FileResponse(frontend_path)
-    return {"message": "Ethical AI Decision Checker API"}
+    return {"message": "Pragma API"}
 
 
 if __name__ == "__main__":
