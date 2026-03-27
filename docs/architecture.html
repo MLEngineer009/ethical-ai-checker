@@ -241,21 +241,347 @@
 <nav>
   <div class="nav-logo">Ethical AI <span>Checker</span></div>
   <div class="nav-links">
+    <a href="#business">Business</a>
+    <a href="#usecases">Use Cases</a>
+    <a href="#roadmap">Roadmap</a>
     <a href="#architecture">Architecture</a>
     <a href="#api">API</a>
-    <a href="#auth">Auth Flow</a>
-    <a href="#data">Data</a>
     <a href="#deploy">Deploy</a>
   </div>
 </nav>
 
 <div class="hero">
-  <div class="hero-badge">System Architecture v1.0</div>
+  <div class="hero-badge">Product &amp; Architecture Overview</div>
   <h1>Ethical AI Decision Checker</h1>
-  <p>A multi-platform AI reasoning system powered by Claude &amp; OpenAI with Google SSO, guest access, and PDF reports.</p>
+  <p>AI-powered ethical reasoning and risk detection engine for automated decision systems — built for enterprise AI governance.</p>
 </div>
 
 <div class="container">
+
+
+  <!-- PROBLEM & VALUE PROP -->
+  <section id="business">
+    <h2>The Problem</h2>
+    <p class="section-sub">Enterprises are deploying AI in hiring, lending, and operations — with no guardrails on ethical impact.</p>
+    <div class="card-grid cols-3">
+      <div class="card">
+        <h3><span class="dot red" style="background:#f87171"></span> Invisible Bias</h3>
+        <p>AI systems trained on historical data replicate systemic bias in hiring, loan approvals, and promotions — often without anyone noticing until litigation.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot" style="background:#fbbf24"></span> Regulatory Risk</h3>
+        <p>EEOC, GDPR, and emerging EU AI Act require explainable, auditable decisions. Non-compliance carries fines up to 6% of global revenue.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot" style="background:#f97316"></span> No Tooling Exists</h3>
+        <p>Ethics reviews today are manual, slow, and inconsistent. There is no automated system that applies structured moral reasoning at scale.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- VALUE PROPOSITION -->
+  <section>
+    <h2>Value Proposition</h2>
+    <p class="section-sub">Automated ethical analysis at the speed of AI — not human review committees.</p>
+    <div class="card-grid cols-2">
+      <div class="card">
+        <h3 style="font-size:20px; margin-bottom:16px;">For Engineering Teams</h3>
+        <ul style="line-height:2;">
+          <li>Drop-in API — one POST call returns full ethical analysis</li>
+          <li>Multi-framework reasoning: Kantian, Utilitarian, Virtue Ethics</li>
+          <li>Automatic risk flag detection (bias, discrimination, fairness)</li>
+          <li>Confidence scoring surfaces uncertain decisions for human review</li>
+          <li>PDF audit report generation for compliance documentation</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3 style="font-size:20px; margin-bottom:16px;">For Business &amp; Legal</h3>
+        <ul style="line-height:2;">
+          <li>Demonstrable due diligence for AI governance audits</li>
+          <li>No PII stored — anonymous metadata only, GDPR-safe by design</li>
+          <li>Explainable output that non-technical stakeholders can read</li>
+          <li>Works offline with mock fallback — no single point of failure</li>
+          <li>Plug into existing workflows via REST API</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card-grid cols-3" style="margin-top:16px;">
+      <div class="card" style="text-align:center; padding:32px;">
+        <div style="font-size:40px; font-weight:800; background:linear-gradient(135deg,#7c6fe0,#4ecdc4); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">3</div>
+        <div style="font-weight:600; margin-top:4px;">Ethical Frameworks</div>
+        <div style="color:var(--muted); font-size:13px; margin-top:4px;">Kant · Mill · Aristotle</div>
+      </div>
+      <div class="card" style="text-align:center; padding:32px;">
+        <div style="font-size:40px; font-weight:800; background:linear-gradient(135deg,#f7931e,#fbbf24); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">&lt;2s</div>
+        <div style="font-weight:600; margin-top:4px;">Analysis Latency</div>
+        <div style="color:var(--muted); font-size:13px; margin-top:4px;">Claude claude-opus-4-6 with adaptive thinking</div>
+      </div>
+      <div class="card" style="text-align:center; padding:32px;">
+        <div style="font-size:40px; font-weight:800; background:linear-gradient(135deg,#4ade80,#4ecdc4); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">0</div>
+        <div style="font-weight:600; margin-top:4px;">PII Stored</div>
+        <div style="color:var(--muted); font-size:13px; margin-top:4px;">Anonymous metadata only</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TARGET MARKET -->
+  <section>
+    <h2>Target Market</h2>
+    <p class="section-sub">Any team deploying automated decision-making that affects people.</p>
+    <div class="card-grid cols-2">
+      <div class="card">
+        <h3><span class="dot purple"></span> Primary Targets</h3>
+        <ul style="margin-top:12px; line-height:2.2; color:var(--muted); font-size:14px;">
+          <li><strong style="color:var(--text);">HR Tech Companies</strong> — AI hiring tools, resume screeners, interview scoring</li>
+          <li><strong style="color:var(--text);">Fintech &amp; Banking</strong> — Loan approvals, credit scoring, fraud detection</li>
+          <li><strong style="color:var(--text);">Enterprise AI Teams</strong> — Internal copilots, automated workflows, policy engines</li>
+          <li><strong style="color:var(--text);">AI Governance Teams</strong> — Chief AI Officers, Legal, Compliance, Risk</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3><span class="dot teal"></span> Market Opportunity</h3>
+        <ul style="margin-top:12px; line-height:2.2; color:var(--muted); font-size:14px;">
+          <li><strong style="color:var(--text);">$40B+</strong> — AI governance &amp; risk management market by 2028</li>
+          <li><strong style="color:var(--text);">EU AI Act</strong> — Mandatory risk assessments for high-risk AI systems from 2026</li>
+          <li><strong style="color:var(--text);">EEOC &amp; CFPB</strong> — Increased US enforcement on algorithmic bias</li>
+          <li><strong style="color:var(--text);">78% of enterprises</strong> — plan to expand AI use in decisions by 2026</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- USE CASES -->
+  <section id="usecases">
+    <h2>Use Cases</h2>
+    <p class="section-sub">Real scenarios where the engine detects risk and provides actionable guidance.</p>
+    <div class="card-grid cols-2">
+      <div class="card">
+        <h3><span class="dot red" style="background:#f87171"></span> Hiring Decision</h3>
+        <p style="margin-top:8px; font-size:13px; color:var(--muted);">Input decision:</p>
+        <code style="display:block; margin:8px 0; padding:10px;">"Reject job candidate" + context: gender=female, education=non-elite</code>
+        <p style="font-size:13px; color:var(--muted);">Output:</p>
+        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+          <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">bias flagged</span>
+          <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">fairness flagged</span>
+        </div>
+        <p style="font-size:13px; color:var(--muted); margin-top:10px;">Recommendation: Remove gender from evaluation criteria. Apply structured scoring on skills and experience only.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot" style="background:#f97316"></span> Loan Approval</h3>
+        <p style="margin-top:8px; font-size:13px; color:var(--muted);">Input decision:</p>
+        <code style="display:block; margin:8px 0; padding:10px;">"Reject loan application" + context: zip_code=90210, income=75000</code>
+        <p style="font-size:13px; color:var(--muted);">Output:</p>
+        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+          <span class="badge" style="background:rgba(249,115,22,0.15); color:#fdba74;">discrimination flagged</span>
+          <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">bias flagged</span>
+        </div>
+        <p style="font-size:13px; color:var(--muted); margin-top:10px;">Recommendation: Zip code is a proxy for race and protected class. Replace with income, credit score, and debt-to-income ratio.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot" style="background:#fbbf24"></span> Promotion Decision</h3>
+        <p style="margin-top:8px; font-size:13px; color:var(--muted);">Input decision:</p>
+        <code style="display:block; margin:8px 0; padding:10px;">"Promote employee" + context: performance=excellent, years=3, gender=male</code>
+        <p style="font-size:13px; color:var(--muted);">Output:</p>
+        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+          <span class="badge" style="background:rgba(251,191,36,0.15); color:#fde68a;">bias detected</span>
+          <span class="badge" style="background:rgba(74,222,128,0.15); color:#6ee7b7;">merit criteria present</span>
+        </div>
+        <p style="font-size:13px; color:var(--muted); margin-top:10px;">Recommendation: Proceed, but remove gender from criteria. Decision appears merit-based — verify against team-wide promotion rates.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot green"></span> Policy Rollout</h3>
+        <p style="margin-top:8px; font-size:13px; color:var(--muted);">Input decision:</p>
+        <code style="display:block; margin:8px 0; padding:10px;">"Implement mandatory overtime" + context: role=warehouse, pay=minimum_wage</code>
+        <p style="font-size:13px; color:var(--muted);">Output:</p>
+        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+          <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">fairness flagged</span>
+          <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">harm potential</span>
+        </div>
+        <p style="font-size:13px; color:var(--muted); margin-top:10px;">Recommendation: Disproportionate impact on low-wage workers. Consider voluntary overtime with premium pay and clear opt-out process.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- REVENUE MODEL -->
+  <section>
+    <h2>Revenue Model</h2>
+    <p class="section-sub">API-first pricing scales with usage. Enterprise licensing for embedded deployments.</p>
+    <div class="card-grid cols-3">
+      <div class="card" style="border-color: rgba(255,255,255,0.12);">
+        <div style="font-size:11px; font-weight:700; letter-spacing:1px; color:var(--muted); text-transform:uppercase; margin-bottom:12px;">Free</div>
+        <div style="font-size:32px; font-weight:800; margin-bottom:4px;">$0</div>
+        <div style="color:var(--muted); font-size:13px; margin-bottom:20px;">per month</div>
+        <ul style="color:var(--muted); font-size:13px; line-height:2;">
+          <li>100 evaluations / month</li>
+          <li>Web &amp; mobile app access</li>
+          <li>PDF report downloads</li>
+          <li>Guest access</li>
+          <li style="opacity:0.4;">API access</li>
+          <li style="opacity:0.4;">Custom context fields</li>
+        </ul>
+      </div>
+      <div class="card" style="border-color: rgba(124,111,224,0.5); background: rgba(124,111,224,0.06);">
+        <div style="font-size:11px; font-weight:700; letter-spacing:1px; color:var(--accent); text-transform:uppercase; margin-bottom:12px;">Pro — Most Popular</div>
+        <div style="font-size:32px; font-weight:800; margin-bottom:4px;">$49</div>
+        <div style="color:var(--muted); font-size:13px; margin-bottom:20px;">per month</div>
+        <ul style="color:var(--muted); font-size:13px; line-height:2;">
+          <li>5,000 evaluations / month</li>
+          <li>Full API access</li>
+          <li>Audit log export</li>
+          <li>Custom risk policies</li>
+          <li>Priority LLM (Claude claude-opus-4-6)</li>
+          <li>Email support</li>
+        </ul>
+      </div>
+      <div class="card" style="border-color: rgba(247,147,30,0.4);">
+        <div style="font-size:11px; font-weight:700; letter-spacing:1px; color:var(--accent3); text-transform:uppercase; margin-bottom:12px;">Enterprise</div>
+        <div style="font-size:32px; font-weight:800; margin-bottom:4px;">Custom</div>
+        <div style="color:var(--muted); font-size:13px; margin-bottom:20px;">annual contract</div>
+        <ul style="color:var(--muted); font-size:13px; line-height:2;">
+          <li>Unlimited evaluations</li>
+          <li>Self-hosted / VPC deployment</li>
+          <li>Custom ethical frameworks</li>
+          <li>Compliance mapping (GDPR, EEOC, EU AI Act)</li>
+          <li>SLA + dedicated support</li>
+          <li>SSO / SAML integration</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMPETITIVE ADVANTAGE -->
+  <section>
+    <h2>Competitive Advantage</h2>
+    <p class="section-sub">No direct competitor combines multi-framework moral reasoning with automated risk detection at API scale.</p>
+    <div class="data-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Capability</th>
+            <th>Ethical AI Checker</th>
+            <th>Manual Ethics Review</th>
+            <th>Generic LLM Prompt</th>
+            <th>Compliance Audit Tools</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Multi-framework reasoning</td>
+            <td style="color:var(--green);">Yes — Kant, Mill, Aristotle</td>
+            <td style="color:var(--muted);">Depends on reviewer</td>
+            <td style="color:var(--muted);">Inconsistent</td>
+            <td style="color:var(--red);">No</td>
+          </tr>
+          <tr>
+            <td>Automated risk detection</td>
+            <td style="color:var(--green);">Yes — heuristic + LLM</td>
+            <td style="color:var(--red);">No</td>
+            <td style="color:var(--muted);">Partial</td>
+            <td style="color:var(--muted);">Rule-based only</td>
+          </tr>
+          <tr>
+            <td>API-first, developer ready</td>
+            <td style="color:var(--green);">Yes — REST API</td>
+            <td style="color:var(--red);">No</td>
+            <td style="color:var(--muted);">Requires prompt engineering</td>
+            <td style="color:var(--muted);">Complex integration</td>
+          </tr>
+          <tr>
+            <td>Speed</td>
+            <td style="color:var(--green);">&lt;2 seconds</td>
+            <td style="color:var(--red);">Days / weeks</td>
+            <td style="color:var(--muted);">Seconds (no structure)</td>
+            <td style="color:var(--red);">Weeks</td>
+          </tr>
+          <tr>
+            <td>LLM fallback resilience</td>
+            <td style="color:var(--green);">Claude → OpenAI → Mock</td>
+            <td style="color:var(--muted);">N/A</td>
+            <td style="color:var(--red);">Single provider</td>
+            <td style="color:var(--red);">No LLM</td>
+          </tr>
+          <tr>
+            <td>Privacy-safe (no PII stored)</td>
+            <td style="color:var(--green);">Yes — anonymous metadata</td>
+            <td style="color:var(--muted);">Varies</td>
+            <td style="color:var(--red);">Sends data to LLM</td>
+            <td style="color:var(--muted);">Varies</td>
+          </tr>
+          <tr>
+            <td>PDF audit report</td>
+            <td style="color:var(--green);">Yes — downloadable</td>
+            <td style="color:var(--muted);">Manual</td>
+            <td style="color:var(--red);">No</td>
+            <td style="color:var(--green);">Yes</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ROADMAP -->
+  <section id="roadmap">
+    <h2>Product Roadmap</h2>
+    <p class="section-sub">From MVP to enterprise AI governance platform.</p>
+    <div class="card-grid cols-2">
+      <div class="card" style="border-color:rgba(74,222,128,0.3);">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+          <span class="badge" style="background:rgba(74,222,128,0.15); color:#6ee7b7; font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">Done — MVP</span>
+        </div>
+        <ul style="color:var(--muted); font-size:14px; line-height:2.2;">
+          <li>POST /evaluate-decision API</li>
+          <li>Three ethical frameworks (Kant, Mill, Aristotle)</li>
+          <li>Heuristic + LLM risk detection</li>
+          <li>Claude claude-opus-4-6 primary + OpenAI fallback + mock</li>
+          <li>PDF audit report download</li>
+          <li>Google SSO + guest flow</li>
+          <li>Anonymous metadata logging (no PII)</li>
+          <li>iOS-style web app + React Native mobile</li>
+          <li>182 unit tests, 99% code coverage</li>
+        </ul>
+      </div>
+      <div class="card" style="border-color:rgba(124,111,224,0.3);">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+          <span class="badge" style="background:rgba(124,111,224,0.15); color:var(--accent); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">Q2 2026 — Growth</span>
+        </div>
+        <ul style="color:var(--muted); font-size:14px; line-height:2.2;">
+          <li>Enterprise dashboard with decision history</li>
+          <li>Custom ethical policies per organization</li>
+          <li>Compliance mapping — GDPR, EEOC, EU AI Act</li>
+          <li>Audit log export (CSV / JSON)</li>
+          <li>Stripe billing integration</li>
+          <li>Team accounts &amp; role-based access</li>
+          <li>Webhook notifications for high-risk flags</li>
+        </ul>
+      </div>
+      <div class="card" style="border-color:rgba(247,147,30,0.3);">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+          <span class="badge" style="background:rgba(247,147,30,0.15); color:#f7b75e; font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">Q3 2026 — Scale</span>
+        </div>
+        <ul style="color:var(--muted); font-size:14px; line-height:2.2;">
+          <li>Self-hosted / VPC enterprise deployment</li>
+          <li>Fine-tuned ethics model on domain data</li>
+          <li>Batch evaluation API for bulk decisions</li>
+          <li>SAML / SSO enterprise integration</li>
+          <li>Industry-specific risk libraries (HR, Fintech, Healthcare)</li>
+          <li>Ethics scoring trends and benchmarking dashboard</li>
+        </ul>
+      </div>
+      <div class="card" style="border-color:rgba(78,205,196,0.3);">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+          <span class="badge" style="background:rgba(78,205,196,0.15); color:var(--accent2); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">Q4 2026 — Platform</span>
+        </div>
+        <ul style="color:var(--muted); font-size:14px; line-height:2.2;">
+          <li>Marketplace of ethical policy templates</li>
+          <li>Regulatory change monitoring &amp; alerts</li>
+          <li>Explainability graph — decision reasoning trace</li>
+          <li>Vector DB for decision pattern memory</li>
+          <li>Partner integrations (Workday, Salesforce, SAP)</li>
+          <li>Public ethics API for open-source community</li>
+        </ul>
+      </div>
+    </div>
+  </section>
 
   <!-- OVERVIEW -->
   <section>
@@ -669,7 +995,7 @@
 </div>
 
 <footer>
-  Ethical AI Decision Checker &mdash; Architecture Documentation &mdash; Built with FastAPI + Claude claude-opus-4-6
+  Ethical AI Decision Checker &mdash; Product &amp; Architecture Documentation &mdash; Built with FastAPI + Claude claude-opus-4-6 &mdash; &copy; 2026
 </footer>
 
 </body>
