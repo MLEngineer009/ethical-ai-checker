@@ -17,6 +17,7 @@
     --green: #4ade80;
     --red: #f87171;
     --yellow: #fbbf24;
+    --purple: #a78bfa;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -64,7 +65,7 @@
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     margin-bottom: 16px;
   }
-  .hero p { color: var(--muted); font-size: 18px; max-width: 540px; margin: 0 auto; }
+  .hero p { color: var(--muted); font-size: 18px; max-width: 600px; margin: 0 auto; }
 
   /* LAYOUT */
   .container { max-width: 1100px; margin: 0 auto; padding: 0 40px; }
@@ -95,6 +96,40 @@
   .dot.orange { background: var(--accent3); }
   .dot.green  { background: var(--green); }
 
+  /* MOAT HIGHLIGHT */
+  .moat-banner {
+    background: linear-gradient(135deg, rgba(124,111,224,0.12), rgba(78,205,196,0.08));
+    border: 1px solid rgba(124,111,224,0.3);
+    border-radius: 20px;
+    padding: 36px;
+    margin-bottom: 24px;
+    text-align: center;
+  }
+  .moat-banner h3 { font-size: 22px; font-weight: 800; margin-bottom: 10px; }
+  .moat-banner p { color: var(--muted); font-size: 15px; max-width: 640px; margin: 0 auto; }
+
+  /* FLYWHEEL */
+  .flywheel {
+    display: flex; align-items: center; justify-content: center;
+    flex-wrap: wrap; gap: 0; margin: 32px 0;
+  }
+  .fw-step {
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center; min-width: 120px;
+  }
+  .fw-icon {
+    width: 56px; height: 56px; border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; margin-bottom: 10px;
+    border: 1px solid var(--border);
+  }
+  .fw-label { font-size: 12px; font-weight: 700; margin-bottom: 3px; }
+  .fw-sub { font-size: 11px; color: var(--muted); }
+  .fw-arrow {
+    font-size: 20px; color: var(--accent); margin: 0 12px;
+    padding-bottom: 24px;
+  }
+
   /* ARCHITECTURE DIAGRAM */
   .arch-diagram {
     background: var(--surface);
@@ -120,8 +155,10 @@
   .arch-box.client-mob   { background: rgba(78,205,196,0.12); border-color: rgba(78,205,196,0.4); color: #6dd9d2; }
   .arch-box.backend      { background: rgba(247,147,30,0.12); border-color: rgba(247,147,30,0.4); color: #f7b75e; }
   .arch-box.llm          { background: rgba(74,222,128,0.1); border-color: rgba(74,222,128,0.35); color: #6ee7b7; }
+  .arch-box.llm.primary  { background: rgba(167,139,250,0.18); border-color: rgba(167,139,250,0.6); color: #c4b5fd; font-size:14px; }
   .arch-box.db           { background: rgba(248,113,113,0.1); border-color: rgba(248,113,113,0.35); color: #fca5a5; }
   .arch-box.auth         { background: rgba(251,191,36,0.1); border-color: rgba(251,191,36,0.35); color: #fde68a; }
+  .arch-box.ml           { background: rgba(78,205,196,0.1); border-color: rgba(78,205,196,0.35); color: #6dd9d2; }
   .arch-box small { display: block; font-weight: 400; opacity: 0.7; font-size: 11px; margin-top: 3px; }
   .arch-arrow {
     font-size: 22px; color: var(--muted);
@@ -173,9 +210,7 @@
 
   /* FLOW STEPS */
   .flow { display: flex; flex-direction: column; gap: 0; }
-  .flow-step {
-    display: flex; gap: 20px; align-items: flex-start;
-  }
+  .flow-step { display: flex; gap: 20px; align-items: flex-start; }
   .flow-step + .flow-step { margin-top: 0; }
   .flow-left { display: flex; flex-direction: column; align-items: center; }
   .flow-num {
@@ -216,6 +251,8 @@
   .platform-tag.railway  { background: rgba(131,88,255,0.2); color: #a78bfa; }
   .platform-tag.vercel   { background: rgba(255,255,255,0.1); color: #e2e8f0; }
   .platform-tag.expo     { background: rgba(78,205,196,0.15); color: var(--accent2); }
+  .platform-tag.hf       { background: rgba(247,147,30,0.15); color: #f7b75e; }
+  .platform-tag.colab    { background: rgba(74,222,128,0.12); color: #6ee7b7; }
 
   /* STACK PILLS */
   .stack-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
@@ -228,6 +265,25 @@
   /* DATA TABLE */
   .data-table { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
 
+  /* CHAIN BAR */
+  .chain {
+    display: flex; align-items: center; gap: 0;
+    background: rgba(0,0,0,0.3); border-radius: 14px;
+    padding: 20px 28px; flex-wrap: wrap;
+    border: 1px solid var(--border);
+  }
+  .chain-step {
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    padding: 12px 24px;
+  }
+  .chain-icon { font-size: 28px; margin-bottom: 6px; }
+  .chain-name { font-size: 14px; font-weight: 700; }
+  .chain-sub  { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .chain-sep { font-size: 18px; color: var(--muted); padding: 0 4px; }
+  .chain-step.primary .chain-name { color: var(--purple); }
+  .chain-step.fallback .chain-name { color: var(--green); }
+  .chain-step.offline .chain-name { color: var(--accent2); }
+
   /* FOOTER */
   footer {
     text-align: center; padding: 40px;
@@ -239,9 +295,10 @@
 <body>
 
 <nav>
-  <div class="nav-logo">Pragma <span>Checker</span></div>
+  <div class="nav-logo"><span>Pragma</span></div>
   <div class="nav-links">
     <a href="#business">Business</a>
+    <a href="#model">Model</a>
     <a href="#usecases">Use Cases</a>
     <a href="#roadmap">Roadmap</a>
     <a href="#architecture">Architecture</a>
@@ -253,7 +310,7 @@
 <div class="hero">
   <div class="hero-badge">Product &amp; Architecture Overview</div>
   <h1>Pragma</h1>
-  <p>Practical AI ethics engine for automated decision systems — built for enterprise AI governance.</p>
+  <p>A proprietary ethical reasoning model — purpose-built for AI governance. Learns from every decision. Improves with every user.</p>
 </div>
 
 <div class="container">
@@ -265,12 +322,12 @@
     <p class="section-sub">Enterprises are deploying AI in hiring, lending, and operations — with no guardrails on ethical impact.</p>
     <div class="card-grid cols-3">
       <div class="card">
-        <h3><span class="dot red" style="background:#f87171"></span> Invisible Bias</h3>
+        <h3><span class="dot" style="background:#f87171"></span> Invisible Bias</h3>
         <p>AI systems trained on historical data replicate systemic bias in hiring, loan approvals, and promotions — often without anyone noticing until litigation.</p>
       </div>
       <div class="card">
         <h3><span class="dot" style="background:#fbbf24"></span> Regulatory Risk</h3>
-        <p>EEOC, GDPR, and emerging EU AI Act require explainable, auditable decisions. Non-compliance carries fines up to 6% of global revenue.</p>
+        <p>EEOC, GDPR, and the EU AI Act require explainable, auditable decisions. Non-compliance carries fines up to 6% of global revenue.</p>
       </div>
       <div class="card">
         <h3><span class="dot" style="background:#f97316"></span> No Tooling Exists</h3>
@@ -282,7 +339,7 @@
   <!-- VALUE PROPOSITION -->
   <section>
     <h2>Value Proposition</h2>
-    <p class="section-sub">Automated ethical analysis at the speed of AI — not human review committees.</p>
+    <p class="section-sub">A domain-specific ethics engine — not a generic LLM with an ethics prompt.</p>
     <div class="card-grid cols-2">
       <div class="card">
         <h3 style="font-size:20px; margin-bottom:16px;">For Engineering Teams</h3>
@@ -292,6 +349,7 @@
           <li>Automatic risk flag detection (bias, discrimination, fairness)</li>
           <li>Confidence scoring surfaces uncertain decisions for human review</li>
           <li>PDF audit report generation for compliance documentation</li>
+          <li>Category-aware analysis: hiring, finance, healthcare, policy, and more</li>
         </ul>
       </div>
       <div class="card">
@@ -300,7 +358,8 @@
           <li>Demonstrable due diligence for AI governance audits</li>
           <li>No PII stored — anonymous metadata only, GDPR-safe by design</li>
           <li>Explainable output that non-technical stakeholders can read</li>
-          <li>Works offline with mock fallback — no single point of failure</li>
+          <li>Model improves continuously — better today than yesterday</li>
+          <li>No vendor lock-in risk — we own the model weights</li>
           <li>Plug into existing workflows via REST API</li>
         </ul>
       </div>
@@ -312,9 +371,9 @@
         <div style="color:var(--muted); font-size:13px; margin-top:4px;">Kant · Mill · Aristotle</div>
       </div>
       <div class="card" style="text-align:center; padding:32px;">
-        <div style="font-size:40px; font-weight:800; background:linear-gradient(135deg,#f7931e,#fbbf24); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">&lt;2s</div>
-        <div style="font-weight:600; margin-top:4px;">Analysis Latency</div>
-        <div style="color:var(--muted); font-size:13px; margin-top:4px;">Claude claude-opus-4-6 with adaptive thinking</div>
+        <div style="font-size:40px; font-weight:800; background:linear-gradient(135deg,#a78bfa,#7c6fe0); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">7</div>
+        <div style="font-weight:600; margin-top:4px;">Decision Categories</div>
+        <div style="color:var(--muted); font-size:13px; margin-top:4px;">Hiring · Finance · Healthcare · Policy · more</div>
       </div>
       <div class="card" style="text-align:center; padding:32px;">
         <div style="font-size:40px; font-weight:800; background:linear-gradient(135deg,#4ade80,#4ecdc4); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">0</div>
@@ -350,13 +409,124 @@
     </div>
   </section>
 
+  <!-- THE PRAGMA MODEL -->
+  <section id="model">
+    <h2>The Pragma Model — Our Competitive Moat</h2>
+    <p class="section-sub">We are not wrapping ChatGPT. We are building a domain-specific ethical reasoning model that improves with every user interaction.</p>
+
+    <div class="moat-banner">
+      <h3>General LLMs know everything about everything.<br>The Pragma model knows <em style="color:var(--accent);">everything about ethical reasoning</em>.</h3>
+      <p style="margin-top:14px;">A model trained exclusively on structured ethical analysis develops deeper domain expertise than a model trained on the entire internet. The Pragma model is our secret sauce — and it gets smarter every training cycle.</p>
+    </div>
+
+    <h3 style="font-size:18px; font-weight:700; margin-bottom:24px;">The Retraining Flywheel</h3>
+    <div class="flywheel">
+      <div class="fw-step">
+        <div class="fw-icon" style="background:rgba(167,139,250,0.12); border-color:rgba(167,139,250,0.4);">🤖</div>
+        <div class="fw-label">Claude (Teacher)</div>
+        <div class="fw-sub">Labels training data<br>across 31 scenario templates</div>
+      </div>
+      <div class="fw-arrow">→</div>
+      <div class="fw-step">
+        <div class="fw-icon" style="background:rgba(247,147,30,0.12); border-color:rgba(247,147,30,0.4);">📊</div>
+        <div class="fw-label">Training Dataset</div>
+        <div class="fw-sub">train.jsonl + eval.jsonl<br>Structured ethical analyses</div>
+      </div>
+      <div class="fw-arrow">→</div>
+      <div class="fw-step">
+        <div class="fw-icon" style="background:rgba(74,222,128,0.1); border-color:rgba(74,222,128,0.35);">⚗️</div>
+        <div class="fw-label">LoRA Fine-Tune</div>
+        <div class="fw-sub">Phi-3-mini on Colab T4<br>PEFT + SFTTrainer</div>
+      </div>
+      <div class="fw-arrow">→</div>
+      <div class="fw-step">
+        <div class="fw-icon" style="background:rgba(124,111,224,0.15); border-color:rgba(124,111,224,0.4);">🧠</div>
+        <div class="fw-label" style="color:var(--accent);">Pragma Model</div>
+        <div class="fw-sub">HuggingFace Inference API<br>Primary production provider</div>
+      </div>
+      <div class="fw-arrow">→</div>
+      <div class="fw-step">
+        <div class="fw-icon" style="background:rgba(78,205,196,0.1); border-color:rgba(78,205,196,0.35);">👍</div>
+        <div class="fw-label">User Feedback</div>
+        <div class="fw-sub">Thumbs up/down<br>Stored per category</div>
+      </div>
+      <div class="fw-arrow">→</div>
+      <div class="fw-step">
+        <div class="fw-icon" style="background:rgba(248,113,113,0.1); border-color:rgba(248,113,113,0.35);">📉</div>
+        <div class="fw-label">Weak Category Detection</div>
+        <div class="fw-sub">collect_feedback.py<br>Approval rate &lt; 70%</div>
+      </div>
+      <div class="fw-arrow">→</div>
+      <div class="fw-step">
+        <div class="fw-icon" style="background:rgba(247,147,30,0.12); border-color:rgba(247,147,30,0.4);">🎯</div>
+        <div class="fw-label">Targeted Retraining</div>
+        <div class="fw-sub">More examples in weak areas<br>Appended to train.jsonl</div>
+      </div>
+      <div class="fw-arrow" style="color:var(--accent); font-weight:700;">↺</div>
+    </div>
+
+    <div class="card-grid cols-3" style="margin-top:8px;">
+      <div class="card">
+        <h3><span class="dot" style="background:#a78bfa"></span> Model Distillation</h3>
+        <p>Claude claude-opus-4-6 acts as the teacher, labelling ethical scenarios with structured JSON output. The Pragma model (Phi-3-mini LoRA adapter) learns to replicate this reasoning — at a fraction of the inference cost.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot teal"></span> Feedback-Driven Training</h3>
+        <p>Every thumbs up/down is stored by category and model version. <code>collect_feedback.py</code> identifies which categories have approval below 70% and auto-generates more targeted training examples for those areas.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot green"></span> Provider Phase-Out Plan</h3>
+        <p>Claude and OpenAI are <strong>offline teachers only</strong> — used to bootstrap training data, not as the long-term production path. As the Pragma model matures, third-party LLM dependency drops to zero.</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h3>ML Pipeline Scripts</h3>
+      <div class="card-grid cols-2" style="margin-top:14px; gap:12px;">
+        <div>
+          <code style="display:block; padding:14px; line-height:1.9; font-size:12px; background:rgba(0,0,0,0.3); border-radius:10px;">
+# Step 1 — Generate labelled training data (local)<br>
+ANTHROPIC_API_KEY=sk-ant-... \<br>
+  python ml/generate_data.py --n 5<br>
+# → ml/data/train.jsonl (~140 examples)<br>
+# → ml/data/eval.jsonl
+          </code>
+        </div>
+        <div>
+          <code style="display:block; padding:14px; line-height:1.9; font-size:12px; background:rgba(0,0,0,0.3); border-radius:10px;">
+# Step 2 — Fine-tune on Google Colab T4 (free)<br>
+pip install transformers peft trl datasets<br>
+HF_TOKEN=hf_... python ml/train.py \<br>
+  --hf_repo yourname/pragma-ethics-v1
+          </code>
+        </div>
+        <div>
+          <code style="display:block; padding:14px; line-height:1.9; font-size:12px; background:rgba(0,0,0,0.3); border-radius:10px;">
+# Step 3 — Run the feedback flywheel<br>
+DATABASE_URL=postgresql://... \<br>
+ANTHROPIC_API_KEY=sk-ant-... \<br>
+  python ml/collect_feedback.py --threshold 0.70
+          </code>
+        </div>
+        <div>
+          <code style="display:block; padding:14px; line-height:1.9; font-size:12px; background:rgba(0,0,0,0.3); border-radius:10px;">
+# Step 4 — Evaluate student vs teacher quality<br>
+HF_TOKEN=hf_... python ml/evaluate.py \<br>
+  --student_repo yourname/pragma-ethics-v1<br>
+# Reports: parse rate, risk Jaccard, conf MAE
+          </code>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- USE CASES -->
   <section id="usecases">
     <h2>Use Cases</h2>
     <p class="section-sub">Real scenarios where the engine detects risk and provides actionable guidance.</p>
     <div class="card-grid cols-2">
       <div class="card">
-        <h3><span class="dot red" style="background:#f87171"></span> Hiring Decision</h3>
+        <h3><span class="dot" style="background:#f87171"></span> Hiring Decision</h3>
         <p style="margin-top:8px; font-size:13px; color:var(--muted);">Input decision:</p>
         <code style="display:block; margin:8px 0; padding:10px;">"Reject job candidate" + context: gender=female, education=non-elite</code>
         <p style="font-size:13px; color:var(--muted);">Output:</p>
@@ -389,15 +559,15 @@
         <p style="font-size:13px; color:var(--muted); margin-top:10px;">Recommendation: Proceed, but remove gender from criteria. Decision appears merit-based — verify against team-wide promotion rates.</p>
       </div>
       <div class="card">
-        <h3><span class="dot green"></span> Policy Rollout</h3>
+        <h3><span class="dot green"></span> AI Policy Rollout</h3>
         <p style="margin-top:8px; font-size:13px; color:var(--muted);">Input decision:</p>
-        <code style="display:block; margin:8px 0; padding:10px;">"Implement mandatory overtime" + context: role=warehouse, pay=minimum_wage</code>
+        <code style="display:block; margin:8px 0; padding:10px;">"Implement AI performance monitoring" + context: scope=keystrokes, consent=not required</code>
         <p style="font-size:13px; color:var(--muted);">Output:</p>
         <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
-          <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">fairness flagged</span>
+          <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">transparency flagged</span>
           <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">harm potential</span>
         </div>
-        <p style="font-size:13px; color:var(--muted); margin-top:10px;">Recommendation: Disproportionate impact on low-wage workers. Consider voluntary overtime with premium pay and clear opt-out process.</p>
+        <p style="font-size:13px; color:var(--muted); margin-top:10px;">Recommendation: Require explicit employee consent. Disclose scope fully. Implement opt-out process and data retention limits.</p>
       </div>
     </div>
   </section>
@@ -415,7 +585,7 @@
           <li>100 evaluations / month</li>
           <li>Web &amp; mobile app access</li>
           <li>PDF report downloads</li>
-          <li>Guest access</li>
+          <li>Guest access (no sign-in)</li>
           <li style="opacity:0.4;">API access</li>
           <li style="opacity:0.4;">Custom context fields</li>
         </ul>
@@ -429,7 +599,7 @@
           <li>Full API access</li>
           <li>Audit log export</li>
           <li>Custom risk policies</li>
-          <li>Priority LLM (Claude claude-opus-4-6)</li>
+          <li>Pragma model (domain-optimised)</li>
           <li>Email support</li>
         </ul>
       </div>
@@ -442,8 +612,8 @@
           <li>Self-hosted / VPC deployment</li>
           <li>Custom ethical frameworks</li>
           <li>Compliance mapping (GDPR, EEOC, EU AI Act)</li>
+          <li>Dedicated fine-tuned model instance</li>
           <li>SLA + dedicated support</li>
-          <li>SSO / SAML integration</li>
         </ul>
       </div>
     </div>
@@ -452,7 +622,7 @@
   <!-- COMPETITIVE ADVANTAGE -->
   <section>
     <h2>Competitive Advantage</h2>
-    <p class="section-sub">No direct competitor combines multi-framework moral reasoning with automated risk detection at API scale.</p>
+    <p class="section-sub">No competitor combines a proprietary ethics model with a user-feedback retraining flywheel.</p>
     <div class="data-table">
       <table>
         <thead>
@@ -466,6 +636,20 @@
         </thead>
         <tbody>
           <tr>
+            <td>Proprietary ethics model</td>
+            <td style="color:var(--purple);">Yes — domain-specific LoRA</td>
+            <td style="color:var(--red);">No</td>
+            <td style="color:var(--red);">No — rented API</td>
+            <td style="color:var(--red);">No</td>
+          </tr>
+          <tr>
+            <td>Self-improving via feedback</td>
+            <td style="color:var(--green);">Yes — feedback flywheel</td>
+            <td style="color:var(--red);">No</td>
+            <td style="color:var(--red);">No</td>
+            <td style="color:var(--red);">No</td>
+          </tr>
+          <tr>
             <td>Multi-framework reasoning</td>
             <td style="color:var(--green);">Yes — Kant, Mill, Aristotle</td>
             <td style="color:var(--muted);">Depends on reviewer</td>
@@ -474,7 +658,7 @@
           </tr>
           <tr>
             <td>Automated risk detection</td>
-            <td style="color:var(--green);">Yes — heuristic + LLM</td>
+            <td style="color:var(--green);">Yes — heuristic + model</td>
             <td style="color:var(--red);">No</td>
             <td style="color:var(--muted);">Partial</td>
             <td style="color:var(--muted);">Rule-based only</td>
@@ -487,6 +671,13 @@
             <td style="color:var(--muted);">Complex integration</td>
           </tr>
           <tr>
+            <td>Decision categories</td>
+            <td style="color:var(--green);">7 — hiring, finance, healthcare, policy, more</td>
+            <td style="color:var(--muted);">Manual</td>
+            <td style="color:var(--muted);">Ad hoc</td>
+            <td style="color:var(--muted);">Varies</td>
+          </tr>
+          <tr>
             <td>Speed</td>
             <td style="color:var(--green);">&lt;2 seconds</td>
             <td style="color:var(--red);">Days / weeks</td>
@@ -494,25 +685,11 @@
             <td style="color:var(--red);">Weeks</td>
           </tr>
           <tr>
-            <td>LLM fallback resilience</td>
-            <td style="color:var(--green);">Claude → OpenAI → Mock</td>
-            <td style="color:var(--muted);">N/A</td>
-            <td style="color:var(--red);">Single provider</td>
-            <td style="color:var(--red);">No LLM</td>
-          </tr>
-          <tr>
             <td>Privacy-safe (no PII stored)</td>
             <td style="color:var(--green);">Yes — anonymous metadata</td>
             <td style="color:var(--muted);">Varies</td>
-            <td style="color:var(--red);">Sends data to LLM</td>
+            <td style="color:var(--red);">Sends data to third-party LLM</td>
             <td style="color:var(--muted);">Varies</td>
-          </tr>
-          <tr>
-            <td>PDF audit report</td>
-            <td style="color:var(--green);">Yes — downloadable</td>
-            <td style="color:var(--muted);">Manual</td>
-            <td style="color:var(--red);">No</td>
-            <td style="color:var(--green);">Yes</td>
           </tr>
         </tbody>
       </table>
@@ -522,22 +699,24 @@
   <!-- ROADMAP -->
   <section id="roadmap">
     <h2>Product Roadmap</h2>
-    <p class="section-sub">From MVP to enterprise AI governance platform.</p>
+    <p class="section-sub">From feedback flywheel to enterprise AI governance platform.</p>
     <div class="card-grid cols-2">
       <div class="card" style="border-color:rgba(74,222,128,0.3);">
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
           <span class="badge" style="background:rgba(74,222,128,0.15); color:#6ee7b7; font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">Done — MVP</span>
         </div>
         <ul style="color:var(--muted); font-size:14px; line-height:2.2;">
-          <li>POST /evaluate-decision API</li>
+          <li>POST /evaluate-decision API with 7 decision categories</li>
           <li>Three ethical frameworks (Kant, Mill, Aristotle)</li>
-          <li>Heuristic + LLM risk detection</li>
-          <li>Claude claude-opus-4-6 primary + OpenAI fallback + mock</li>
+          <li>Heuristic + model risk detection (bias, fairness, discrimination, harm, transparency)</li>
+          <li>Provider chain: Pragma model → Claude → OpenAI → Mock</li>
           <li>PDF audit report download</li>
           <li>Google SSO + guest flow</li>
-          <li>Anonymous metadata logging (no PII)</li>
-          <li>iOS-style web app + React Native mobile</li>
-          <li>182 unit tests, 99% code coverage</li>
+          <li>Anonymous metadata logging (no PII) — PostgreSQL on Railway</li>
+          <li>Feedback flywheel — thumbs up/down → weak category detection → targeted retraining</li>
+          <li>Model distillation pipeline — generate_data, train, evaluate scripts</li>
+          <li>iOS-style web app + React Native mobile (Expo)</li>
+          <li>210 unit tests, 97.6% code coverage</li>
         </ul>
       </div>
       <div class="card" style="border-color:rgba(124,111,224,0.3);">
@@ -545,13 +724,14 @@
           <span class="badge" style="background:rgba(124,111,224,0.15); color:var(--accent); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">Q2 2026 — Growth</span>
         </div>
         <ul style="color:var(--muted); font-size:14px; line-height:2.2;">
-          <li>Enterprise dashboard with decision history</li>
+          <li>First Pragma model v1 deployed on HuggingFace</li>
+          <li>Enterprise dashboard with decision history &amp; approval trends</li>
           <li>Custom ethical policies per organization</li>
           <li>Compliance mapping — GDPR, EEOC, EU AI Act</li>
           <li>Audit log export (CSV / JSON)</li>
           <li>Stripe billing integration</li>
           <li>Team accounts &amp; role-based access</li>
-          <li>Webhook notifications for high-risk flags</li>
+          <li>Model version tracking — A/B compare Pragma v1 vs v2</li>
         </ul>
       </div>
       <div class="card" style="border-color:rgba(247,147,30,0.3);">
@@ -559,12 +739,13 @@
           <span class="badge" style="background:rgba(247,147,30,0.15); color:#f7b75e; font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">Q3 2026 — Scale</span>
         </div>
         <ul style="color:var(--muted); font-size:14px; line-height:2.2;">
+          <li>Pragma model v2 — retrained on real user feedback data</li>
           <li>Self-hosted / VPC enterprise deployment</li>
-          <li>Fine-tuned ethics model on domain data</li>
           <li>Batch evaluation API for bulk decisions</li>
           <li>SAML / SSO enterprise integration</li>
           <li>Industry-specific risk libraries (HR, Fintech, Healthcare)</li>
           <li>Ethics scoring trends and benchmarking dashboard</li>
+          <li>Automated nightly retraining pipeline on Railway</li>
         </ul>
       </div>
       <div class="card" style="border-color:rgba(78,205,196,0.3);">
@@ -572,10 +753,10 @@
           <span class="badge" style="background:rgba(78,205,196,0.15); color:var(--accent2); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">Q4 2026 — Platform</span>
         </div>
         <ul style="color:var(--muted); font-size:14px; line-height:2.2;">
+          <li>Pragma model fully replaces Claude/OpenAI in production</li>
           <li>Marketplace of ethical policy templates</li>
           <li>Regulatory change monitoring &amp; alerts</li>
           <li>Explainability graph — decision reasoning trace</li>
-          <li>Vector DB for decision pattern memory</li>
           <li>Partner integrations (Workday, Salesforce, SAP)</li>
           <li>Public ethics API for open-source community</li>
         </ul>
@@ -583,14 +764,14 @@
     </div>
   </section>
 
-  <!-- OVERVIEW -->
+  <!-- ARCHITECTURE OVERVIEW -->
   <section>
     <h2>Overview</h2>
-    <p class="section-sub">Three client layers share a single FastAPI engine with LLM orchestration.</p>
+    <p class="section-sub">Three client layers share one FastAPI engine. The Pragma model is the primary reasoning provider.</p>
     <div class="card-grid cols-3">
       <div class="card">
         <h3><span class="dot purple"></span> Web Frontend</h3>
-        <p>iOS-style glassmorphism single-page app. Hosted on Vercel. Connects to backend via HTTPS.</p>
+        <p>iOS-style glassmorphism single-page app. Hosted on Vercel. Category pills, feedback buttons, Google SSO.</p>
         <div class="stack-list">
           <span class="stack-pill">HTML5</span>
           <span class="stack-pill">Vanilla JS</span>
@@ -600,7 +781,7 @@
       </div>
       <div class="card">
         <h3><span class="dot teal"></span> Mobile App</h3>
-        <p>React Native (Expo) app for iOS &amp; Android. Same API, native feel. Distributable via Expo EAS.</p>
+        <p>React Native (Expo) app for iOS &amp; Android. Same API, native feel. Category selectors, glassmorphism UI.</p>
         <div class="stack-list">
           <span class="stack-pill">React Native</span>
           <span class="stack-pill">Expo</span>
@@ -610,11 +791,11 @@
       </div>
       <div class="card">
         <h3><span class="dot orange"></span> Backend Engine</h3>
-        <p>FastAPI with LLM orchestrator: Claude primary, OpenAI fallback, mock last resort. Hosted on Railway.</p>
+        <p>FastAPI with Pragma model as primary provider. Claude/OpenAI as fallbacks. PostgreSQL on Railway.</p>
         <div class="stack-list">
           <span class="stack-pill">FastAPI</span>
-          <span class="stack-pill">Claude claude-opus-4-6</span>
-          <span class="stack-pill">GPT-4o-mini</span>
+          <span class="stack-pill">Pragma Model</span>
+          <span class="stack-pill">SQLAlchemy</span>
           <span class="stack-pill">Railway</span>
         </div>
       </div>
@@ -624,7 +805,7 @@
   <!-- ARCHITECTURE DIAGRAM -->
   <section id="architecture">
     <h2>System Architecture</h2>
-    <p class="section-sub">Request flow from client to LLM and back.</p>
+    <p class="section-sub">Request flow from client to model and back. Feedback loop drives continuous retraining.</p>
     <div class="arch-diagram">
 
       <!-- Clients -->
@@ -666,9 +847,9 @@
           <small>backend/main.py</small>
         </div>
       </div>
-      <div class="arch-row" style="gap:60px;">
+      <div class="arch-row" style="gap:40px; flex-wrap:wrap;">
         <div class="arch-box backend">
-          LLM Orchestrator
+          Model Orchestrator
           <small>llm_orchestrator.py</small>
         </div>
         <div class="arch-box backend">
@@ -679,16 +860,25 @@
           Risk Detector
           <small>risk_detector.py</small>
         </div>
+        <div class="arch-box backend">
+          Feedback Logger
+          <small>/feedback endpoint</small>
+        </div>
       </div>
 
       <div class="arch-row"><div class="arch-arrow">↓</div></div>
 
-      <!-- LLMs -->
-      <div class="arch-divider"><span>LLM Layer</span></div>
+      <!-- Model layer -->
+      <div class="arch-divider"><span>Model Layer — Provider Chain</span></div>
       <div class="arch-row">
+        <div class="arch-box llm primary">
+          Pragma Model
+          <small>🥇 Primary — HF Inference API</small>
+        </div>
+        <div class="arch-arrow">→ fallback →</div>
         <div class="arch-box llm">
           Claude claude-opus-4-6
-          <small>Primary · Adaptive Thinking</small>
+          <small>Fallback (offline teacher)</small>
         </div>
         <div class="arch-arrow">→ fallback →</div>
         <div class="arch-box llm">
@@ -698,7 +888,7 @@
         <div class="arch-arrow">→ fallback →</div>
         <div class="arch-box llm">
           Mock Response
-          <small>Offline / no credits</small>
+          <small>Offline / unconfigured</small>
         </div>
       </div>
 
@@ -708,12 +898,38 @@
       <div class="arch-divider"><span>Storage</span></div>
       <div class="arch-row">
         <div class="arch-box db">
-          SQLite
-          <small>Request metadata · No PII</small>
+          PostgreSQL
+          <small>request_logs · analysis_feedback</small>
         </div>
         <div class="arch-box db">
           In-Memory Sessions
-          <small>JWT tokens · 24hr TTL</small>
+          <small>Bearer tokens · 24hr TTL</small>
+        </div>
+      </div>
+
+      <div class="arch-row"><div class="arch-arrow">↓</div></div>
+
+      <!-- ML pipeline -->
+      <div class="arch-divider"><span>ML Pipeline (Offline)</span></div>
+      <div class="arch-row">
+        <div class="arch-box ml">
+          collect_feedback.py
+          <small>Weak category detection</small>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box ml">
+          generate_data.py
+          <small>Claude labels new examples</small>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box ml">
+          train.py (Colab T4)
+          <small>LoRA fine-tune Phi-3-mini</small>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box ml">
+          HuggingFace Hub
+          <small>Pragma model adapter</small>
         </div>
       </div>
 
@@ -769,19 +985,25 @@
             <td><span class="method post">POST</span></td>
             <td><code>/evaluate-decision</code></td>
             <td><span class="badge auth">Bearer</span></td>
-            <td>Run ethical analysis via LLM orchestrator</td>
+            <td>Run ethical analysis — Pragma model → Claude → OpenAI → Mock</td>
+          </tr>
+          <tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/feedback</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Submit thumbs up/down on an analysis — feeds the retraining flywheel</td>
           </tr>
           <tr>
             <td><span class="method post">POST</span></td>
             <td><code>/generate-report</code></td>
             <td><span class="badge auth">Bearer</span></td>
-            <td>Generate downloadable PDF report</td>
+            <td>Generate downloadable PDF audit report</td>
           </tr>
           <tr>
             <td><span class="method get">GET</span></td>
             <td><code>/health-check</code></td>
             <td><span class="badge pub">Public</span></td>
-            <td>Provider status + uptime health check</td>
+            <td>Model availability status — <code>model.pragma</code>, <code>model.claude</code>, <code>model.openai</code></td>
           </tr>
         </tbody>
       </table>
@@ -794,7 +1016,7 @@
     <p class="section-sub">Two paths: Google SSO or Guest. Both return a bearer token used for all subsequent requests.</p>
     <div class="card-grid cols-2">
       <div class="card">
-        <h3><span class="dot yellow" style="background:#fbbf24"></span> Google SSO Flow</h3>
+        <h3><span class="dot" style="background:#fbbf24"></span> Google SSO Flow</h3>
         <div class="flow" style="margin-top:20px;">
           <div class="flow-step">
             <div class="flow-left"><div class="flow-num">1</div><div class="flow-line"></div></div>
@@ -835,7 +1057,7 @@
           </div>
           <div class="flow-step">
             <div class="flow-left"><div class="flow-num">4</div><div class="flow-line"></div></div>
-            <div class="flow-content"><h4>Full Access</h4><p>Guest users get full evaluate + PDF features. No name/picture shown.</p></div>
+            <div class="flow-content"><h4>Full Access</h4><p>Guest users get full evaluate + PDF + feedback features. No name/picture shown.</p></div>
           </div>
         </div>
       </div>
@@ -845,7 +1067,7 @@
   <!-- DATA PRIVACY -->
   <section id="data">
     <h2>Data &amp; Privacy</h2>
-    <p class="section-sub">No personal data stored. Only anonymous request metadata for usage analytics.</p>
+    <p class="section-sub">No personal data stored. Feedback drives model improvement, not user profiling.</p>
     <div class="card-grid cols-2">
       <div class="card">
         <h3><span class="dot green"></span> What We Store</h3>
@@ -854,12 +1076,13 @@
           <li>Request timestamp</li>
           <li>Context field <strong>names</strong> only (not values)</li>
           <li>Decision word count (not the text)</li>
-          <li>LLM provider used (claude / openai / mock)</li>
-          <li>Confidence score &amp; risk flag count</li>
+          <li>Provider used (pragma / claude / openai / mock)</li>
+          <li>Confidence score, risk flag count, decision category</li>
+          <li>Feedback ratings (👍 / 👎) per category — for model retraining</li>
         </ul>
       </div>
       <div class="card">
-        <h3><span class="dot red" style="background:#f87171"></span> What We Never Store</h3>
+        <h3><span class="dot" style="background:#f87171"></span> What We Never Store</h3>
         <ul style="margin-top:10px;">
           <li>User email or name</li>
           <li>Google account details</li>
@@ -871,52 +1094,82 @@
       </div>
     </div>
     <div class="card" style="margin-top:16px;">
-      <h3>SQLite Schema</h3>
-      <code style="display:block; margin-top:12px; padding:16px; line-height:2; white-space:pre-wrap; background:rgba(0,0,0,0.3); border-radius:10px; font-size:12px;">CREATE TABLE request_logs (
-  id              INTEGER PRIMARY KEY AUTOINCREMENT,
-  anon_id         TEXT,          -- SHA-256 of session sub, not reversible
-  timestamp       TEXT,          -- ISO 8601
-  provider        TEXT,          -- claude | openai | mock
-  confidence_score REAL,
-  risk_flag_count  INTEGER,
-  context_keys    TEXT,          -- JSON array of field names ["gender","role"]
-  decision_words  INTEGER        -- word count, not the text
+      <h3>PostgreSQL Schema</h3>
+      <code style="display:block; margin-top:12px; padding:16px; line-height:2; white-space:pre-wrap; background:rgba(0,0,0,0.3); border-radius:10px; font-size:12px;">-- Request metadata (no PII, no decision text)
+CREATE TABLE request_logs (
+  id               SERIAL PRIMARY KEY,
+  anon_id          TEXT,     -- SHA-256 of session sub, not reversible
+  timestamp        TEXT,     -- ISO 8601 UTC
+  context_keys     TEXT,     -- JSON array of field names ["gender","role"]
+  decision_words   INTEGER,  -- word count only
+  provider         TEXT,     -- pragma | claude | openai | mock
+  confidence       REAL,
+  risk_count       INTEGER,
+  risk_categories  TEXT,     -- JSON array ["bias","fairness"]
+  category         TEXT      -- hiring | finance | healthcare | ...
+);
+
+-- Feedback for model retraining flywheel
+CREATE TABLE analysis_feedback (
+  id               SERIAL PRIMARY KEY,
+  anon_id          TEXT,
+  timestamp        TEXT,
+  rating           INTEGER,  -- 1 = thumbs up, -1 = thumbs down
+  category         TEXT,
+  provider         TEXT,
+  model_version    TEXT,     -- e.g. "pragma-v1", "unknown"
+  confidence       REAL,
+  risk_categories  TEXT      -- JSON array
 );</code>
     </div>
   </section>
 
-  <!-- LLM ORCHESTRATION -->
+  <!-- MODEL ORCHESTRATION -->
   <section>
-    <h2>LLM Orchestration</h2>
-    <p class="section-sub">Automatic fallback chain ensures the service stays up even when an API is unavailable.</p>
-    <div class="card-grid cols-3">
-      <div class="card">
-        <h3><span class="dot green"></span> Primary — Claude</h3>
-        <p>claude-opus-4-6 with Adaptive Thinking enabled. Streaming response. Falls back on rate limits, auth errors, or credit exhaustion.</p>
+    <h2>Model Orchestration</h2>
+    <p class="section-sub">The Pragma model leads. Claude and OpenAI exist only as production fallbacks while the model matures.</p>
+
+    <div class="chain">
+      <div class="chain-step primary">
+        <div class="chain-icon">🧠</div>
+        <div class="chain-name">Pragma Model</div>
+        <div class="chain-sub">Primary · HF Inference API<br>Our domain-specific model</div>
       </div>
-      <div class="card">
-        <h3><span class="dot teal"></span> Fallback — OpenAI</h3>
-        <p>GPT-4o-mini. Activated when Claude is unavailable. Falls back on RateLimit or AuthenticationError.</p>
+      <div class="chain-sep">→</div>
+      <div class="chain-step fallback">
+        <div class="chain-icon">🤖</div>
+        <div class="chain-name">Claude claude-opus-4-6</div>
+        <div class="chain-sub">Fallback · Adaptive Thinking<br>Rate limit or unavailable</div>
       </div>
-      <div class="card">
-        <h3><span class="dot" style="background:#94a3b8"></span> Last Resort — Mock</h3>
-        <p>Static structured response. Ensures the UI always renders. Labeled with <code>provider: mock</code> in response.</p>
+      <div class="chain-sep">→</div>
+      <div class="chain-step fallback">
+        <div class="chain-icon">💬</div>
+        <div class="chain-name">GPT-4o-mini</div>
+        <div class="chain-sub">Fallback · If Claude fails<br>Rate limit or credit error</div>
+      </div>
+      <div class="chain-sep">→</div>
+      <div class="chain-step offline">
+        <div class="chain-icon">🔇</div>
+        <div class="chain-name">Mock Response</div>
+        <div class="chain-sub">Last resort · Always returns<br>Labeled provider: mock</div>
       </div>
     </div>
-    <div class="card" style="margin-top:16px;">
-      <h3>Ethical Framework Analyses</h3>
-      <div class="card-grid cols-3" style="margin-top:14px;">
-        <div>
-          <h4 style="font-size:13px; margin-bottom:4px;">Kantian Ethics</h4>
-          <p style="font-size:13px; color:var(--muted);">Categorical imperative — could this decision be universalized?</p>
-        </div>
-        <div>
-          <h4 style="font-size:13px; margin-bottom:4px;">Utilitarian Analysis</h4>
-          <p style="font-size:13px; color:var(--muted);">Greatest good for the greatest number. Outcome-based scoring.</p>
-        </div>
-        <div>
-          <h4 style="font-size:13px; margin-bottom:4px;">Virtue Ethics</h4>
-          <p style="font-size:13px; color:var(--muted);">Does this reflect the character of a virtuous person?</p>
+
+    <div class="card-grid cols-3" style="margin-top:16px;">
+      <div class="card">
+        <h3><span class="dot" style="background:#a78bfa"></span> Pragma Model</h3>
+        <p>Fine-tuned Phi-3-mini LoRA adapter served via HuggingFace Inference API. Set <code>CUSTOM_MODEL_REPO</code> env var to activate. Returns <code>provider: "pragma"</code>.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot green"></span> Claude (Fallback)</h3>
+        <p>claude-opus-4-6 with Adaptive Thinking. Streaming response. Falls back on rate limits, auth errors, or credit exhaustion. Long-term goal: remove from production entirely.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot teal"></span> Ethical Framework Output</h3>
+        <div class="card-grid" style="margin-top:10px; gap:8px;">
+          <div><h4 style="font-size:13px; margin-bottom:2px;">Kantian Ethics</h4><p style="font-size:12px;">Could this be universalized?</p></div>
+          <div><h4 style="font-size:13px; margin-bottom:2px;">Utilitarian Analysis</h4><p style="font-size:12px;">Greatest good for most people?</p></div>
+          <div><h4 style="font-size:13px; margin-bottom:2px;">Virtue Ethics</h4><p style="font-size:12px;">Character of a virtuous actor?</p></div>
         </div>
       </div>
     </div>
@@ -925,15 +1178,15 @@
   <!-- DEPLOYMENT -->
   <section id="deploy">
     <h2>Deployment Guide</h2>
-    <p class="section-sub">Three services, three platforms, all connected to the same backend.</p>
+    <p class="section-sub">Four services, each on the right platform for its workload.</p>
     <div class="deploy-grid">
       <div class="deploy-card">
         <div class="deploy-num">1</div>
         <span class="platform-tag railway">Railway — Backend</span>
         <h3>Deploy FastAPI</h3>
         <p>Connect GitHub repo. Railway auto-detects Python via <code>requirements.txt</code>.</p>
-        <code>railway.app → New Project<br>→ Deploy from GitHub<br>→ pragma<br>→ Add env vars → Deploy</code>
-        <p style="margin-top:12px;">Required env vars: <code>ANTHROPIC_API_KEY</code>, <code>OPENAI_API_KEY</code>, <code>GOOGLE_CLIENT_ID</code></p>
+        <code>railway.app → New Project<br>→ Deploy from GitHub<br>→ Add PostgreSQL plugin<br>→ Set env vars → Deploy</code>
+        <p style="margin-top:12px;">Required env vars: <code>ANTHROPIC_API_KEY</code>, <code>OPENAI_API_KEY</code>, <code>GOOGLE_CLIENT_ID</code>, <code>CUSTOM_MODEL_REPO</code>, <code>HF_TOKEN</code></p>
       </div>
       <div class="deploy-card">
         <div class="deploy-num">2</div>
@@ -945,6 +1198,13 @@
       </div>
       <div class="deploy-card">
         <div class="deploy-num">3</div>
+        <span class="platform-tag hf">HuggingFace — Pragma Model</span>
+        <h3>Train &amp; Serve Model</h3>
+        <p>Fine-tune on Colab (free T4 GPU), push adapter to HuggingFace Hub, activate via env var.</p>
+        <code>python ml/generate_data.py --n 5<br>python ml/train.py \<br>  --hf_repo user/pragma-ethics-v1<br>→ Set CUSTOM_MODEL_REPO in Railway</code>
+      </div>
+      <div class="deploy-card">
+        <div class="deploy-num">4</div>
         <span class="platform-tag expo">Expo EAS — Mobile</span>
         <h3>Build Mobile App</h3>
         <p>Build and submit to App Store / Play Store via Expo EAS.</p>
@@ -957,7 +1217,7 @@
   <!-- STACK SUMMARY -->
   <section>
     <h2>Full Tech Stack</h2>
-    <p class="section-sub">Every library and service used across all layers.</p>
+    <p class="section-sub">Every library and service across all layers.</p>
     <div class="card-grid cols-2">
       <div class="card">
         <h3>Backend</h3>
@@ -965,13 +1225,31 @@
           <span class="stack-pill">Python 3.11+</span>
           <span class="stack-pill">FastAPI</span>
           <span class="stack-pill">Uvicorn</span>
-          <span class="stack-pill">Pydantic</span>
+          <span class="stack-pill">Pydantic v2</span>
+          <span class="stack-pill">SQLAlchemy 2.x</span>
+          <span class="stack-pill">PostgreSQL</span>
+          <span class="stack-pill">psycopg2-binary</span>
           <span class="stack-pill">anthropic SDK</span>
           <span class="stack-pill">openai SDK</span>
+          <span class="stack-pill">huggingface-hub</span>
           <span class="stack-pill">google-auth</span>
           <span class="stack-pill">reportlab</span>
-          <span class="stack-pill">SQLite3</span>
           <span class="stack-pill">python-dotenv</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>ML Pipeline</h3>
+        <div class="stack-list">
+          <span class="stack-pill">PyTorch</span>
+          <span class="stack-pill">Transformers</span>
+          <span class="stack-pill">PEFT (LoRA)</span>
+          <span class="stack-pill">TRL (SFTTrainer)</span>
+          <span class="stack-pill">BitsAndBytes (4-bit)</span>
+          <span class="stack-pill">Datasets</span>
+          <span class="stack-pill">Accelerate</span>
+          <span class="stack-pill">Phi-3-mini-4k-instruct</span>
+          <span class="stack-pill">HuggingFace Hub</span>
+          <span class="stack-pill">Google Colab (T4)</span>
         </div>
       </div>
       <div class="card">
@@ -989,13 +1267,27 @@
           <span class="stack-pill">AsyncStorage</span>
         </div>
       </div>
+      <div class="card">
+        <h3>Infra &amp; Testing</h3>
+        <div class="stack-list">
+          <span class="stack-pill">Railway</span>
+          <span class="stack-pill">Vercel</span>
+          <span class="stack-pill">Expo EAS</span>
+          <span class="stack-pill">HuggingFace Inference API</span>
+          <span class="stack-pill">pytest</span>
+          <span class="stack-pill">pytest-cov</span>
+          <span class="stack-pill">httpx</span>
+          <span class="stack-pill">GitHub Actions</span>
+          <span class="stack-pill">Nixpacks</span>
+        </div>
+      </div>
     </div>
   </section>
 
 </div>
 
 <footer>
-  Pragma &mdash; Product &amp; Architecture Documentation &mdash; Built with FastAPI + Claude claude-opus-4-6 &mdash; &copy; 2026
+  Pragma &mdash; Product &amp; Architecture Documentation &mdash; Proprietary ethics model powered by model distillation &amp; user feedback &mdash; &copy; 2026
 </footer>
 
 </body>
