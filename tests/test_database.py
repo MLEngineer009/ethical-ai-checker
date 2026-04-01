@@ -24,11 +24,13 @@ class TestAnonId:
 
 
 class TestInitDb:
-    def test_init_creates_table(self):
-        """init_db called by conftest fixture; verify table exists via engine."""
+    def test_init_creates_tables(self):
+        """init_db called by conftest fixture; verify both tables exist."""
         from sqlalchemy import inspect as sa_inspect
         insp = sa_inspect(db._engine)
-        assert "request_logs" in insp.get_table_names()
+        tables = insp.get_table_names()
+        assert "request_logs" in tables
+        assert "analysis_feedback" in tables
 
     def test_init_is_idempotent(self):
         """Calling init_db twice should not raise."""
@@ -127,3 +129,38 @@ class TestGetStats:
         stats = db.get_stats("sub-cap")
         assert len(stats["history"]) == 20
         assert stats["total_requests"] == 20  # only last 20 returned
+
+
+class TestLogFeedback:
+    def test_thumbs_up_stored(self):
+        db.log_feedback("fb-user-1", 1, "hiring", "pragma", "v1", 0.85, ["bias"])
+        stats = db.get_feedback_stats()
+        assert stats["total"] >= 1
+        assert stats["by_category"]["hiring"]["up"] >= 1
+
+    def test_thumbs_down_stored(self):
+        db.log_feedback("fb-user-2", -1, "finance", "claude", "unknown", 0.6, [])
+        stats = db.get_feedback_stats()
+        assert stats["by_category"]["finance"]["down"] >= 1
+
+    def test_invalid_rating_raises(self):
+        with pytest.raises(ValueError):
+            db.log_feedback("fb-user-3", 0, "other", "claude", "unknown", 0.5, [])
+
+    def test_approval_rate_computed(self):
+        db.log_feedback("fb-u4", 1, "healthcare", "claude", "unknown", 0.9, [])
+        db.log_feedback("fb-u5", 1, "healthcare", "claude", "unknown", 0.8, [])
+        db.log_feedback("fb-u6", -1, "healthcare", "claude", "unknown", 0.4, [])
+        stats = db.get_feedback_stats()
+        cat = stats["by_category"]["healthcare"]
+        assert cat["approval_rate"] == round(2 / 3, 3)
+
+    def test_by_provider_tracked(self):
+        db.log_feedback("fb-u7", 1, "other", "pragma", "v1", 0.95, [])
+        stats = db.get_feedback_stats()
+        assert "pragma" in stats["by_provider"]
+
+    def test_empty_returns_zero(self):
+        # Fresh DB from conftest — no feedback yet
+        stats = db.get_feedback_stats()
+        assert stats["total"] == 0

@@ -45,8 +45,12 @@ class TestHealthCheck:
     def test_status_is_healthy(self, client):
         assert client.get("/health-check").json()["status"] == "healthy"
 
-    def test_providers_key_present(self, client):
-        assert "providers" in client.get("/health-check").json()
+    def test_model_key_present(self, client):
+        data = client.get("/health-check").json()
+        assert "model" in data
+        assert "pragma" in data["model"]
+        assert "claude" in data["model"]
+        assert "openai" in data["model"]
 
     def test_root_endpoint(self, client):
         assert client.get("/").status_code in (200,)
@@ -193,3 +197,37 @@ class TestGenerateReport:
         with patch("backend.main.generate_pdf", side_effect=RuntimeError("fail")):
             r = client.post("/generate-report", json=self.PAYLOAD, headers=guest_headers)
         assert r.status_code == 500
+
+
+class TestFeedback:
+    PAYLOAD = {
+        "rating": 1,
+        "category": "hiring",
+        "provider": "pragma",
+        "model_version": "v1",
+        "confidence": 0.85,
+        "risk_flags": ["bias"],
+    }
+
+    def test_unauthenticated_returns_401(self, client):
+        assert client.post("/feedback", json=self.PAYLOAD).status_code == 401
+
+    def test_thumbs_up_returns_ok(self, client, guest_headers):
+        r = client.post("/feedback", json=self.PAYLOAD, headers=guest_headers)
+        assert r.status_code == 200
+        assert r.json()["ok"] is True
+
+    def test_thumbs_down_accepted(self, client, guest_headers):
+        payload = {**self.PAYLOAD, "rating": -1}
+        r = client.post("/feedback", json=payload, headers=guest_headers)
+        assert r.status_code == 200
+
+    def test_invalid_rating_returns_400(self, client, guest_headers):
+        payload = {**self.PAYLOAD, "rating": 0}
+        r = client.post("/feedback", json=payload, headers=guest_headers)
+        assert r.status_code == 400
+
+    def test_invalid_category_defaults_to_other(self, client, guest_headers):
+        payload = {**self.PAYLOAD, "category": "not-a-category"}
+        r = client.post("/feedback", json=payload, headers=guest_headers)
+        assert r.status_code == 200  # accepted, coerced to "other"

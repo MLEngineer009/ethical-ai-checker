@@ -1,9 +1,19 @@
 """
-LLM Orchestrator — provider chain:
-  1. Custom fine-tuned model (HuggingFace Inference API) — if CUSTOM_MODEL_REPO is set
-  2. Claude (Anthropic) — primary cloud LLM
-  3. OpenAI — fallback when Claude is rate-limited or out of credits
-  4. Mock — last resort when all providers are unavailable
+Pragma Model Orchestrator
+─────────────────────────
+The Pragma model is our competitive moat — a domain-specific ethical reasoning
+model trained entirely on structured ethical analysis. It improves every training
+cycle via the user-feedback flywheel (see ml/collect_feedback.py).
+
+Production provider chain:
+  1. Pragma model  — our fine-tuned model (HF Inference API); primary in production
+  2. Claude        — fallback while Pragma model is still being trained/improved
+  3. OpenAI        — fallback if Claude is rate-limited or out of credits
+  4. Mock          — last resort; clearly signals no model is configured
+
+Claude and OpenAI are OFFLINE teachers: they generate labelled training data
+(ml/generate_data.py) and are not meant to be the long-term production path.
+The goal is to phase them out of production as the Pragma model matures.
 """
 
 import json

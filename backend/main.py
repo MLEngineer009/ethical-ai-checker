@@ -92,6 +92,15 @@ class ReportRequest(BaseModel):
     analysis: Dict[str, Any]
 
 
+class FeedbackRequest(BaseModel):
+    rating: int              # 1 = thumbs up, -1 = thumbs down
+    category: str = "other"
+    provider: str = "unknown"
+    model_version: str = "unknown"
+    confidence: float = 0.5
+    risk_flags: list[str] = []
+
+
 # ── Auth endpoints ────────────────────────────────────────────────────────────
 
 @app.post("/auth/google")
@@ -182,6 +191,30 @@ async def evaluate_decision(
     )
 
 
+@app.post("/feedback", dependencies=[Depends(get_current_user)])
+async def submit_feedback(
+    request: FeedbackRequest,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Thumbs up/down on an analysis — feeds the Pragma model retraining flywheel.
+    No decision text or context is stored here.
+    """
+    if request.rating not in (1, -1):
+        raise HTTPException(status_code=400, detail="rating must be 1 (up) or -1 (down)")
+    category = request.category if request.category in VALID_CATEGORIES else "other"
+    database.log_feedback(
+        google_sub    = user["sub"],
+        rating        = request.rating,
+        category      = category,
+        provider      = request.provider,
+        model_version = request.model_version,
+        confidence    = request.confidence,
+        risk_flags    = request.risk_flags,
+    )
+    return {"ok": True}
+
+
 @app.post("/generate-report", dependencies=[Depends(get_current_user)])
 async def generate_report(request: ReportRequest) -> Response:
     """Generate a PDF report for a completed ethical analysis."""
@@ -203,9 +236,10 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "pragma",
-        "providers": {
-            "claude": orchestrator._claude is not None,
-            "openai": orchestrator._openai is not None,
+        "model": {
+            "pragma":  orchestrator._custom.available,   # our model — primary
+            "claude":  orchestrator._claude is not None, # fallback
+            "openai":  orchestrator._openai is not None, # fallback
         }
     }
 
