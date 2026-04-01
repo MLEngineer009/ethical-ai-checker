@@ -150,14 +150,23 @@ class TestBuildUserPrompt:
 
 # ── LLMOrchestrator tests ─────────────────────────────────────────────────────
 
-def _make_orchestrator(claude=None, openai=None):
+def _make_orchestrator(claude=None, openai=None, custom=None):
     """Create an orchestrator with injected mock clients."""
+    from backend.custom_model import CustomModelClient
     orch = LLMOrchestrator.__new__(LLMOrchestrator)
     orch._claude = claude
     orch._openai = openai
     orch._claude_model = "claude-opus-4-6"
     orch._openai_model = "gpt-4o-mini"
     orch._max_tokens = 1000
+    # Default: custom model disabled (available=False) unless explicitly provided
+    if custom is None:
+        disabled = CustomModelClient.__new__(CustomModelClient)
+        disabled._client = None
+        disabled._repo_id = None
+        orch._custom = disabled
+    else:
+        orch._custom = custom
     return orch
 
 

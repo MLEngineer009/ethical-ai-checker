@@ -1,4 +1,10 @@
-"""LLM Orchestrator — tries Claude first, falls back to OpenAI on rate limit or credit errors."""
+"""
+LLM Orchestrator — provider chain:
+  1. Custom fine-tuned model (HuggingFace Inference API) — if CUSTOM_MODEL_REPO is set
+  2. Claude (Anthropic) — primary cloud LLM
+  3. OpenAI — fallback when Claude is rate-limited or out of credits
+  4. Mock — last resort when all providers are unavailable
+"""
 
 import json
 import logging
@@ -8,6 +14,7 @@ from typing import Any, Dict, Optional
 import anthropic
 from openai import OpenAI, RateLimitError as OpenAIRateLimitError
 
+from .custom_model import CustomModelClient
 from .prompts import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
 
 logger = logging.getLogger(__name__)
@@ -138,6 +145,7 @@ class LLMOrchestrator:
         self._openai_model = os.getenv("OPENAI_MODEL", "gpt-4")
         self._max_tokens = int(os.getenv("LLM_MAX_TOKENS", "16000"))
 
+        self._custom = CustomModelClient()
         self._claude: Optional[anthropic.Anthropic] = (
             anthropic.Anthropic(api_key=anthropic_key) if anthropic_key else None
         )
@@ -153,6 +161,15 @@ class LLMOrchestrator:
         which LLM was used: 'claude', 'openai', or 'mock'.
         """
         user_prompt = _build_user_prompt(decision, context)
+
+        # --- Try custom fine-tuned model (fastest, cheapest) ---
+        if self._custom.available:
+            result = self._custom.evaluate(SYSTEM_PROMPT, user_prompt)
+            if result is not None:
+                result["provider"] = "custom"
+                logger.info("Request handled by custom model (%s)", os.getenv("CUSTOM_MODEL_REPO", ""))
+                return result
+            logger.warning("Custom model returned None — falling back to Claude")
 
         # --- Try Claude ---
         if self._claude:
