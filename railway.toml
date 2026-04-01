@@ -7,3 +7,9 @@ healthcheckPath = "/health-check"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
+
+# Environment variables required in Railway dashboard:
+#   DATABASE_URL      — auto-set when you add the PostgreSQL plugin
+#   ANTHROPIC_API_KEY — your Anthropic API key
+#   OPENAI_API_KEY    — your OpenAI API key
+#   GOOGLE_CLIENT_ID  — from Google Cloud Console

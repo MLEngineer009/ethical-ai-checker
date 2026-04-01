@@ -1,14 +1,13 @@
 """Shared fixtures for all tests."""
 
 import os
-import tempfile
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
 
-# Stub out API keys before importing backend modules
+# Stub API keys before importing backend modules
 os.environ.setdefault("ANTHROPIC_API_KEY", "")
 os.environ.setdefault("OPENAI_API_KEY", "")
 os.environ.setdefault("GOOGLE_CLIENT_ID", "test-client-id")
@@ -18,17 +17,16 @@ from backend import auth
 
 
 @pytest.fixture(autouse=True)
-def isolated_db(tmp_path):
-    """Redirect all DB writes to a temp file for each test."""
-    tmp_db = tmp_path / "test.db"
-    with patch.object(db_module, "DB_PATH", tmp_db):
+def isolated_db():
+    """Give each test its own in-memory SQLite database."""
+    test_engine = create_engine("sqlite:///:memory:")
+    with patch.object(db_module, "_engine", test_engine):
         db_module.init_db()
-        yield tmp_db
+        yield test_engine
 
 
 @pytest.fixture()
 def guest_token():
-    """Create a real guest session and return its token."""
     token, _ = auth.create_guest_session()
     yield token
     auth.logout(token)
@@ -36,7 +34,6 @@ def guest_token():
 
 @pytest.fixture()
 def auth_headers(guest_token):
-    """Authorization headers using a live guest session."""
     return {"Authorization": f"Bearer {guest_token}"}
 
 

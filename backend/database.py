@@ -1,50 +1,68 @@
-"""SQLite metadata store — no PII, only aggregate request metadata."""
+"""Database layer — SQLite for local dev/tests, PostgreSQL for production.
+
+Set DATABASE_URL env var to switch to PostgreSQL:
+  postgresql://user:password@host:port/dbname   (Railway sets this automatically)
+"""
 
 import hashlib
 import json
-import sqlite3
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
 
-DB_PATH = Path(__file__).parent.parent / "data" / "metadata.db"
+from sqlalchemy import (
+    Column, Float, Integer, String,
+    MetaData, Table, create_engine, inspect, text,
+)
+
+# ── Engine setup ──────────────────────────────────────────────────────────────
+
+def _make_url() -> str:
+    url = os.getenv("DATABASE_URL", "")
+    if url:
+        # Railway uses postgres:// — SQLAlchemy 2.x requires postgresql://
+        return url.replace("postgres://", "postgresql://", 1)
+    # Local dev / tests: SQLite file
+    data_dir = Path(os.getenv("DATA_DIR", str(Path(__file__).parent.parent / "data")))
+    data_dir.mkdir(exist_ok=True)
+    return f"sqlite:///{data_dir}/metadata.db"
 
 
-def _connect() -> sqlite3.Connection:
-    DB_PATH.parent.mkdir(exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+_engine = create_engine(_make_url(), pool_pre_ping=True)
+_meta   = MetaData()
 
+request_logs = Table(
+    "request_logs", _meta,
+    Column("id",              Integer, primary_key=True, autoincrement=True),
+    Column("anon_id",         String,  nullable=False),
+    Column("timestamp",       String,  nullable=False),
+    Column("context_keys",    String,  nullable=False),
+    Column("decision_words",  Integer, nullable=False),
+    Column("provider",        String,  nullable=False),
+    Column("confidence",      Float,   nullable=False),
+    Column("risk_count",      Integer, nullable=False),
+    Column("risk_categories", String,  nullable=False),
+    Column("category",        String,  nullable=False, server_default="other"),
+)
+
+
+# ── Public API ────────────────────────────────────────────────────────────────
 
 def init_db() -> None:
-    """Create tables if they don't exist, and migrate existing schemas."""
-    with _connect() as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS request_logs (
-                id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                anon_id         TEXT NOT NULL,
-                timestamp       TEXT NOT NULL,
-                context_keys    TEXT NOT NULL,
-                decision_words  INTEGER NOT NULL,
-                provider        TEXT NOT NULL,
-                confidence      REAL NOT NULL,
-                risk_count      INTEGER NOT NULL,
-                risk_categories TEXT NOT NULL,
-                category        TEXT NOT NULL DEFAULT 'other'
-            )
-        """)
-        # Migration: add category column to existing databases
-        try:
-            conn.execute("ALTER TABLE request_logs ADD COLUMN category TEXT NOT NULL DEFAULT 'other'")
-        except Exception:
-            pass  # column already exists
-        conn.commit()
+    """Create tables if they don't exist. Safe to call multiple times."""
+    _meta.create_all(_engine, checkfirst=True)
+    # Migration: add category column to pre-existing databases
+    insp = inspect(_engine)
+    cols = [c["name"] for c in insp.get_columns("request_logs")]
+    if "category" not in cols:
+        with _engine.begin() as conn:
+            conn.execute(text("ALTER TABLE request_logs ADD COLUMN category VARCHAR DEFAULT 'other'"))
 
 
 def anon_id(google_sub: str) -> str:
-    """One-way hash of Google subject ID — not reversible, not PII."""
-    return hashlib.sha256(f"ethical-ai:{google_sub}".encode()).hexdigest()[:16]
+    """One-way hash of the session subject — not reversible, not PII."""
+    return hashlib.sha256(f"pragma:{google_sub}".encode()).hexdigest()[:16]
 
 
 def log_request(
@@ -56,51 +74,46 @@ def log_request(
     risk_flags: List[str],
     category: str = "other",
 ) -> None:
-    """Store metadata only — no decision text, no context values, no identity."""
-    with _connect() as conn:
-        conn.execute(
-            """INSERT INTO request_logs
-               (anon_id, timestamp, context_keys, decision_words, provider, confidence, risk_count, risk_categories, category)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                anon_id(google_sub),
-                datetime.now(timezone.utc).isoformat(),
-                json.dumps(sorted(context.keys())),
-                len(decision.split()),
-                provider,
-                round(confidence, 3),
-                len(risk_flags),
-                json.dumps(sorted(risk_flags)),
-                category,
-            ),
-        )
-        conn.commit()
+    """Store anonymous metadata only — no decision text, no context values."""
+    with _engine.begin() as conn:
+        conn.execute(request_logs.insert().values(
+            anon_id         = anon_id(google_sub),
+            timestamp       = datetime.now(timezone.utc).isoformat(),
+            context_keys    = json.dumps(sorted(context.keys())),
+            decision_words  = len(decision.split()),
+            provider        = provider,
+            confidence      = round(confidence, 3),
+            risk_count      = len(risk_flags),
+            risk_categories = json.dumps(sorted(risk_flags)),
+            category        = category,
+        ))
 
 
 def get_stats(google_sub: str) -> Dict[str, Any]:
-    """Return aggregate stats for a user's session — no raw text."""
+    """Return aggregate usage stats — no raw text, no PII."""
     aid = anon_id(google_sub)
-    with _connect() as conn:
+    with _engine.connect() as conn:
         rows = conn.execute(
-            "SELECT * FROM request_logs WHERE anon_id = ? ORDER BY timestamp DESC LIMIT 20",
-            (aid,)
+            request_logs.select()
+            .where(request_logs.c.anon_id == aid)
+            .order_by(request_logs.c.id.desc())
+            .limit(20)
         ).fetchall()
 
-    total = len(rows)
-    if not total:
+    if not rows:
         return {"total_requests": 0, "history": []}
 
     history = [
         {
-            "timestamp": r["timestamp"],
-            "context_keys": json.loads(r["context_keys"]),
-            "decision_words": r["decision_words"],
-            "provider": r["provider"],
-            "confidence": r["confidence"],
-            "risk_count": r["risk_count"],
-            "risk_categories": json.loads(r["risk_categories"]),
-            "category": r["category"],
+            "timestamp":       r.timestamp,
+            "context_keys":    json.loads(r.context_keys),
+            "decision_words":  r.decision_words,
+            "provider":        r.provider,
+            "confidence":      r.confidence,
+            "risk_count":      r.risk_count,
+            "risk_categories": json.loads(r.risk_categories),
+            "category":        r.category,
         }
         for r in rows
     ]
-    return {"total_requests": total, "history": history}
+    return {"total_requests": len(rows), "history": history}

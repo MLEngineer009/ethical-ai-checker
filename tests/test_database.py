@@ -24,19 +24,11 @@ class TestAnonId:
 
 
 class TestInitDb:
-    def test_init_creates_table(self, tmp_path):
-        """init_db is called by conftest; verify table exists."""
-        import sqlite3
-        from unittest.mock import patch
-        db_path = tmp_path / "manual.db"
-        with patch.object(db, "DB_PATH", db_path):
-            db.init_db()
-            conn = sqlite3.connect(db_path)
-            tables = conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            ).fetchall()
-            conn.close()
-        assert any("request_logs" in str(t) for t in tables)
+    def test_init_creates_table(self):
+        """init_db called by conftest fixture; verify table exists via engine."""
+        from sqlalchemy import inspect as sa_inspect
+        insp = sa_inspect(db._engine)
+        assert "request_logs" in insp.get_table_names()
 
     def test_init_is_idempotent(self):
         """Calling init_db twice should not raise."""
