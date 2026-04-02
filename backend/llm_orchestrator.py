@@ -176,7 +176,7 @@ class LLMOrchestrator:
         if self._custom.available:
             result = self._custom.evaluate(SYSTEM_PROMPT, user_prompt)
             if result is not None:
-                result["provider"] = "custom"
+                result["provider"] = "pragma"
                 logger.info("Request handled by custom model (%s)", os.getenv("CUSTOM_MODEL_REPO", ""))
                 return result
             logger.warning("Custom model returned None — falling back to Claude")

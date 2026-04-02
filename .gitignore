@@ -12,3 +12,5 @@ mobile/.expo/
 ios/**/*.xcuserstate
 .coverage
 docs/coverage/
+ml/data/
+!ml/data/*.jsonl
