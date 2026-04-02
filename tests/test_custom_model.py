@@ -75,14 +75,17 @@ class TestParseResponse:
 
 # ── CustomModelClient ─────────────────────────────────────────────────────────
 
+_NO_MODEL = {"CUSTOM_MODEL_REPO": "", "OLLAMA_MODEL": ""}
+
+
 class TestCustomModelClientDisabled:
     def test_not_available_when_repo_not_set(self):
-        with patch.dict("os.environ", {"CUSTOM_MODEL_REPO": ""}, clear=False):
+        with patch.dict("os.environ", _NO_MODEL, clear=False):
             client = CustomModelClient()
         assert not client.available
 
     def test_evaluate_returns_none_when_disabled(self):
-        with patch.dict("os.environ", {"CUSTOM_MODEL_REPO": ""}, clear=False):
+        with patch.dict("os.environ", _NO_MODEL, clear=False):
             client = CustomModelClient()
         result = client.evaluate("sys", "user")
         assert result is None
@@ -99,16 +102,18 @@ class TestCustomModelClientEnabled:
         mock_hf_client.chat_completion.return_value = mock_response
         return mock_hf_client
 
+    _HF_ENV = {"CUSTOM_MODEL_REPO": "user/model", "OLLAMA_MODEL": ""}
+
     def test_available_when_repo_set(self):
         mock_cls = MagicMock(return_value=MagicMock())
-        with patch.dict("os.environ", {"CUSTOM_MODEL_REPO": "user/model"}, clear=False):
+        with patch.dict("os.environ", self._HF_ENV, clear=False):
             with patch.dict("sys.modules", {"huggingface_hub": MagicMock(InferenceClient=mock_cls)}):
                 client = CustomModelClient()
         assert client.available
 
     def test_evaluate_returns_parsed_dict(self):
         mock_cls = MagicMock(return_value=self._make_mock_client(json.dumps(VALID_JSON)))
-        with patch.dict("os.environ", {"CUSTOM_MODEL_REPO": "user/model"}, clear=False):
+        with patch.dict("os.environ", self._HF_ENV, clear=False):
             with patch.dict("sys.modules", {"huggingface_hub": MagicMock(InferenceClient=mock_cls)}):
                 client = CustomModelClient()
                 result = client.evaluate("system prompt", "user prompt")
@@ -117,7 +122,7 @@ class TestCustomModelClientEnabled:
 
     def test_evaluate_returns_none_on_parse_failure(self):
         mock_cls = MagicMock(return_value=self._make_mock_client("not json"))
-        with patch.dict("os.environ", {"CUSTOM_MODEL_REPO": "user/model"}, clear=False):
+        with patch.dict("os.environ", self._HF_ENV, clear=False):
             with patch.dict("sys.modules", {"huggingface_hub": MagicMock(InferenceClient=mock_cls)}):
                 client = CustomModelClient()
                 result = client.evaluate("system prompt", "user prompt")
@@ -127,7 +132,7 @@ class TestCustomModelClientEnabled:
         mock_hf_client = MagicMock()
         mock_hf_client.chat_completion.side_effect = RuntimeError("connection refused")
         mock_cls = MagicMock(return_value=mock_hf_client)
-        with patch.dict("os.environ", {"CUSTOM_MODEL_REPO": "user/model"}, clear=False):
+        with patch.dict("os.environ", self._HF_ENV, clear=False):
             with patch.dict("sys.modules", {"huggingface_hub": MagicMock(InferenceClient=mock_cls)}):
                 client = CustomModelClient()
                 result = client.evaluate("system prompt", "user prompt")
@@ -139,7 +144,7 @@ class TestCustomModelClientEnabled:
         orig = sys.modules.get("huggingface_hub")
         sys.modules["huggingface_hub"] = None  # type: ignore
         try:
-            with patch.dict("os.environ", {"CUSTOM_MODEL_REPO": "user/model"}, clear=False):
+            with patch.dict("os.environ", self._HF_ENV, clear=False):
                 client = CustomModelClient()
             assert not client.available
         finally:
