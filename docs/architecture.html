@@ -252,7 +252,6 @@
   .platform-tag.vercel   { background: rgba(255,255,255,0.1); color: #e2e8f0; }
   .platform-tag.expo     { background: rgba(78,205,196,0.15); color: var(--accent2); }
   .platform-tag.hf       { background: rgba(247,147,30,0.15); color: #f7b75e; }
-  .platform-tag.colab    { background: rgba(74,222,128,0.12); color: #6ee7b7; }
 
   /* STACK PILLS */
   .stack-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
@@ -297,126 +296,32 @@
 <nav>
   <div class="nav-logo"><span>Pragma</span></div>
   <div class="nav-links">
-    <a href="#business">Business</a>
-    <a href="#model">Model</a>
-    <a href="#usecases">Use Cases</a>
-    <a href="#roadmap">Roadmap</a>
-    <a href="#architecture">Architecture</a>
+    <a href="#model">Pragma Model</a>
+    <a href="#architecture">System Diagram</a>
     <a href="#api">API</a>
+    <a href="#auth">Auth</a>
+    <a href="#data">Data</a>
     <a href="#deploy">Deploy</a>
+    <a href="business.html">Business Case →</a>
   </div>
 </nav>
 
 <div class="hero">
-  <div class="hero-badge">Product &amp; Architecture Overview</div>
+  <div class="hero-badge">Technical Architecture</div>
   <h1>Pragma</h1>
-  <p>A proprietary ethical reasoning model — purpose-built for AI governance. Learns from every decision. Improves with every user.</p>
+  <p>System design, model orchestration, API reference, and deployment guide.</p>
 </div>
 
 <div class="container">
 
-
-  <!-- PROBLEM & VALUE PROP -->
-  <section id="business">
-    <h2>The Problem</h2>
-    <p class="section-sub">Enterprises are deploying AI in hiring, lending, and operations — with no guardrails on ethical impact.</p>
-    <div class="card-grid cols-3">
-      <div class="card">
-        <h3><span class="dot" style="background:#f87171"></span> Invisible Bias</h3>
-        <p>AI systems trained on historical data replicate systemic bias in hiring, loan approvals, and promotions — often without anyone noticing until litigation.</p>
-      </div>
-      <div class="card">
-        <h3><span class="dot" style="background:#fbbf24"></span> Regulatory Risk</h3>
-        <p>EEOC, GDPR, and the EU AI Act require explainable, auditable decisions. Non-compliance carries fines up to 6% of global revenue.</p>
-      </div>
-      <div class="card">
-        <h3><span class="dot" style="background:#f97316"></span> No Tooling Exists</h3>
-        <p>Ethics reviews today are manual, slow, and inconsistent. There is no automated system that applies structured moral reasoning at scale.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- VALUE PROPOSITION -->
-  <section>
-    <h2>Value Proposition</h2>
-    <p class="section-sub">A domain-specific ethics engine — not a generic LLM with an ethics prompt.</p>
-    <div class="card-grid cols-2">
-      <div class="card">
-        <h3 style="font-size:20px; margin-bottom:16px;">For Engineering Teams</h3>
-        <ul style="line-height:2;">
-          <li>Drop-in API — one POST call returns full ethical analysis</li>
-          <li>Multi-framework reasoning: Kantian, Utilitarian, Virtue Ethics</li>
-          <li>Automatic risk flag detection (bias, discrimination, fairness)</li>
-          <li>Confidence scoring surfaces uncertain decisions for human review</li>
-          <li>PDF audit report generation for compliance documentation</li>
-          <li>Category-aware analysis: hiring, finance, healthcare, policy, and more</li>
-        </ul>
-      </div>
-      <div class="card">
-        <h3 style="font-size:20px; margin-bottom:16px;">For Business &amp; Legal</h3>
-        <ul style="line-height:2;">
-          <li>Demonstrable due diligence for AI governance audits</li>
-          <li>No PII stored — anonymous metadata only, GDPR-safe by design</li>
-          <li>Explainable output that non-technical stakeholders can read</li>
-          <li>Model improves continuously — better today than yesterday</li>
-          <li>No vendor lock-in risk — we own the model weights</li>
-          <li>Plug into existing workflows via REST API</li>
-        </ul>
-      </div>
-    </div>
-    <div class="card-grid cols-3" style="margin-top:16px;">
-      <div class="card" style="text-align:center; padding:32px;">
-        <div style="font-size:40px; font-weight:800; background:linear-gradient(135deg,#7c6fe0,#4ecdc4); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">3</div>
-        <div style="font-weight:600; margin-top:4px;">Ethical Frameworks</div>
-        <div style="color:var(--muted); font-size:13px; margin-top:4px;">Kant · Mill · Aristotle</div>
-      </div>
-      <div class="card" style="text-align:center; padding:32px;">
-        <div style="font-size:40px; font-weight:800; background:linear-gradient(135deg,#a78bfa,#7c6fe0); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">7</div>
-        <div style="font-weight:600; margin-top:4px;">Decision Categories</div>
-        <div style="color:var(--muted); font-size:13px; margin-top:4px;">Hiring · Finance · Healthcare · Policy · more</div>
-      </div>
-      <div class="card" style="text-align:center; padding:32px;">
-        <div style="font-size:40px; font-weight:800; background:linear-gradient(135deg,#4ade80,#4ecdc4); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">0</div>
-        <div style="font-weight:600; margin-top:4px;">PII Stored</div>
-        <div style="color:var(--muted); font-size:13px; margin-top:4px;">Anonymous metadata only</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- TARGET MARKET -->
-  <section>
-    <h2>Target Market</h2>
-    <p class="section-sub">Any team deploying automated decision-making that affects people.</p>
-    <div class="card-grid cols-2">
-      <div class="card">
-        <h3><span class="dot purple"></span> Primary Targets</h3>
-        <ul style="margin-top:12px; line-height:2.2; color:var(--muted); font-size:14px;">
-          <li><strong style="color:var(--text);">HR Tech Companies</strong> — AI hiring tools, resume screeners, interview scoring</li>
-          <li><strong style="color:var(--text);">Fintech &amp; Banking</strong> — Loan approvals, credit scoring, fraud detection</li>
-          <li><strong style="color:var(--text);">Enterprise AI Teams</strong> — Internal copilots, automated workflows, policy engines</li>
-          <li><strong style="color:var(--text);">AI Governance Teams</strong> — Chief AI Officers, Legal, Compliance, Risk</li>
-        </ul>
-      </div>
-      <div class="card">
-        <h3><span class="dot teal"></span> Market Opportunity</h3>
-        <ul style="margin-top:12px; line-height:2.2; color:var(--muted); font-size:14px;">
-          <li><strong style="color:var(--text);">$40B+</strong> — AI governance &amp; risk management market by 2028</li>
-          <li><strong style="color:var(--text);">EU AI Act</strong> — Mandatory risk assessments for high-risk AI systems from 2026</li>
-          <li><strong style="color:var(--text);">EEOC &amp; CFPB</strong> — Increased US enforcement on algorithmic bias</li>
-          <li><strong style="color:var(--text);">78% of enterprises</strong> — plan to expand AI use in decisions by 2026</li>
-        </ul>
-      </div>
-    </div>
-  </section>
-
   <!-- THE PRAGMA MODEL -->
   <section id="model">
-    <h2>The Pragma Model — Our Competitive Moat</h2>
-    <p class="section-sub">We are not wrapping ChatGPT. We are building a domain-specific ethical reasoning model that improves with every user interaction.</p>
+    <h2>The Pragma Model</h2>
+    <p class="section-sub">A domain-specific ethical reasoning model — fine-tuned on structured analysis, improving via user feedback.</p>
 
     <div class="moat-banner">
       <h3>General LLMs know everything about everything.<br>The Pragma model knows <em style="color:var(--accent);">everything about ethical reasoning</em>.</h3>
-      <p style="margin-top:14px;">A model trained exclusively on structured ethical analysis develops deeper domain expertise than a model trained on the entire internet. The Pragma model is our secret sauce — and it gets smarter every training cycle.</p>
+      <p style="margin-top:14px;">A model trained exclusively on structured ethical analysis develops deeper domain expertise than a model trained on the entire internet. The Pragma model is our proprietary reasoning engine — and it gets smarter every training cycle.</p>
     </div>
 
     <h3 style="font-size:18px; font-weight:700; margin-bottom:24px;">The Retraining Flywheel</h3>
@@ -516,250 +421,6 @@ HF_TOKEN=hf_... python ml/evaluate.py \<br>
 # Reports: parse rate, risk Jaccard, conf MAE
           </code>
         </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- USE CASES -->
-  <section id="usecases">
-    <h2>Use Cases</h2>
-    <p class="section-sub">Real scenarios where the engine detects risk and provides actionable guidance.</p>
-    <div class="card-grid cols-2">
-      <div class="card">
-        <h3><span class="dot" style="background:#f87171"></span> Hiring Decision</h3>
-        <p style="margin-top:8px; font-size:13px; color:var(--muted);">Input decision:</p>
-        <code style="display:block; margin:8px 0; padding:10px;">"Reject job candidate" + context: gender=female, education=non-elite</code>
-        <p style="font-size:13px; color:var(--muted);">Output:</p>
-        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
-          <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">bias flagged</span>
-          <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">fairness flagged</span>
-        </div>
-        <p style="font-size:13px; color:var(--muted); margin-top:10px;">Recommendation: Remove gender from evaluation criteria. Apply structured scoring on skills and experience only.</p>
-      </div>
-      <div class="card">
-        <h3><span class="dot" style="background:#f97316"></span> Loan Approval</h3>
-        <p style="margin-top:8px; font-size:13px; color:var(--muted);">Input decision:</p>
-        <code style="display:block; margin:8px 0; padding:10px;">"Reject loan application" + context: zip_code=90210, income=75000</code>
-        <p style="font-size:13px; color:var(--muted);">Output:</p>
-        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
-          <span class="badge" style="background:rgba(249,115,22,0.15); color:#fdba74;">discrimination flagged</span>
-          <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">bias flagged</span>
-        </div>
-        <p style="font-size:13px; color:var(--muted); margin-top:10px;">Recommendation: Zip code is a proxy for race and protected class. Replace with income, credit score, and debt-to-income ratio.</p>
-      </div>
-      <div class="card">
-        <h3><span class="dot" style="background:#fbbf24"></span> Promotion Decision</h3>
-        <p style="margin-top:8px; font-size:13px; color:var(--muted);">Input decision:</p>
-        <code style="display:block; margin:8px 0; padding:10px;">"Promote employee" + context: performance=excellent, years=3, gender=male</code>
-        <p style="font-size:13px; color:var(--muted);">Output:</p>
-        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
-          <span class="badge" style="background:rgba(251,191,36,0.15); color:#fde68a;">bias detected</span>
-          <span class="badge" style="background:rgba(74,222,128,0.15); color:#6ee7b7;">merit criteria present</span>
-        </div>
-        <p style="font-size:13px; color:var(--muted); margin-top:10px;">Recommendation: Proceed, but remove gender from criteria. Decision appears merit-based — verify against team-wide promotion rates.</p>
-      </div>
-      <div class="card">
-        <h3><span class="dot green"></span> AI Policy Rollout</h3>
-        <p style="margin-top:8px; font-size:13px; color:var(--muted);">Input decision:</p>
-        <code style="display:block; margin:8px 0; padding:10px;">"Implement AI performance monitoring" + context: scope=keystrokes, consent=not required</code>
-        <p style="font-size:13px; color:var(--muted);">Output:</p>
-        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
-          <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">transparency flagged</span>
-          <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">harm potential</span>
-        </div>
-        <p style="font-size:13px; color:var(--muted); margin-top:10px;">Recommendation: Require explicit employee consent. Disclose scope fully. Implement opt-out process and data retention limits.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- REVENUE MODEL -->
-  <section>
-    <h2>Revenue Model</h2>
-    <p class="section-sub">API-first pricing scales with usage. Enterprise licensing for embedded deployments.</p>
-    <div class="card-grid cols-3">
-      <div class="card" style="border-color: rgba(255,255,255,0.12);">
-        <div style="font-size:11px; font-weight:700; letter-spacing:1px; color:var(--muted); text-transform:uppercase; margin-bottom:12px;">Free</div>
-        <div style="font-size:32px; font-weight:800; margin-bottom:4px;">$0</div>
-        <div style="color:var(--muted); font-size:13px; margin-bottom:20px;">per month</div>
-        <ul style="color:var(--muted); font-size:13px; line-height:2;">
-          <li>100 evaluations / month</li>
-          <li>Web &amp; mobile app access</li>
-          <li>PDF report downloads</li>
-          <li>Guest access (no sign-in)</li>
-          <li style="opacity:0.4;">API access</li>
-          <li style="opacity:0.4;">Custom context fields</li>
-        </ul>
-      </div>
-      <div class="card" style="border-color: rgba(124,111,224,0.5); background: rgba(124,111,224,0.06);">
-        <div style="font-size:11px; font-weight:700; letter-spacing:1px; color:var(--accent); text-transform:uppercase; margin-bottom:12px;">Pro — Most Popular</div>
-        <div style="font-size:32px; font-weight:800; margin-bottom:4px;">$49</div>
-        <div style="color:var(--muted); font-size:13px; margin-bottom:20px;">per month</div>
-        <ul style="color:var(--muted); font-size:13px; line-height:2;">
-          <li>5,000 evaluations / month</li>
-          <li>Full API access</li>
-          <li>Audit log export</li>
-          <li>Custom risk policies</li>
-          <li>Pragma model (domain-optimised)</li>
-          <li>Email support</li>
-        </ul>
-      </div>
-      <div class="card" style="border-color: rgba(247,147,30,0.4);">
-        <div style="font-size:11px; font-weight:700; letter-spacing:1px; color:var(--accent3); text-transform:uppercase; margin-bottom:12px;">Enterprise</div>
-        <div style="font-size:32px; font-weight:800; margin-bottom:4px;">Custom</div>
-        <div style="color:var(--muted); font-size:13px; margin-bottom:20px;">annual contract</div>
-        <ul style="color:var(--muted); font-size:13px; line-height:2;">
-          <li>Unlimited evaluations</li>
-          <li>Self-hosted / VPC deployment</li>
-          <li>Custom ethical frameworks</li>
-          <li>Compliance mapping (GDPR, EEOC, EU AI Act)</li>
-          <li>Dedicated fine-tuned model instance</li>
-          <li>SLA + dedicated support</li>
-        </ul>
-      </div>
-    </div>
-  </section>
-
-  <!-- COMPETITIVE ADVANTAGE -->
-  <section>
-    <h2>Competitive Advantage</h2>
-    <p class="section-sub">No competitor combines a proprietary ethics model with a user-feedback retraining flywheel.</p>
-    <div class="data-table">
-      <table>
-        <thead>
-          <tr>
-            <th>Capability</th>
-            <th>Pragma</th>
-            <th>Manual Ethics Review</th>
-            <th>Generic LLM Prompt</th>
-            <th>Compliance Audit Tools</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Proprietary ethics model</td>
-            <td style="color:var(--purple);">Yes — domain-specific LoRA</td>
-            <td style="color:var(--red);">No</td>
-            <td style="color:var(--red);">No — rented API</td>
-            <td style="color:var(--red);">No</td>
-          </tr>
-          <tr>
-            <td>Self-improving via feedback</td>
-            <td style="color:var(--green);">Yes — feedback flywheel</td>
-            <td style="color:var(--red);">No</td>
-            <td style="color:var(--red);">No</td>
-            <td style="color:var(--red);">No</td>
-          </tr>
-          <tr>
-            <td>Multi-framework reasoning</td>
-            <td style="color:var(--green);">Yes — Kant, Mill, Aristotle</td>
-            <td style="color:var(--muted);">Depends on reviewer</td>
-            <td style="color:var(--muted);">Inconsistent</td>
-            <td style="color:var(--red);">No</td>
-          </tr>
-          <tr>
-            <td>Automated risk detection</td>
-            <td style="color:var(--green);">Yes — heuristic + model</td>
-            <td style="color:var(--red);">No</td>
-            <td style="color:var(--muted);">Partial</td>
-            <td style="color:var(--muted);">Rule-based only</td>
-          </tr>
-          <tr>
-            <td>API-first, developer ready</td>
-            <td style="color:var(--green);">Yes — REST API</td>
-            <td style="color:var(--red);">No</td>
-            <td style="color:var(--muted);">Requires prompt engineering</td>
-            <td style="color:var(--muted);">Complex integration</td>
-          </tr>
-          <tr>
-            <td>Decision categories</td>
-            <td style="color:var(--green);">7 — hiring, finance, healthcare, policy, more</td>
-            <td style="color:var(--muted);">Manual</td>
-            <td style="color:var(--muted);">Ad hoc</td>
-            <td style="color:var(--muted);">Varies</td>
-          </tr>
-          <tr>
-            <td>Speed</td>
-            <td style="color:var(--green);">&lt;2 seconds</td>
-            <td style="color:var(--red);">Days / weeks</td>
-            <td style="color:var(--muted);">Seconds (no structure)</td>
-            <td style="color:var(--red);">Weeks</td>
-          </tr>
-          <tr>
-            <td>Privacy-safe (no PII stored)</td>
-            <td style="color:var(--green);">Yes — anonymous metadata</td>
-            <td style="color:var(--muted);">Varies</td>
-            <td style="color:var(--red);">Sends data to third-party LLM</td>
-            <td style="color:var(--muted);">Varies</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  <!-- ROADMAP -->
-  <section id="roadmap">
-    <h2>Product Roadmap</h2>
-    <p class="section-sub">From feedback flywheel to enterprise AI governance platform.</p>
-    <div class="card-grid cols-2">
-      <div class="card" style="border-color:rgba(74,222,128,0.3);">
-        <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
-          <span class="badge" style="background:rgba(74,222,128,0.15); color:#6ee7b7; font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">Done — MVP</span>
-        </div>
-        <ul style="color:var(--muted); font-size:14px; line-height:2.2;">
-          <li>POST /evaluate-decision API with 7 decision categories</li>
-          <li>Three ethical frameworks (Kant, Mill, Aristotle)</li>
-          <li>Heuristic + model risk detection (bias, fairness, discrimination, harm, transparency)</li>
-          <li>Provider chain: Pragma model → Claude → OpenAI → Mock</li>
-          <li>PDF audit report download</li>
-          <li>Google SSO + guest flow</li>
-          <li>Anonymous metadata logging (no PII) — PostgreSQL on Railway</li>
-          <li>Feedback flywheel — thumbs up/down → weak category detection → targeted retraining</li>
-          <li>Model distillation pipeline — generate_data, train, evaluate scripts</li>
-          <li>iOS-style web app + React Native mobile (Expo)</li>
-          <li>210 unit tests, 97.6% code coverage</li>
-        </ul>
-      </div>
-      <div class="card" style="border-color:rgba(124,111,224,0.3);">
-        <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
-          <span class="badge" style="background:rgba(124,111,224,0.15); color:var(--accent); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">Q2 2026 — Growth</span>
-        </div>
-        <ul style="color:var(--muted); font-size:14px; line-height:2.2;">
-          <li>First Pragma model v1 deployed on HuggingFace</li>
-          <li>Enterprise dashboard with decision history &amp; approval trends</li>
-          <li>Custom ethical policies per organization</li>
-          <li>Compliance mapping — GDPR, EEOC, EU AI Act</li>
-          <li>Audit log export (CSV / JSON)</li>
-          <li>Stripe billing integration</li>
-          <li>Team accounts &amp; role-based access</li>
-          <li>Model version tracking — A/B compare Pragma v1 vs v2</li>
-        </ul>
-      </div>
-      <div class="card" style="border-color:rgba(247,147,30,0.3);">
-        <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
-          <span class="badge" style="background:rgba(247,147,30,0.15); color:#f7b75e; font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">Q3 2026 — Scale</span>
-        </div>
-        <ul style="color:var(--muted); font-size:14px; line-height:2.2;">
-          <li>Pragma model v2 — retrained on real user feedback data</li>
-          <li>Self-hosted / VPC enterprise deployment</li>
-          <li>Batch evaluation API for bulk decisions</li>
-          <li>SAML / SSO enterprise integration</li>
-          <li>Industry-specific risk libraries (HR, Fintech, Healthcare)</li>
-          <li>Ethics scoring trends and benchmarking dashboard</li>
-          <li>Automated nightly retraining pipeline on Railway</li>
-        </ul>
-      </div>
-      <div class="card" style="border-color:rgba(78,205,196,0.3);">
-        <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
-          <span class="badge" style="background:rgba(78,205,196,0.15); color:var(--accent2); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">Q4 2026 — Platform</span>
-        </div>
-        <ul style="color:var(--muted); font-size:14px; line-height:2.2;">
-          <li>Pragma model fully replaces Claude/OpenAI in production</li>
-          <li>Marketplace of ethical policy templates</li>
-          <li>Regulatory change monitoring &amp; alerts</li>
-          <li>Explainability graph — decision reasoning trace</li>
-          <li>Partner integrations (Workday, Salesforce, SAP)</li>
-          <li>Public ethics API for open-source community</li>
-        </ul>
       </div>
     </div>
   </section>
@@ -1158,7 +819,7 @@ CREATE TABLE analysis_feedback (
     <div class="card-grid cols-3" style="margin-top:16px;">
       <div class="card">
         <h3><span class="dot" style="background:#a78bfa"></span> Pragma Model</h3>
-        <p>Fine-tuned Phi-3-mini LoRA adapter served via HuggingFace Inference API. Set <code>CUSTOM_MODEL_REPO</code> env var to activate. Returns <code>provider: "pragma"</code>.</p>
+        <p>Fine-tuned Phi-3-mini LoRA adapter served via HuggingFace Inference API. Set <code>CUSTOM_MODEL_REPO</code> env var to activate. Also supports Ollama locally (<code>OLLAMA_MODEL</code>). Returns <code>provider: "pragma"</code>.</p>
       </div>
       <div class="card">
         <h3><span class="dot green"></span> Claude (Fallback)</h3>
@@ -1235,6 +896,7 @@ CREATE TABLE analysis_feedback (
           <span class="stack-pill">google-auth</span>
           <span class="stack-pill">reportlab</span>
           <span class="stack-pill">python-dotenv</span>
+          <span class="stack-pill">httpx</span>
         </div>
       </div>
       <div class="card">
@@ -1250,6 +912,7 @@ CREATE TABLE analysis_feedback (
           <span class="stack-pill">Phi-3-mini-4k-instruct</span>
           <span class="stack-pill">HuggingFace Hub</span>
           <span class="stack-pill">Google Colab (T4)</span>
+          <span class="stack-pill">Ollama</span>
         </div>
       </div>
       <div class="card">
@@ -1287,7 +950,7 @@ CREATE TABLE analysis_feedback (
 </div>
 
 <footer>
-  Pragma &mdash; Product &amp; Architecture Documentation &mdash; Proprietary ethics model powered by model distillation &amp; user feedback &mdash; &copy; 2026
+  Pragma &mdash; Technical Architecture &mdash; &copy; 2026 &nbsp;&nbsp;|&nbsp;&nbsp; <a href="business.html" style="color:var(--accent); text-decoration:none;">Business Case →</a>
 </footer>
 
 </body>
