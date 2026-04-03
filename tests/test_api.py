@@ -38,6 +38,46 @@ DECISION_PAYLOAD = {
 }
 
 
+class TestQuestions:
+    def test_all_returns_version(self, client):
+        data = client.get("/questions").json()
+        assert "version" in data
+        assert "questions" in data
+
+    def test_all_returns_all_categories(self, client):
+        data = client.get("/questions").json()["questions"]
+        for cat in ["hiring", "workplace", "finance", "healthcare", "policy", "personal", "other"]:
+            assert cat in data
+
+    def test_category_filter(self, client):
+        data = client.get("/questions?category=hiring").json()
+        assert data["category"] == "hiring"
+        assert isinstance(data["questions"], list)
+        assert len(data["questions"]) > 0
+
+    def test_hiring_has_required_fields(self, client):
+        qs = client.get("/questions?category=hiring").json()["questions"]
+        keys = {q["key"] for q in qs}
+        assert "role" in keys
+        assert "criteria" in keys
+        assert "demographics_in_data" in keys
+
+    def test_question_schema(self, client):
+        qs = client.get("/questions?category=hiring").json()["questions"]
+        for q in qs:
+            assert "key" in q
+            assert "label" in q
+            assert "type" in q
+            assert q["type"] in ("text", "select", "multiselect", "toggle")
+
+    def test_unknown_category_returns_404(self, client):
+        assert client.get("/questions?category=nonsense").status_code == 404
+
+    def test_other_returns_empty_list(self, client):
+        data = client.get("/questions?category=other").json()
+        assert data["questions"] == []
+
+
 class TestHealthCheck:
     def test_returns_200(self, client):
         assert client.get("/health-check").status_code == 200

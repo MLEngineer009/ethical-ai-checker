@@ -20,6 +20,7 @@ from .report_generator import generate_pdf
 from .risk_detector import detect_all_risks
 from . import auth
 from . import database
+from . import questions as questions_module
 
 
 @asynccontextmanager
@@ -242,6 +243,24 @@ async def health_check():
             "openai":  orchestrator._openai is not None, # fallback
         }
     }
+
+
+@app.get("/questions")
+async def get_questions(category: str = ""):
+    """
+    Return guided context questions for a given category.
+    Used by all clients (web, mobile) to render the question UI.
+    Version-stamped so ml/optimize_questions.py can track improvements.
+    """
+    if category and category not in questions_module.QUESTIONS:
+        raise HTTPException(status_code=404, detail=f"Unknown category: {category}")
+    if category:
+        return {
+            "version": questions_module.VERSION,
+            "category": category,
+            "questions": questions_module.get_questions(category),
+        }
+    return questions_module.get_all()
 
 
 @app.get("/")

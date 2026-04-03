@@ -141,6 +141,103 @@
       gap: 8px;
     }
 
+    /* ── Guided questions ── */
+    .question-block {
+      margin-bottom: 16px;
+    }
+    .question-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .question-label .q-required {
+      color: var(--accent);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      opacity: 0.7;
+    }
+    .question-block input[type="text"] {
+      width: 100%;
+    }
+    .q-select {
+      width: 100%;
+      padding: 10px 14px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 14px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: border-color 0.2s;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+    }
+    .q-select:focus {
+      outline: none;
+      border-color: var(--accent);
+      background-color: rgba(167,139,250,0.1);
+    }
+    .q-select option { background: #1a1a2e; }
+    .q-toggle {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .q-toggle-btn {
+      padding: 8px 18px;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 20px;
+      background: rgba(255,255,255,0.04);
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .q-toggle-btn:hover { border-color: var(--accent); color: var(--text); }
+    .q-toggle-btn.active {
+      background: rgba(167,139,250,0.18);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .q-chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .q-chip {
+      padding: 7px 14px;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 20px;
+      background: rgba(255,255,255,0.04);
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .q-chip:hover { border-color: var(--accent); color: var(--text); }
+    .q-chip.active {
+      background: rgba(167,139,250,0.18);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    #contextSection {
+      transition: opacity 0.2s;
+    }
+    #contextSection.loading { opacity: 0.4; pointer-events: none; }
+
     /* ── Buttons ── */
     .btn {
       width: 100%;
@@ -657,16 +754,18 @@
       <div class="card-title">Decision</div>
       <textarea id="decision" placeholder="Describe the decision being evaluated…" rows="3"></textarea>
 
-      <div style="margin-top: 20px;">
-        <div class="card-title">Context  <span style="font-weight:400;font-size:10px;color:var(--text-muted);letter-spacing:0;">— fill in at least one value</span></div>
-        <div id="contextRows">
+      <div style="margin-top: 20px;" id="contextSection">
+        <div class="card-title" id="contextTitle">Context</div>
+        <div id="guidedQuestions"></div>
+        <!-- Fallback generic fields (shown for "other" category) -->
+        <div id="contextRows" style="display:none;">
           <div class="context-row" style="margin-bottom:8px;">
-            <input type="text" id="ctx1_key"   value="gender"     placeholder="Field name" style="color:var(--accent);font-weight:600;">
-            <input type="text" id="ctx1_value" placeholder="e.g. female">
+            <input type="text" id="ctx1_key"   placeholder="Field name" style="color:var(--accent);font-weight:600;">
+            <input type="text" id="ctx1_value" placeholder="Value">
           </div>
           <div class="context-row" style="margin-bottom:8px;">
-            <input type="text" id="ctx2_key"   value="experience" placeholder="Field name" style="color:var(--accent);font-weight:600;">
-            <input type="text" id="ctx2_value" placeholder="e.g. 5 years">
+            <input type="text" id="ctx2_key"   placeholder="Field name" style="color:var(--accent);font-weight:600;">
+            <input type="text" id="ctx2_value" placeholder="Value">
           </div>
           <div class="context-row" style="margin-bottom:8px;">
             <input type="text" id="ctx3_key"   placeholder="Field name" style="color:var(--accent);font-weight:600;">
@@ -676,21 +775,21 @@
             <input type="text" id="ctx4_key"   placeholder="Field name" style="color:var(--accent);font-weight:600;">
             <input type="text" id="ctx4_value" placeholder="Value">
           </div>
+          <button type="button" id="btnAddCtx" style="
+            margin-top:10px;
+            background:rgba(167,139,250,0.1);
+            border:1px dashed rgba(167,139,250,0.35);
+            border-radius:var(--radius-sm);
+            color:var(--accent);
+            font-size:13px;
+            font-weight:600;
+            font-family:inherit;
+            padding:9px 16px;
+            cursor:pointer;
+            width:100%;
+            transition:background 0.2s,border-color 0.2s;
+          ">+ Add Field</button>
         </div>
-        <button type="button" id="btnAddCtx" style="
-          margin-top:10px;
-          background:rgba(167,139,250,0.1);
-          border:1px dashed rgba(167,139,250,0.35);
-          border-radius:var(--radius-sm);
-          color:var(--accent);
-          font-size:13px;
-          font-weight:600;
-          font-family:inherit;
-          padding:9px 16px;
-          cursor:pointer;
-          width:100%;
-          transition:background 0.2s,border-color 0.2s;
-        ">+ Add Field</button>
       </div>
     </div>
 
@@ -951,6 +1050,129 @@
       document.getElementById(id).classList.toggle('open');
     }
 
+    // ── Guided questions ────────────────────────────────────────────────────
+
+    // Question definitions (mirrored from backend/questions.py)
+    // Fetched once and cached; on category change questions are re-rendered.
+    let _questionsCache = null;
+
+    async function loadQuestions() {
+      if (_questionsCache) return _questionsCache;
+      try {
+        const res = await fetch(`${API}/questions`);
+        if (!res.ok) throw new Error('fetch failed');
+        const data = await res.json();
+        _questionsCache = data.questions;
+      } catch (_) {
+        _questionsCache = {};
+      }
+      return _questionsCache;
+    }
+
+    async function renderQuestions(category) {
+      const questions = await loadQuestions();
+      const qs = questions[category] || [];
+      const guided = document.getElementById('guidedQuestions');
+      const generic = document.getElementById('contextRows');
+      const title = document.getElementById('contextTitle');
+
+      if (!qs.length) {
+        // "other" category — show generic key/value fields
+        guided.innerHTML = '';
+        generic.style.display = '';
+        title.innerHTML = 'Context <span style="font-weight:400;font-size:10px;color:var(--text-muted);">— fill in at least one value</span>';
+        return;
+      }
+
+      generic.style.display = 'none';
+      title.innerHTML = 'Context';
+
+      guided.style.opacity = '0';
+      guided.innerHTML = qs.map(q => {
+        const reqMark = q.required
+          ? '<span class="q-required">required</span>'
+          : '';
+        let input = '';
+        if (q.type === 'text') {
+          input = `<input type="text" data-key="${q.key}" placeholder="${q.placeholder || ''}" style="width:100%;">`;
+        } else if (q.type === 'select') {
+          const opts = q.options.map(o =>
+            `<option value="${o}">${o}</option>`
+          ).join('');
+          input = `<select class="q-select" data-key="${q.key}">
+            <option value="">— select —</option>
+            ${opts}
+          </select>`;
+        } else if (q.type === 'toggle') {
+          const btns = q.options.map(o =>
+            `<button type="button" class="q-toggle-btn" data-key="${q.key}" data-val="${o}">${o}</button>`
+          ).join('');
+          input = `<div class="q-toggle">${btns}</div>`;
+        } else if (q.type === 'multiselect') {
+          const chips = q.options.map(o =>
+            `<button type="button" class="q-chip" data-key="${q.key}" data-val="${o}">${o}</button>`
+          ).join('');
+          input = `<div class="q-chips">${chips}</div>`;
+        }
+        return `<div class="question-block">
+          <div class="question-label">${q.label} ${reqMark}</div>
+          ${input}
+        </div>`;
+      }).join('');
+
+      // Toggle buttons — single select
+      guided.querySelectorAll('.q-toggle-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const key = btn.dataset.key;
+          guided.querySelectorAll(`.q-toggle-btn[data-key="${key}"]`)
+                .forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+        });
+      });
+
+      // Chip buttons — multi select
+      guided.querySelectorAll('.q-chip').forEach(chip => {
+        chip.addEventListener('click', () => chip.classList.toggle('active'));
+      });
+
+      // Animate in
+      requestAnimationFrame(() => { guided.style.opacity = '1'; });
+    }
+
+    function buildGuidedContext() {
+      const ctx = {};
+      const guided = document.getElementById('guidedQuestions');
+
+      // Text inputs
+      guided.querySelectorAll('input[type="text"][data-key]').forEach(el => {
+        const v = el.value.trim();
+        if (v) ctx[el.dataset.key] = v;
+      });
+      // Selects
+      guided.querySelectorAll('select[data-key]').forEach(el => {
+        if (el.value) ctx[el.dataset.key] = el.value;
+      });
+      // Toggles (single active)
+      const toggleKeys = new Set(
+        [...guided.querySelectorAll('.q-toggle-btn')].map(b => b.dataset.key)
+      );
+      toggleKeys.forEach(key => {
+        const active = guided.querySelector(`.q-toggle-btn[data-key="${key}"].active`);
+        if (active) ctx[key] = active.dataset.val;
+      });
+      // Chips (multi-select → comma-separated)
+      const chipKeys = new Set(
+        [...guided.querySelectorAll('.q-chip')].map(c => c.dataset.key)
+      );
+      chipKeys.forEach(key => {
+        const selected = [...guided.querySelectorAll(`.q-chip[data-key="${key}"].active`)]
+          .map(c => c.dataset.val);
+        if (selected.length) ctx[key] = selected.join(', ');
+      });
+
+      return ctx;
+    }
+
     let ctxCount = 4;
     document.getElementById('btnAddCtx').addEventListener('click', () => {
       ctxCount++;
@@ -971,18 +1193,26 @@
     document.getElementById('thumbUp').addEventListener('click',   () => sendFeedback(1));
     document.getElementById('thumbDown').addEventListener('click', () => sendFeedback(-1));
 
-    // Category pill selection
+    // Category pill selection — also renders guided questions
     document.querySelectorAll('.cat-pill').forEach(pill => {
       pill.addEventListener('click', () => {
         document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
         pill.classList.add('active');
         selectedCategory = pill.dataset.cat;
+        renderQuestions(selectedCategory);
       });
     });
 
-
+    // Render default category questions on load
+    renderQuestions(selectedCategory);
 
     function buildContext() {
+      // Guided questions mode
+      if (selectedCategory !== 'other' &&
+          document.getElementById('guidedQuestions').children.length) {
+        return buildGuidedContext();
+      }
+      // Generic key/value fallback (other category)
       const ctx = {};
       for (let i = 1; i <= ctxCount; i++) {
         const kEl = document.getElementById(`ctx${i}_key`);
@@ -1010,8 +1240,8 @@
       const decision = document.getElementById('decision').value.trim();
       const context  = buildContext();
 
-      if (!decision)                    return showError('Please enter a decision.');
-      if (!Object.keys(context).length) return showError('Please provide at least one context field.');
+      if (!decision) return showError('Please enter a decision.');
+      if (!Object.keys(context).length) return showError('Please answer at least one context question.');
 
       // Hide results, show loading
       document.getElementById('resultsSection').style.display = 'none';
