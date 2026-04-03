@@ -6,6 +6,7 @@ Set DATABASE_URL env var to switch to PostgreSQL:
 Tables:
   request_logs      — one row per evaluate-decision call (metadata only, no PII)
   analysis_feedback — thumbs up/down on analyses; drives the Pragma model retraining flywheel
+  waitlist          — email addresses from the landing page for follow-up
 """
 
 import hashlib
@@ -67,6 +68,14 @@ analysis_feedback = Table(
 )
 
 
+waitlist = Table(
+    "waitlist", _meta,
+    Column("id",        Integer, primary_key=True, autoincrement=True),
+    Column("email",     String,  nullable=False, unique=True),
+    Column("timestamp", String,  nullable=False),
+)
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def init_db() -> None:
@@ -78,6 +87,31 @@ def init_db() -> None:
     if "category" not in cols:
         with _engine.begin() as conn:
             conn.execute(text("ALTER TABLE request_logs ADD COLUMN category VARCHAR DEFAULT 'other'"))
+
+
+def add_to_waitlist(email: str) -> bool:
+    """
+    Store an email address. Returns True if newly added, False if already exists.
+    Email is stored as-is — this is explicit opt-in, not anonymous metadata.
+    """
+    try:
+        with _engine.begin() as conn:
+            conn.execute(waitlist.insert().values(
+                email     = email.lower().strip(),
+                timestamp = datetime.now(timezone.utc).isoformat(),
+            ))
+        return True
+    except Exception:
+        return False  # unique constraint violation = already signed up
+
+
+def get_waitlist() -> List[Dict]:
+    """Return all waitlist entries — for internal use only."""
+    with _engine.connect() as conn:
+        rows = conn.execute(
+            waitlist.select().order_by(waitlist.c.id.desc())
+        ).fetchall()
+    return [{"email": r.email, "timestamp": r.timestamp} for r in rows]
 
 
 def anon_id(google_sub: str) -> str:

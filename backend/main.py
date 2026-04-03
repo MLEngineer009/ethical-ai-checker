@@ -245,6 +245,20 @@ async def health_check():
     }
 
 
+class WaitlistRequest(BaseModel):
+    email: str
+
+
+@app.post("/waitlist")
+async def join_waitlist(req: WaitlistRequest):
+    """Capture email from landing page — no auth required."""
+    email = req.email.strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=422, detail="Invalid email")
+    added = database.add_to_waitlist(email)
+    return {"added": added}
+
+
 @app.get("/questions")
 async def get_questions(category: str = ""):
     """

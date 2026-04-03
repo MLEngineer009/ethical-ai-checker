@@ -507,7 +507,7 @@
       margin-bottom: 12px;
     }
 
-    /* ── Auth screen ── */
+    /* ── Landing + Auth screen ── */
     .auth-screen {
       position: relative;
       z-index: 1;
@@ -515,8 +515,114 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 24px 20px;
+      padding: 40px 20px;
     }
+    .landing-wrap {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      max-width: 960px;
+      width: 100%;
+      align-items: center;
+    }
+    @media (max-width: 720px) {
+      .landing-wrap { grid-template-columns: 1fr; gap: 32px; }
+      .landing-left { order: 2; }
+      .auth-card-wrap { order: 1; }
+    }
+
+    /* Left — value prop */
+    .landing-left {}
+    .landing-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(167,139,250,0.15);
+      border: 1px solid rgba(167,139,250,0.3);
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 24px;
+    }
+    .landing-h1 {
+      font-size: clamp(28px, 4vw, 42px);
+      font-weight: 800;
+      letter-spacing: -1px;
+      line-height: 1.15;
+      background: linear-gradient(135deg, #fff 40%, #a78bfa 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 16px;
+    }
+    .landing-sub {
+      font-size: 16px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 28px;
+    }
+    .landing-bullets {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+    .landing-bullets li {
+      display: flex; align-items: flex-start; gap: 10px;
+      font-size: 14px; color: var(--text-muted); line-height: 1.5;
+    }
+    .landing-bullets li strong { color: var(--text); }
+    .bullet-dot {
+      width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; margin-top: 1px;
+    }
+
+    /* Sample output preview */
+    .preview-card {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 16px 18px;
+      margin-bottom: 8px;
+    }
+    .preview-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--accent);
+      margin-bottom: 8px;
+    }
+    .preview-decision {
+      font-size: 13px; font-weight: 600;
+      color: var(--text); margin-bottom: 10px;
+      padding: 8px 12px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 8px;
+    }
+    .preview-flags {
+      display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;
+    }
+    .preview-flag {
+      padding: 3px 10px; border-radius: 20px;
+      font-size: 11px; font-weight: 600;
+      background: rgba(248,113,113,0.15);
+      color: #fca5a5;
+      border: 1px solid rgba(248,113,113,0.3);
+    }
+    .preview-rec {
+      font-size: 12px; color: var(--text-muted); line-height: 1.5;
+      border-left: 2px solid rgba(167,139,250,0.4);
+      padding-left: 10px;
+    }
+    .preview-meta {
+      display: flex; align-items: center; gap: 8px;
+      margin-top: 10px; font-size: 11px; color: rgba(255,255,255,0.3);
+    }
+    .preview-conf {
+      background: rgba(52,211,153,0.15);
+      color: #34d399; border-radius: 20px;
+      padding: 2px 8px; font-weight: 700;
+    }
+
+    /* Right — auth card */
     .auth-card {
       background: var(--glass);
       backdrop-filter: var(--blur);
@@ -524,19 +630,18 @@
       border: 1px solid var(--glass-border);
       border-radius: var(--radius);
       box-shadow: var(--shadow-lg);
-      padding: 40px 36px;
+      padding: 36px 32px;
       width: 100%;
-      max-width: 400px;
     }
     .auth-icon {
-      font-size: 42px;
+      font-size: 36px;
       text-align: center;
       display: block;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
       filter: drop-shadow(0 0 20px rgba(167,139,250,0.6));
     }
     .auth-title {
-      font-size: 24px;
+      font-size: 22px;
       font-weight: 700;
       text-align: center;
       background: linear-gradient(135deg, #e0d7ff, #a78bfa, #818cf8);
@@ -548,19 +653,7 @@
       font-size: 13px;
       color: var(--text-muted);
       text-align: center;
-      margin-bottom: 28px;
-    }
-    .auth-field {
-      margin-bottom: 14px;
-    }
-    .auth-field label {
-      display: block;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.8px;
-      text-transform: uppercase;
-      color: var(--text-muted);
-      margin-bottom: 6px;
+      margin-bottom: 24px;
     }
     .auth-error {
       display: none;
@@ -574,17 +667,62 @@
       margin-bottom: 14px;
       text-align: center;
     }
+    .auth-field { margin-bottom: 14px; }
+    .auth-field label {
+      display: block; font-size: 11px; font-weight: 600;
+      letter-spacing: 0.8px; text-transform: uppercase;
+      color: var(--text-muted); margin-bottom: 6px;
+    }
     .auth-toggle {
-      text-align: center;
-      margin-top: 20px;
-      font-size: 13px;
-      color: var(--text-muted);
+      text-align: center; margin-top: 20px;
+      font-size: 13px; color: var(--text-muted);
     }
     .auth-toggle a {
-      color: var(--accent);
-      cursor: pointer;
-      font-weight: 600;
-      text-decoration: none;
+      color: var(--accent); cursor: pointer;
+      font-weight: 600; text-decoration: none;
+    }
+
+    /* Waitlist */
+    .waitlist-wrap {
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+    .waitlist-label {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+      color: var(--text-muted); text-align: center;
+      margin-bottom: 10px;
+    }
+    .waitlist-row {
+      display: flex; gap: 8px;
+    }
+    .waitlist-row input[type="email"] {
+      flex: 1; padding: 10px 14px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: var(--radius-sm);
+      color: var(--text); font-size: 13px; font-family: inherit;
+      outline: none;
+    }
+    .waitlist-row input[type="email"]:focus {
+      border-color: var(--accent);
+    }
+    .waitlist-row input::placeholder { color: var(--text-muted); }
+    .waitlist-btn {
+      padding: 10px 16px;
+      background: rgba(167,139,250,0.2);
+      border: 1px solid rgba(167,139,250,0.4);
+      border-radius: var(--radius-sm);
+      color: var(--accent); font-size: 13px; font-weight: 700;
+      font-family: inherit; cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+    .waitlist-btn:hover { background: rgba(167,139,250,0.3); }
+    .waitlist-success {
+      font-size: 12px; color: var(--green);
+      text-align: center; margin-top: 8px;
+      display: none;
     }
     .auth-toggle a:hover { text-decoration: underline; }
 
@@ -682,39 +820,90 @@
   <div class="orb orb2"></div>
   <div class="orb orb3"></div>
 
-  <!-- ── Auth screen ── -->
+  <!-- ── Landing + Auth screen ── -->
   <div class="auth-screen" id="authScreen">
-    <div class="auth-card">
-      <span class="auth-icon">⚖️</span>
-      <div class="auth-title">Pragma</div>
-      <div class="auth-sub">Practical AI ethics for automated decisions</div>
+    <div class="landing-wrap">
 
-      <div class="auth-error" id="authError"></div>
+      <!-- Left: value prop -->
+      <div class="landing-left">
+        <div class="landing-badge">⚖️ Pragma</div>
+        <h1 class="landing-h1">Catch ethical risks in AI decisions<br>before they become problems.</h1>
+        <p class="landing-sub">Paste in a business decision. Get a structured ethical analysis — three frameworks, risk flags, and a clear recommendation — in seconds.</p>
 
-      <div style="margin:28px 0 8px;text-align:center;font-size:12px;color:var(--text-muted);letter-spacing:0.5px;">
-        SIGN IN TO CONTINUE
+        <ul class="landing-bullets">
+          <li>
+            <div class="bullet-dot" style="background:rgba(248,113,113,0.2);color:#fca5a5;">⚑</div>
+            <span><strong>Automated risk detection</strong> — bias, fairness, discrimination, transparency, harm</span>
+          </li>
+          <li>
+            <div class="bullet-dot" style="background:rgba(167,139,250,0.2);color:#a78bfa;">φ</div>
+            <span><strong>Three ethical frameworks</strong> — Kantian, Utilitarian, Virtue Ethics in every analysis</span>
+          </li>
+          <li>
+            <div class="bullet-dot" style="background:rgba(52,211,153,0.2);color:#34d399;">↓</div>
+            <span><strong>PDF audit report</strong> — downloadable documentation for compliance &amp; governance</span>
+          </li>
+          <li>
+            <div class="bullet-dot" style="background:rgba(251,191,36,0.2);color:#fbbf24;">✦</div>
+            <span><strong>7 decision categories</strong> — hiring, finance, healthcare, policy, and more</span>
+          </li>
+        </ul>
+
+        <!-- Sample output preview -->
+        <div class="preview-card">
+          <div class="preview-label">Example output</div>
+          <div class="preview-decision">Reject loan application — zip code 60620, income $58k</div>
+          <div class="preview-flags">
+            <span class="preview-flag">discrimination</span>
+            <span class="preview-flag">bias</span>
+          </div>
+          <div class="preview-rec">Zip code is a known proxy for race and protected class. Replace with income, credit score, and debt-to-income ratio to eliminate disparate impact.</div>
+          <div class="preview-meta">
+            <span class="preview-conf">87% confidence</span>
+            <span>Finance · Kantian · Utilitarian · Virtue Ethics</span>
+          </div>
+        </div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.25);margin-top:4px;">No data stored. Anonymous metadata only.</div>
       </div>
 
-      <div class="google-btn-wrap" id="googleBtnContainer"></div>
+      <!-- Right: auth card -->
+      <div class="auth-card-wrap">
+        <div class="auth-card">
+          <span class="auth-icon">⚖️</span>
+          <div class="auth-title">Try it free</div>
+          <div class="auth-sub">No account required — start in seconds</div>
 
-      <div style="display:flex;align-items:center;gap:10px;margin-top:18px;">
-        <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
-        <span style="font-size:11px;color:var(--text-muted);">OR</span>
-        <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+          <div class="auth-error" id="authError"></div>
+
+          <button id="btnGuest" class="btn" style="
+            background: linear-gradient(135deg, rgba(167,139,250,0.25), rgba(129,140,248,0.2));
+            border: 1px solid rgba(167,139,250,0.5);
+            color: var(--text);
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.2px;
+          ">Try as Guest →</button>
+
+          <div style="display:flex;align-items:center;gap:10px;margin-top:18px;">
+            <div style="flex:1;height:1px;background:rgba(255,255,255,0.08);"></div>
+            <span style="font-size:11px;color:var(--text-muted);">or sign in to save history</span>
+            <div style="flex:1;height:1px;background:rgba(255,255,255,0.08);"></div>
+          </div>
+
+          <div class="google-btn-wrap" id="googleBtnContainer" style="margin-top:14px;"></div>
+
+          <!-- Waitlist -->
+          <div class="waitlist-wrap">
+            <div class="waitlist-label">Want updates on new features?</div>
+            <div class="waitlist-row">
+              <input type="email" id="waitlistEmail" placeholder="your@email.com">
+              <button class="waitlist-btn" id="btnWaitlist">Notify me</button>
+            </div>
+            <div class="waitlist-success" id="waitlistSuccess">✓ Got it — we'll keep you posted.</div>
+          </div>
+        </div>
       </div>
 
-      <button id="btnGuest" class="btn" style="
-        margin-top:14px;
-        background:rgba(255,255,255,0.07);
-        border:1px solid rgba(255,255,255,0.15);
-        color:var(--text-muted);
-        font-size:14px;
-        letter-spacing:0.2px;
-      ">Continue as Guest</button>
-
-      <div style="margin-top:16px;text-align:center;font-size:11px;color:rgba(255,255,255,0.3);line-height:1.6;">
-        Your personal data is never stored.<br>Only anonymised usage metadata is logged.
-      </div>
     </div>
   </div>
 
@@ -1000,6 +1189,25 @@
         errEl.style.display = 'block';
       }
     }
+
+    // ── Waitlist ─────────────────────────────────────────────────────────────
+
+    document.getElementById('btnWaitlist').addEventListener('click', async () => {
+      const email = document.getElementById('waitlistEmail').value.trim();
+      if (!email || !email.includes('@')) return;
+      const btn = document.getElementById('btnWaitlist');
+      btn.textContent = '…'; btn.disabled = true;
+      try {
+        await fetch(`${API}/waitlist`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+      } catch (_) {}
+      document.getElementById('waitlistSuccess').style.display = 'block';
+      document.getElementById('waitlistEmail').style.display = 'none';
+      btn.style.display = 'none';
+    });
 
     // ── Guest sign-in ───────────────────────────────────────────────────────
 
