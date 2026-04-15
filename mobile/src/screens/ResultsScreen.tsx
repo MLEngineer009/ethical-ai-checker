@@ -1,16 +1,16 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet,
-  Animated, Alert, ActivityIndicator, Share,
+  Animated, Alert, ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import * as FileSystem from "expo-file-system";
+import { File as FSFile, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { GlassCard } from "../components/GlassCard";
 import { useAuth } from "../context/AuthContext";
-import { api, EthicalAnalysis } from "../services/api";
+import { api } from "../services/api";
 import { RootStackParamList } from "../../App";
 
 type Props = {
@@ -24,7 +24,7 @@ const FRAMEWORKS = [
   { id: "virtue",      label: "Virtue Ethics",    color: "#c084fc", key: "virtue_ethics_analysis" },
 ] as const;
 
-export function ResultsScreen({ navigation, route }: Props) {
+export function ResultsScreen({ route }: Props) {
   const { analysis, decision, context } = route.params;
   const { user } = useAuth();
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -46,21 +46,15 @@ export function ResultsScreen({ navigation, route }: Props) {
     if (!user) return;
     setDownloading(true);
     try {
-      const blob = await api.generateReport(decision, context, analysis, user.token);
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64 = (reader.result as string).split(",")[1];
-        const path = FileSystem.documentDirectory + "ethical-analysis-report.pdf";
-        await FileSystem.writeAsStringAsync(path, base64, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(path, { mimeType: "application/pdf" });
-        } else {
-          Alert.alert("Saved", `PDF saved to: ${path}`);
-        }
-      };
-      reader.readAsDataURL(blob);
+      const arrayBuffer = await api.generateReport(decision, context, analysis, user.token);
+      const bytes = new Uint8Array(arrayBuffer);
+      const file = new FSFile(Paths.document, "ethical-analysis-report.pdf");
+      file.write(bytes);
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(file.uri, { mimeType: "application/pdf" });
+      } else {
+        Alert.alert("Saved", "PDF saved to your documents.");
+      }
     } catch (e: any) {
       Alert.alert("Error", e.message || "Could not generate PDF.");
     } finally {

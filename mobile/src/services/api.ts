@@ -49,7 +49,19 @@ async function request<T>(
   return res.json();
 }
 
+export interface Question {
+  key: string;
+  label: string;
+  type: "text" | "select" | "multiselect" | "toggle";
+  options?: string[];
+  placeholder?: string;
+  required: boolean;
+}
+
 export const api = {
+  getQuestions: (category: string) =>
+    request<{ version: string; category: string; questions: Question[] }>(`/questions?category=${category}`),
+
   guestAuth: () => request<AuthResponse>("/auth/guest", { method: "POST" }),
 
   googleAuth: (credential: string) =>
@@ -73,13 +85,13 @@ export const api = {
     context: Record<string, string>,
     analysis: EthicalAnalysis,
     token: string
-  ): Promise<Blob> => {
+  ): Promise<ArrayBuffer> => {
     const res = await fetch(`${BASE_URL}/generate-report`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ decision, context, analysis }),
     });
     if (!res.ok) throw new APIError(res.status, "Report generation failed");
-    return res.blob();
+    return res.arrayBuffer();
   },
 };

@@ -245,7 +245,7 @@ def build_record(category: str, decision: str, context: dict, output: dict) -> d
     }
 
 
-def generate(n_per_scenario: int = 3, output_dir: str = "ml/data") -> None:
+def generate(n_per_scenario: int = 3, output_dir: str = "ml/data", append: bool = True) -> None:
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     records = []
 
@@ -267,15 +267,17 @@ def generate(n_per_scenario: int = 3, output_dir: str = "ml/data") -> None:
     split = int(len(records) * 0.9)
     train, eval_ = records[:split], records[split:]
 
+    mode = "a" if append else "w"
     for fname, data in [("train.jsonl", train), ("eval.jsonl", eval_)]:
         path = Path(output_dir) / fname
-        with open(path, "w") as f:
+        with open(path, mode) as f:
             for r in data:
                 f.write(json.dumps(r) + "\n")
-        print(f"Saved {len(data)} records → {path}")
+        total_lines = sum(1 for _ in open(path))
+        print(f"Saved {len(data)} new records → {path}  (total in file: {total_lines})")
 
-    print(f"\nTotal: {len(records)} examples  ({len(train)} train / {len(eval_)} eval)")
-    print("Risk flag distribution:")
+    print(f"\nNew examples this run: {len(records)}  ({len(train)} train / {len(eval_)} eval)")
+    print("Risk flag distribution (this run):")
     all_flags = [f for r in records for f in r["meta"]["risk_flags"]]
     from collections import Counter
     for flag, count in Counter(all_flags).most_common():
@@ -288,5 +290,7 @@ if __name__ == "__main__":
     parser.add_argument("--n", type=int, default=3,
                         help="Samples per scenario template (default 3 → ~90 total)")
     parser.add_argument("--output", default="ml/data")
+    parser.add_argument("--no-append", action="store_true",
+                        help="Overwrite existing data instead of appending (default: append)")
     args = parser.parse_args()
-    generate(n_per_scenario=args.n, output_dir=args.output)
+    generate(n_per_scenario=args.n, output_dir=args.output, append=not args.no_append)

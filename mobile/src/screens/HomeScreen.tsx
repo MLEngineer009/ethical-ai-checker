@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform,
@@ -7,12 +7,10 @@ import { LinearGradient } from "expo-linear-gradient";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { GlassCard } from "../components/GlassCard";
 import { useAuth } from "../context/AuthContext";
-import { api } from "../services/api";
+import { api, Question } from "../services/api";
 import { RootStackParamList } from "../../App";
 
 type Props = { navigation: NativeStackNavigationProp<RootStackParamList, "Home"> };
-
-interface ContextField { id: string; key: string; value: string; }
 
 const CATEGORIES = [
   { key: "hiring",     label: "Hiring",     icon: "🧑‍💼" },
@@ -24,47 +22,229 @@ const CATEGORIES = [
   { key: "other",      label: "Other",      icon: "💡" },
 ];
 
+const ACCENT = "#a78bfa";
+
+// ── Individual question renderers ────────────────────────────────────────────
+
+function TextQuestion({ q, value, onChange }: { q: Question; value: string; onChange: (v: string) => void }) {
+  return (
+    <TextInput
+      value={value}
+      onChangeText={onChange}
+      placeholder={q.placeholder || ""}
+      placeholderTextColor="rgba(255,255,255,0.3)"
+      style={styles.textInput}
+    />
+  );
+}
+
+function SelectQuestion({ q, value, onChange }: { q: Question; value: string; onChange: (v: string) => void }) {
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.toggleRow}>
+      {(q.options || []).map(opt => (
+        <TouchableOpacity
+          key={opt}
+          onPress={() => onChange(value === opt ? "" : opt)}
+          style={[styles.toggleBtn, value === opt && styles.toggleBtnActive]}
+          activeOpacity={0.75}
+        >
+          <Text style={[styles.toggleBtnText, value === opt && styles.toggleBtnTextActive]}>{opt}</Text>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+  );
+}
+
+function ToggleQuestion({ q, value, onChange }: { q: Question; value: string; onChange: (v: string) => void }) {
+  return (
+    <View style={styles.toggleRow}>
+      {(q.options || []).map(opt => (
+        <TouchableOpacity
+          key={opt}
+          onPress={() => onChange(value === opt ? "" : opt)}
+          style={[styles.toggleBtn, value === opt && styles.toggleBtnActive]}
+          activeOpacity={0.75}
+        >
+          <Text style={[styles.toggleBtnText, value === opt && styles.toggleBtnTextActive]}>{opt}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+}
+
+function MultiSelectQuestion({ q, value, onChange }: { q: Question; value: string; onChange: (v: string) => void }) {
+  const selected = value ? value.split(",").map(s => s.trim()).filter(Boolean) : [];
+  const toggle = (opt: string) => {
+    const next = selected.includes(opt)
+      ? selected.filter(s => s !== opt)
+      : [...selected, opt];
+    onChange(next.join(", "));
+  };
+  return (
+    <View style={styles.chipsWrap}>
+      {(q.options || []).map(opt => {
+        const active = selected.includes(opt);
+        return (
+          <TouchableOpacity
+            key={opt}
+            onPress={() => toggle(opt)}
+            style={[styles.chip, active && styles.chipActive]}
+            activeOpacity={0.75}
+          >
+            <Text style={[styles.chipText, active && styles.chipTextActive]}>{opt}</Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+function QuestionBlock({ q, value, onChange }: { q: Question; value: string; onChange: (v: string) => void }) {
+  return (
+    <View style={styles.questionBlock}>
+      <View style={styles.questionLabelRow}>
+        <Text style={styles.questionLabel}>{q.label}</Text>
+        {q.required && <Text style={styles.requiredBadge}>required</Text>}
+      </View>
+      {q.type === "text" && <TextQuestion q={q} value={value} onChange={onChange} />}
+      {q.type === "select" && <SelectQuestion q={q} value={value} onChange={onChange} />}
+      {q.type === "toggle" && <ToggleQuestion q={q} value={value} onChange={onChange} />}
+      {q.type === "multiselect" && <MultiSelectQuestion q={q} value={value} onChange={onChange} />}
+    </View>
+  );
+}
+
+// ── Fallback generic fields for "other" ──────────────────────────────────────
+
+interface ContextField { id: string; key: string; value: string; }
+
+function GenericFields({ fields, setFields }: {
+  fields: ContextField[];
+  setFields: React.Dispatch<React.SetStateAction<ContextField[]>>;
+}) {
+  const addField = () => setFields(f => [...f, { id: Date.now().toString(), key: "", value: "" }]);
+  const removeField = (id: string) => setFields(f => f.filter(x => x.id !== id));
+  const updateField = (id: string, prop: "key" | "value", val: string) =>
+    setFields(f => f.map(x => x.id === id ? { ...x, [prop]: val } : x));
+
+  return (
+    <>
+      <View style={styles.contextHeader}>
+        <Text style={styles.label}>CONTEXT</Text>
+        <TouchableOpacity onPress={addField} style={styles.addBtn}>
+          <Text style={styles.addBtnText}>+ Add Field</Text>
+        </TouchableOpacity>
+      </View>
+      {fields.map(f => (
+        <View key={f.id} style={styles.fieldRow}>
+          <TextInput
+            value={f.key}
+            onChangeText={v => updateField(f.id, "key", v)}
+            placeholder="Field name"
+            placeholderTextColor="rgba(167,139,250,0.4)"
+            style={[styles.fieldInput, styles.fieldKey]}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <TextInput
+            value={f.value}
+            onChangeText={v => updateField(f.id, "value", v)}
+            placeholder="Value"
+            placeholderTextColor="rgba(255,255,255,0.3)"
+            style={styles.fieldInput}
+          />
+          {fields.length > 1 && (
+            <TouchableOpacity onPress={() => removeField(f.id)} style={styles.removeBtn}>
+              <Text style={styles.removeBtnText}>✕</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      ))}
+    </>
+  );
+}
+
+// ── Main screen ──────────────────────────────────────────────────────────────
+
 export function HomeScreen({ navigation }: Props) {
   const { user, signOut } = useAuth();
   const [decision, setDecision] = useState("");
-  const [category, setCategory] = useState("other");
+  const [category, setCategory] = useState("hiring");
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [loadingQuestions, setLoadingQuestions] = useState(false);
+  // fallback fields for "other"
   const [fields, setFields] = useState<ContextField[]>([
-    { id: "1", key: "gender", value: "" },
-    { id: "2", key: "experience", value: "" },
-    { id: "3", key: "", value: "" },
+    { id: "1", key: "", value: "" },
   ]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const addField = () =>
-    setFields(f => [...f, { id: Date.now().toString(), key: "", value: "" }]);
+  const loadQuestions = useCallback(async (cat: string) => {
+    if (cat === "other") { setQuestions([]); return; }
+    setLoadingQuestions(true);
+    try {
+      const res = await api.getQuestions(cat);
+      setQuestions(res.questions);
+      setAnswers({});
+    } catch {
+      setQuestions([]);
+    } finally {
+      setLoadingQuestions(false);
+    }
+  }, []);
 
-  const removeField = (id: string) =>
-    setFields(f => f.filter(x => x.id !== id));
+  useEffect(() => {
+    setDecision("");
+    setError("");
+    loadQuestions(category);
+  }, [category]);
 
-  const updateField = (id: string, prop: "key" | "value", val: string) =>
-    setFields(f => f.map(x => x.id === id ? { ...x, [prop]: val } : x));
+  const setAnswer = (key: string, value: string) =>
+    setAnswers(prev => ({ ...prev, [key]: value }));
 
-  const buildContext = () => {
+  const buildContext = (): Record<string, string> => {
+    if (category === "other") {
+      const ctx: Record<string, string> = {};
+      for (const f of fields) {
+        const k = f.key.trim(); const v = f.value.trim();
+        if (k && v) ctx[k] = v;
+      }
+      return ctx;
+    }
     const ctx: Record<string, string> = {};
-    for (const f of fields) {
-      const k = f.key.trim(); const v = f.value.trim();
-      if (k && v) ctx[k] = v;
+    for (const q of questions) {
+      const v = (answers[q.key] || "").trim();
+      if (v) ctx[q.key] = v;
     }
     return ctx;
   };
 
+  const validate = (): string | null => {
+    if (!decision.trim()) return "Please enter a decision.";
+    if (category === "other") {
+      const ctx = buildContext();
+      if (!Object.keys(ctx).length) return "Please fill in at least one context field.";
+    } else {
+      for (const q of questions) {
+        if (q.required && !(answers[q.key] || "").trim()) {
+          return `Please answer: "${q.label}"`;
+        }
+      }
+    }
+    return null;
+  };
+
   const evaluate = async () => {
-    const trimmed = decision.trim();
-    const ctx = buildContext();
-    if (!trimmed) { setError("Please enter a decision."); return; }
-    if (!Object.keys(ctx).length) { setError("Please fill in at least one context field."); return; }
+    const err = validate();
+    if (err) { setError(err); return; }
     if (!user) return;
 
     setError(""); setLoading(true);
     try {
-      const result = await api.evaluate(trimmed, ctx, user.token, category);
-      navigation.navigate("Results", { analysis: result, decision: trimmed, context: ctx });
+      const ctx = buildContext();
+      const result = await api.evaluate(decision.trim(), ctx, user.token, category);
+      navigation.navigate("Results", { analysis: result, decision: decision.trim(), context: ctx });
     } catch (e: any) {
       if (e.status === 401) { signOut(); return; }
       setError(e.message || "Something went wrong.");
@@ -135,39 +315,23 @@ export function HomeScreen({ navigation }: Props) {
             />
           </GlassCard>
 
-          {/* Context */}
+          {/* Context — guided questions or generic fields */}
           <GlassCard>
-            <View style={styles.contextHeader}>
-              <Text style={styles.label}>CONTEXT</Text>
-              <TouchableOpacity onPress={addField} style={styles.addBtn}>
-                <Text style={styles.addBtnText}>+ Add Field</Text>
-              </TouchableOpacity>
-            </View>
-            {fields.map((f) => (
-              <View key={f.id} style={styles.fieldRow}>
-                <TextInput
-                  value={f.key}
-                  onChangeText={v => updateField(f.id, "key", v)}
-                  placeholder="Field name"
-                  placeholderTextColor="rgba(167,139,250,0.4)"
-                  style={[styles.fieldInput, styles.fieldKey]}
-                  autoCapitalize="none"
-                  autoCorrect={false}
+            <Text style={styles.label}>CONTEXT</Text>
+            {category === "other" ? (
+              <GenericFields fields={fields} setFields={setFields} />
+            ) : loadingQuestions ? (
+              <ActivityIndicator color={ACCENT} style={{ marginVertical: 16 }} />
+            ) : (
+              questions.map(q => (
+                <QuestionBlock
+                  key={q.key}
+                  q={q}
+                  value={answers[q.key] || ""}
+                  onChange={v => setAnswer(q.key, v)}
                 />
-                <TextInput
-                  value={f.value}
-                  onChangeText={v => updateField(f.id, "value", v)}
-                  placeholder="Value"
-                  placeholderTextColor="rgba(255,255,255,0.3)"
-                  style={styles.fieldInput}
-                />
-                {fields.length > 1 && (
-                  <TouchableOpacity onPress={() => removeField(f.id)} style={styles.removeBtn}>
-                    <Text style={styles.removeBtnText}>✕</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            ))}
+              ))
+            )}
           </GlassCard>
 
           {/* Error */}
@@ -196,8 +360,6 @@ export function HomeScreen({ navigation }: Props) {
   );
 }
 
-const ACCENT = "#a78bfa";
-
 const styles = StyleSheet.create({
   bg: { flex: 1 },
   scroll: { paddingHorizontal: 20, paddingTop: 60, paddingBottom: 40 },
@@ -224,11 +386,7 @@ const styles = StyleSheet.create({
   icon: { fontSize: 42, marginBottom: 8 },
   title: { fontSize: 28, fontWeight: "700", color: "#e0d7ff", marginBottom: 4 },
   subtitle: { fontSize: 13, color: "rgba(255,255,255,0.5)", textAlign: "center" },
-  label: {
-    fontSize: 11, fontWeight: "700", color: ACCENT,
-    letterSpacing: 1.1, marginBottom: 10,
-  },
-  // Category pills
+  label: { fontSize: 11, fontWeight: "700", color: ACCENT, letterSpacing: 1.1, marginBottom: 10 },
   pillRow: { flexDirection: "row", gap: 8, paddingBottom: 2 },
   pill: {
     flexDirection: "row", alignItems: "center", gap: 5,
@@ -236,26 +394,54 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.06)",
     borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
   },
-  pillActive: {
-    backgroundColor: "rgba(167,139,250,0.18)",
-    borderColor: "rgba(167,139,250,0.6)",
-  },
+  pillActive: { backgroundColor: "rgba(167,139,250,0.18)", borderColor: "rgba(167,139,250,0.6)" },
   pillIcon: { fontSize: 14 },
   pillText: { fontSize: 13, fontWeight: "500", color: "rgba(255,255,255,0.55)" },
   pillTextActive: { color: ACCENT, fontWeight: "700" },
-  // Decision textarea
   textarea: {
     color: "#fff", fontSize: 15, minHeight: 90,
     backgroundColor: "rgba(255,255,255,0.06)",
     borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
     padding: 12, lineHeight: 22,
   },
+  // Guided questions
+  questionBlock: { marginBottom: 18 },
+  questionLabelRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
+  questionLabel: { fontSize: 13, fontWeight: "600", color: "#e0d7ff", flex: 1 },
+  requiredBadge: {
+    fontSize: 9, fontWeight: "700", color: ACCENT, letterSpacing: 0.5,
+    textTransform: "uppercase", opacity: 0.7,
+  },
+  textInput: {
+    color: "#fff", fontSize: 14,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
+    paddingHorizontal: 12, paddingVertical: 10,
+  },
+  toggleRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  toggleBtn: {
+    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
+  },
+  toggleBtnActive: { backgroundColor: "rgba(167,139,250,0.18)", borderColor: ACCENT },
+  toggleBtnText: { fontSize: 13, fontWeight: "600", color: "rgba(255,255,255,0.55)" },
+  toggleBtnTextActive: { color: ACCENT },
+  chipsWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: {
+    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
+  },
+  chipActive: { backgroundColor: "rgba(167,139,250,0.18)", borderColor: ACCENT },
+  chipText: { fontSize: 12, fontWeight: "600", color: "rgba(255,255,255,0.55)" },
+  chipTextActive: { color: ACCENT },
+  // Generic fields
   contextHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
   addBtn: {
     backgroundColor: "rgba(167,139,250,0.1)", borderRadius: 8,
     paddingHorizontal: 10, paddingVertical: 5,
-    borderWidth: 1, borderColor: "rgba(167,139,250,0.3)",
-    borderStyle: "dashed",
+    borderWidth: 1, borderColor: "rgba(167,139,250,0.3)", borderStyle: "dashed",
   },
   addBtnText: { fontSize: 12, fontWeight: "600", color: ACCENT },
   fieldRow: { flexDirection: "row", gap: 8, marginBottom: 8, alignItems: "center" },
