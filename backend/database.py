@@ -75,6 +75,38 @@ waitlist = Table(
     Column("timestamp", String,  nullable=False),
 )
 
+organizations = Table(
+    "organizations", _meta,
+    Column("id",          Integer, primary_key=True, autoincrement=True),
+    Column("name",        String,  nullable=False),
+    Column("owner_sub",   String,  nullable=False),   # google_sub of creator
+    Column("invite_code", String,  nullable=False, unique=True),
+    Column("created_at",  String,  nullable=False),
+)
+
+org_members = Table(
+    "org_members", _meta,
+    Column("id",       Integer, primary_key=True, autoincrement=True),
+    Column("org_id",   Integer, nullable=False),
+    Column("anon_id",  String,  nullable=False),
+    Column("role",     String,  nullable=False, server_default="member"),  # owner | member
+    Column("joined_at", String, nullable=False),
+)
+
+api_keys = Table(
+    "api_keys", _meta,
+    Column("id",          Integer, primary_key=True, autoincrement=True),
+    Column("anon_id",     String,  nullable=False),
+    Column("key_hash",    String,  nullable=False, unique=True),
+    Column("key_prefix",  String,  nullable=False),   # first 8 chars for display
+    Column("label",       String,  nullable=False, server_default=""),
+    Column("created_at",  String,  nullable=False),
+    Column("last_used",   String,  nullable=True),
+    Column("calls_total", Integer, nullable=False, server_default="0"),
+    Column("calls_month", Integer, nullable=False, server_default="0"),
+    Column("active",      Integer, nullable=False, server_default="1"),  # 1=active
+)
+
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
@@ -250,3 +282,181 @@ def get_stats(google_sub: str) -> Dict[str, Any]:
         for r in rows
     ]
     return {"total_requests": len(rows), "history": history}
+
+
+# ── Org functions ──────────────────────────────────────────────────────────────
+
+def create_org(name: str, owner_sub: str) -> Dict[str, Any]:
+    """Create a new organization and make the creator the owner member."""
+    import secrets
+    invite_code = secrets.token_urlsafe(12)
+    aid = anon_id(owner_sub)
+    now = datetime.now(timezone.utc).isoformat()
+    with _engine.begin() as conn:
+        result = conn.execute(organizations.insert().values(
+            name=name, owner_sub=owner_sub,
+            invite_code=invite_code, created_at=now,
+        ))
+        org_id = result.inserted_primary_key[0]
+        conn.execute(org_members.insert().values(
+            org_id=org_id, anon_id=aid, role="owner", joined_at=now,
+        ))
+    return {"org_id": org_id, "name": name, "invite_code": invite_code}
+
+
+def get_org_by_invite(invite_code: str) -> Dict[str, Any] | None:
+    with _engine.connect() as conn:
+        row = conn.execute(
+            organizations.select().where(organizations.c.invite_code == invite_code)
+        ).fetchone()
+    if not row:
+        return None
+    return {"org_id": row.id, "name": row.name, "owner_sub": row.owner_sub}
+
+
+def join_org(org_id: int, google_sub: str) -> bool:
+    """Add member to org. Returns False if already a member."""
+    aid = anon_id(google_sub)
+    try:
+        with _engine.begin() as conn:
+            existing = conn.execute(
+                org_members.select()
+                .where(org_members.c.org_id == org_id)
+                .where(org_members.c.anon_id == aid)
+            ).fetchone()
+            if existing:
+                return False
+            conn.execute(org_members.insert().values(
+                org_id=org_id, anon_id=aid, role="member",
+                joined_at=datetime.now(timezone.utc).isoformat(),
+            ))
+        return True
+    except Exception:
+        return False
+
+
+def get_my_orgs(google_sub: str) -> List[Dict]:
+    aid = anon_id(google_sub)
+    with _engine.connect() as conn:
+        rows = conn.execute(
+            org_members.join(organizations, org_members.c.org_id == organizations.c.id)
+            .select().where(org_members.c.anon_id == aid)
+        ).fetchall()
+    return [
+        {"org_id": r.org_id, "name": r.name, "role": r.role,
+         "invite_code": r.invite_code if r.role == "owner" else None}
+        for r in rows
+    ]
+
+
+def get_org_history(org_id: int, google_sub: str, limit: int = 50) -> List[Dict]:
+    """Return recent request logs for all members of the org — caller must be a member."""
+    aid = anon_id(google_sub)
+    with _engine.connect() as conn:
+        # Verify membership
+        member = conn.execute(
+            org_members.select()
+            .where(org_members.c.org_id == org_id)
+            .where(org_members.c.anon_id == aid)
+        ).fetchone()
+        if not member:
+            return []
+        # Get all member anon_ids
+        members = conn.execute(
+            org_members.select().where(org_members.c.org_id == org_id)
+        ).fetchall()
+        member_ids = [m.anon_id for m in members]
+        rows = conn.execute(
+            request_logs.select()
+            .where(request_logs.c.anon_id.in_(member_ids))
+            .order_by(request_logs.c.id.desc())
+            .limit(limit)
+        ).fetchall()
+    return [
+        {
+            "timestamp":       r.timestamp,
+            "category":        r.category,
+            "decision_words":  r.decision_words,
+            "provider":        r.provider,
+            "confidence":      r.confidence,
+            "risk_count":      r.risk_count,
+            "risk_categories": json.loads(r.risk_categories),
+            "is_self":         r.anon_id == aid,
+        }
+        for r in rows
+    ]
+
+
+# ── API key functions ──────────────────────────────────────────────────────────
+
+def create_api_key(google_sub: str, label: str) -> Dict[str, Any]:
+    """Generate a new API key. Returns the raw key (shown once only)."""
+    import secrets
+    raw_key = "pragma_" + secrets.token_urlsafe(32)
+    key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
+    key_prefix = raw_key[:12]
+    aid = anon_id(google_sub)
+    with _engine.begin() as conn:
+        result = conn.execute(api_keys.insert().values(
+            anon_id=aid, key_hash=key_hash, key_prefix=key_prefix,
+            label=label, created_at=datetime.now(timezone.utc).isoformat(),
+        ))
+    return {"key": raw_key, "key_prefix": key_prefix, "key_id": result.inserted_primary_key[0], "label": label}
+
+
+def get_api_keys(google_sub: str) -> List[Dict]:
+    aid = anon_id(google_sub)
+    with _engine.connect() as conn:
+        rows = conn.execute(
+            api_keys.select().where(api_keys.c.anon_id == aid)
+            .order_by(api_keys.c.id.desc())
+        ).fetchall()
+    return [
+        {
+            "key_id":      r.id,
+            "key_prefix":  r.key_prefix,
+            "label":       r.label,
+            "created_at":  r.created_at,
+            "last_used":   r.last_used,
+            "calls_total": r.calls_total,
+            "calls_month": r.calls_month,
+            "active":      bool(r.active),
+        }
+        for r in rows
+    ]
+
+
+def revoke_api_key(key_id: int, google_sub: str) -> bool:
+    aid = anon_id(google_sub)
+    with _engine.begin() as conn:
+        result = conn.execute(
+            api_keys.update()
+            .where(api_keys.c.id == key_id)
+            .where(api_keys.c.anon_id == aid)
+            .values(active=0)
+        )
+    return result.rowcount > 0
+
+
+def verify_api_key(raw_key: str) -> Dict[str, Any] | None:
+    """Verify an API key and increment usage counters. Returns anon_id or None."""
+    key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
+    now = datetime.now(timezone.utc).isoformat()
+    with _engine.begin() as conn:
+        row = conn.execute(
+            api_keys.select()
+            .where(api_keys.c.key_hash == key_hash)
+            .where(api_keys.c.active == 1)
+        ).fetchone()
+        if not row:
+            return None
+        conn.execute(
+            api_keys.update()
+            .where(api_keys.c.id == row.id)
+            .values(
+                last_used=now,
+                calls_total=row.calls_total + 1,
+                calls_month=row.calls_month + 1,
+            )
+        )
+    return {"anon_id": row.anon_id, "key_id": row.id}

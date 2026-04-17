@@ -813,6 +813,79 @@
       color: var(--accent);
       font-weight: 700;
     }
+
+    /* ── App tabs ── */
+    .app-tabs { display:flex; gap:4px; margin-bottom:20px; background:rgba(255,255,255,0.05); border-radius:14px; padding:4px; }
+    .app-tab  { flex:1; padding:9px 12px; border:none; background:transparent; color:var(--text-muted); font-size:13px; font-weight:600; font-family:inherit; border-radius:10px; cursor:pointer; transition:all 0.18s; }
+    .app-tab:hover { color:var(--text); }
+    .app-tab.active { background:rgba(167,139,250,0.2); color:var(--accent); }
+    .tab-pane { display:none; }
+    .tab-pane.active { display:block; }
+
+    /* ── Regulatory refs ── */
+    .reg-section { opacity:0; transform:translateY(14px); transition:opacity 0.45s ease,transform 0.45s ease; }
+    .reg-section.visible { opacity:1!important; transform:translateY(0)!important; }
+    .reg-list { display:flex; flex-direction:column; gap:8px; margin-top:10px; }
+    .reg-item { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:12px 14px; }
+    .reg-item-top { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .reg-law { font-size:12px; font-weight:700; color:#e0d7ff; }
+    .reg-juris { font-size:10px; font-weight:700; letter-spacing:0.8px; padding:2px 8px; border-radius:20px; background:rgba(129,140,248,0.15); color:var(--accent2); border:1px solid rgba(129,140,248,0.25); }
+    .reg-trigger { font-size:10px; font-weight:700; letter-spacing:0.8px; padding:2px 8px; border-radius:20px; background:rgba(248,113,113,0.12); color:#fca5a5; border:1px solid rgba(248,113,113,0.2); }
+    .reg-desc { font-size:12px; color:var(--text-muted); margin-top:5px; line-height:1.5; }
+    .reg-link { font-size:11px; color:var(--accent); text-decoration:none; margin-top:3px; display:inline-block; }
+    .reg-link:hover { text-decoration:underline; }
+
+    /* ── Counterfactual ── */
+    .cf-btn { margin-top:10px; background:rgba(129,140,248,0.12); border:1px solid rgba(129,140,248,0.3); border-radius:var(--radius-sm); color:var(--accent2); font-size:13px; font-weight:600; font-family:inherit; padding:10px 18px; cursor:pointer; width:100%; transition:background 0.2s; }
+    .cf-btn:hover { background:rgba(129,140,248,0.2); }
+    .cf-panel { margin-top:16px; display:none; }
+    .cf-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px; }
+    .cf-input { background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.15); border-radius:var(--radius-sm); color:var(--text); font-size:14px; font-family:inherit; padding:10px 14px; outline:none; }
+    .cf-input:focus { border-color:var(--accent); }
+    .cf-results { margin-top:12px; }
+    .cf-diff { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:14px; margin-bottom:10px; }
+    .cf-diff-title { font-size:11px; font-weight:700; letter-spacing:1px; color:var(--accent); margin-bottom:8px; }
+    .cf-added   { color:#34d399; font-size:13px; }
+    .cf-removed { color:#fca5a5; font-size:13px; }
+    .cf-delta   { font-size:13px; color:var(--text-muted); }
+
+    /* ── History ── */
+    .history-empty { text-align:center; color:var(--text-muted); padding:40px 0; font-size:14px; }
+    .history-item { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:14px 16px; margin-bottom:10px; }
+    .history-top { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+    .history-cat { font-size:11px; font-weight:700; letter-spacing:0.8px; color:var(--accent); text-transform:uppercase; }
+    .history-ts  { font-size:11px; color:var(--text-muted); }
+    .history-meta { display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; }
+    .history-stat { font-size:12px; color:var(--text-muted); }
+    .history-flags { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+    .history-flag { font-size:10px; font-weight:700; padding:3px 10px; border-radius:20px; background:rgba(248,113,113,0.12); color:#fca5a5; border:1px solid rgba(248,113,113,0.2); }
+
+    /* ── Batch upload ── */
+    .batch-drop { border:2px dashed rgba(167,139,250,0.35); border-radius:var(--radius); padding:32px; text-align:center; cursor:pointer; transition:border-color 0.2s; margin-bottom:14px; }
+    .batch-drop:hover,.batch-drop.drag-over { border-color:var(--accent); background:rgba(167,139,250,0.06); }
+    .batch-drop p { color:var(--text-muted); font-size:14px; margin-top:6px; }
+    .batch-icon { font-size:36px; }
+    .batch-results { margin-top:14px; }
+    .batch-summary { background:rgba(52,211,153,0.1); border:1px solid rgba(52,211,153,0.2); border-radius:10px; padding:12px 16px; font-size:13px; color:#34d399; font-weight:600; margin-bottom:10px; }
+
+    /* ── Settings (Org + API Keys) ── */
+    .settings-section { margin-bottom:24px; }
+    .settings-h { font-size:16px; font-weight:700; color:var(--text); margin-bottom:12px; }
+    .settings-sub { font-size:13px; color:var(--text-muted); margin-bottom:14px; line-height:1.5; }
+    .key-item { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; flex-wrap:wrap; }
+    .key-prefix { font-family:monospace; font-size:13px; color:var(--accent); font-weight:700; }
+    .key-label  { font-size:12px; color:var(--text-muted); }
+    .key-stats  { font-size:11px; color:var(--text-muted); }
+    .btn-revoke { background:rgba(248,113,113,0.1); border:1px solid rgba(248,113,113,0.25); border-radius:8px; color:#fca5a5; font-size:12px; font-weight:600; font-family:inherit; padding:5px 12px; cursor:pointer; }
+    .btn-revoke:hover { background:rgba(248,113,113,0.2); }
+    .new-key-box { background:rgba(52,211,153,0.1); border:1px solid rgba(52,211,153,0.25); border-radius:10px; padding:14px; margin-bottom:12px; word-break:break-all; font-family:monospace; font-size:12px; color:#34d399; }
+    .org-item { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:12px 14px; margin-bottom:8px; }
+    .org-name  { font-size:14px; font-weight:700; color:var(--text); }
+    .org-role  { font-size:11px; font-weight:700; letter-spacing:0.8px; color:var(--accent); text-transform:uppercase; }
+    .org-code  { font-family:monospace; font-size:12px; color:var(--text-muted); margin-top:4px; }
+    .inline-row { display:flex; gap:8px; }
+    .inline-row input { flex:1; }
+    .btn-sm { padding:10px 16px; font-size:13px; border:none; border-radius:var(--radius-sm); background:linear-gradient(135deg,#7c3aed,#4f46e5); color:#fff; font-weight:600; font-family:inherit; cursor:pointer; white-space:nowrap; }
 </style>
 </head>
 <body>
@@ -923,6 +996,16 @@
       <p>Practical AI ethics for automated decisions</p>
     </div>
 
+    <!-- App tabs -->
+    <div class="app-tabs">
+      <button class="app-tab active" onclick="switchTab('evaluate')">Evaluate</button>
+      <button class="app-tab" onclick="switchTab('history')">History</button>
+      <button class="app-tab" onclick="switchTab('batch')">Batch</button>
+      <button class="app-tab" onclick="switchTab('settings')">Settings</button>
+    </div>
+
+    <!-- ── Evaluate tab ── -->
+    <div class="tab-pane active" id="tab-evaluate">
 
     <!-- Category selector -->
     <div class="card" style="padding: 18px 20px;">
@@ -1062,6 +1145,25 @@
         <div class="rec-text" id="txtRec"></div>
       </div>
 
+      <!-- Regulatory refs -->
+      <div class="card reg-section" id="regSection" style="display:none;">
+        <div class="card-title">⚖️ Regulatory Exposure</div>
+        <div class="reg-list" id="regList"></div>
+      </div>
+
+      <!-- Counterfactual -->
+      <div class="download-section" id="cfSection" style="display:none;">
+        <button class="cf-btn" onclick="toggleCFPanel()">🔁 Run Counterfactual — What if a context value changed?</button>
+        <div class="cf-panel" id="cfPanel">
+          <div class="cf-row">
+            <input class="cf-input" id="cfKey"   placeholder="Context key  (e.g. gender)" />
+            <input class="cf-input" id="cfValue" placeholder="New value  (e.g. male)" />
+          </div>
+          <button class="btn btn-primary" onclick="runCounterfactual()" style="margin-top:0;">Analyse Counterfactual</button>
+          <div class="cf-results" id="cfResults"></div>
+        </div>
+      </div>
+
       <!-- Download + Feedback -->
       <div class="download-section" id="dlSection">
         <button class="btn btn-download" id="btnDownload">
@@ -1076,6 +1178,69 @@
       </div>
 
     </div>
+
+    </div> <!-- /tab-pane evaluate -->
+
+    <!-- ── History tab ── -->
+    <div class="tab-pane" id="tab-history">
+      <div class="card">
+        <div class="card-title">📋 Your Decision History</div>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">Metadata only — decision text is never stored.</p>
+        <div id="historyList"><div class="history-empty">Loading…</div></div>
+      </div>
+    </div>
+
+    <!-- ── Batch tab ── -->
+    <div class="tab-pane" id="tab-batch">
+      <div class="card">
+        <div class="card-title">📂 Batch Evaluation</div>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Upload a CSV with columns: <code style="color:var(--accent);">decision, category</code> and any context columns. Get back a results CSV with risk flags, confidence, recommendation, and regulatory refs for each row. Limit: 100 rows.</p>
+        <div class="batch-drop" id="batchDrop" onclick="document.getElementById('batchFile').click()">
+          <div class="batch-icon">📄</div>
+          <strong>Click to upload CSV</strong>
+          <p>or drag &amp; drop here</p>
+        </div>
+        <input type="file" id="batchFile" accept=".csv" style="display:none;" onchange="handleBatchFile(this.files[0])">
+        <div class="batch-results" id="batchResults"></div>
+      </div>
+    </div>
+
+    <!-- ── Settings tab ── -->
+    <div class="tab-pane" id="tab-settings">
+
+      <!-- Orgs -->
+      <div class="card settings-section">
+        <div class="settings-h">🏢 Organizations</div>
+        <p class="settings-sub">Create a workspace to share decision history with your team. Share the invite code with colleagues.</p>
+        <div id="orgList" style="margin-bottom:14px;"></div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div class="inline-row">
+            <input type="text" id="orgNameInput" placeholder="New organization name…" />
+            <button class="btn-sm" onclick="createOrg()">Create</button>
+          </div>
+          <div class="inline-row">
+            <input type="text" id="orgInviteInput" placeholder="Paste invite code…" />
+            <button class="btn-sm" onclick="joinOrg()">Join</button>
+          </div>
+        </div>
+        <div id="orgMsg" style="font-size:13px;color:var(--green);margin-top:8px;"></div>
+      </div>
+
+      <!-- API Keys -->
+      <div class="card settings-section">
+        <div class="settings-h">🔑 API Keys</div>
+        <p class="settings-sub">Use your API key to call Pragma programmatically from your own systems. The raw key is shown once — store it safely.</p>
+        <div id="newKeyBox" style="display:none;" class="new-key-box"></div>
+        <div id="apiKeyList" style="margin-bottom:14px;"></div>
+        <div class="inline-row">
+          <input type="text" id="keyLabelInput" placeholder="Label  (e.g. Production)" />
+          <button class="btn-sm" onclick="createAPIKey()">Generate Key</button>
+        </div>
+        <div id="apiKeyMsg" style="font-size:13px;color:var(--green);margin-top:8px;"></div>
+      </div>
+
+    </div>
+
   </div>
 
   <script>
@@ -1519,6 +1684,33 @@
         wrap.innerHTML = '<div class="no-risk">✅ No significant risks detected</div>';
       }
 
+      // Regulatory refs
+      const regSection = document.getElementById('regSection');
+      const regList    = document.getElementById('regList');
+      regList.innerHTML = '';
+      if (data.regulatory_refs && data.regulatory_refs.length) {
+        regSection.style.display = 'block';
+        data.regulatory_refs.forEach(r => {
+          regList.insertAdjacentHTML('beforeend', `
+            <div class="reg-item">
+              <div class="reg-item-top">
+                <span class="reg-law">${r.law}</span>
+                <span class="reg-juris">${r.jurisdiction}</span>
+                <span class="reg-trigger">triggered by: ${r.triggered_by}</span>
+              </div>
+              <div class="reg-desc">${r.description}</div>
+              <a class="reg-link" href="${r.url}" target="_blank" rel="noopener">Read regulation →</a>
+            </div>`);
+        });
+      } else {
+        regSection.style.display = 'none';
+      }
+
+      // Counterfactual section
+      document.getElementById('cfSection').style.display = 'block';
+      document.getElementById('cfPanel').style.display   = 'none';
+      document.getElementById('cfResults').innerHTML     = '';
+
       // Show results container
       const resultsEl = document.getElementById('resultsSection');
       resultsEl.style.display = 'block';
@@ -1526,9 +1718,10 @@
       // Use requestAnimationFrame to ensure DOM is painted before animating
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          const order = ['cardKantian','cardUtilitarian','cardVirtue','riskSection','confSection','recSection','dlSection'];
+          const order = ['cardKantian','cardUtilitarian','cardVirtue','riskSection','confSection','recSection','regSection','cfSection','dlSection'];
           order.forEach((id, i) => {
-            setTimeout(() => document.getElementById(id).classList.add('visible'), i * 100);
+            const el = document.getElementById(id);
+            if (el && el.style.display !== 'none') setTimeout(() => el.classList.add('visible'), i * 100);
           });
 
           // Confidence bar
@@ -1597,6 +1790,227 @@
     document.addEventListener('keydown', e => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') evaluate();
     });
+
+    // ── Tab switching ──────────────────────────────────────────────────────
+    function switchTab(name) {
+      document.querySelectorAll('.app-tab').forEach((t,i) => {
+        const names = ['evaluate','history','batch','settings'];
+        t.classList.toggle('active', names[i] === name);
+      });
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      document.getElementById(`tab-${name}`).classList.add('active');
+      if (name === 'history') loadHistory();
+      if (name === 'settings') { loadOrgs(); loadAPIKeys(); }
+    }
+
+    // ── History ────────────────────────────────────────────────────────────
+    async function loadHistory() {
+      const el = document.getElementById('historyList');
+      el.innerHTML = '<div class="history-empty">Loading…</div>';
+      try {
+        const res = await fetch(`${API}/my-stats`, { headers: authHeaders() });
+        const data = await res.json();
+        if (!data.history || !data.history.length) {
+          el.innerHTML = '<div class="history-empty">No evaluations yet. Run your first analysis!</div>';
+          return;
+        }
+        el.innerHTML = '';
+        data.history.forEach(h => {
+          const flags = h.risk_categories && h.risk_categories.length
+            ? h.risk_categories.map(f => `<span class="history-flag">${f}</span>`).join('')
+            : '<span style="color:var(--green);font-size:12px;">✅ No risks</span>';
+          el.insertAdjacentHTML('beforeend', `
+            <div class="history-item">
+              <div class="history-top">
+                <span class="history-cat">${h.category}</span>
+                <span class="history-ts">${new Date(h.timestamp).toLocaleString()}</span>
+              </div>
+              <div class="history-meta">
+                <span class="history-stat">~${h.decision_words} words</span>
+                <span class="history-stat">via ${h.provider}</span>
+                <span class="history-stat">${Math.round(h.confidence * 100)}% confidence</span>
+              </div>
+              <div class="history-flags">${flags}</div>
+            </div>`);
+        });
+      } catch (e) {
+        el.innerHTML = `<div class="history-empty">Could not load history: ${e.message}</div>`;
+      }
+    }
+
+    // ── Counterfactual ─────────────────────────────────────────────────────
+    function toggleCFPanel() {
+      const p = document.getElementById('cfPanel');
+      p.style.display = p.style.display === 'none' ? 'block' : 'none';
+    }
+
+    async function runCounterfactual() {
+      const key   = document.getElementById('cfKey').value.trim();
+      const value = document.getElementById('cfValue').value.trim();
+      if (!key || !value) return;
+      if (!lastDecision) return;
+      const el = document.getElementById('cfResults');
+      el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;margin-top:10px;">Running…</div>';
+      try {
+        const res = await fetch(`${API}/counterfactual`, {
+          method: 'POST', headers: authHeaders(),
+          body: JSON.stringify({
+            decision: lastDecision, context: lastContext, category: lastCategory,
+            changed_key: key, changed_value: value,
+          })
+        });
+        if (!res.ok) throw new Error(`Error ${res.status}`);
+        const data = await res.json();
+        const d = data.diff;
+        const deltaColor = d.confidence_delta > 0 ? 'var(--green)' : d.confidence_delta < 0 ? '#fca5a5' : 'var(--text-muted)';
+        const added   = d.flags_added.length   ? d.flags_added.map(f=>`<span class="risk-chip">${f}</span>`).join(' ')   : '<em>none</em>';
+        const removed = d.flags_removed.length ? d.flags_removed.map(f=>`<span class="risk-chip">${f}</span>`).join(' ') : '<em>none</em>';
+        el.innerHTML = `
+          <div class="cf-diff">
+            <div class="cf-diff-title">IMPACT OF CHANGING "${key}" → "${value}"</div>
+            <div class="cf-added">Risk flags added: ${added}</div>
+            <div class="cf-removed" style="margin-top:6px;">Risk flags removed: ${removed}</div>
+            <div class="cf-delta" style="margin-top:6px;color:${deltaColor};">
+              Confidence delta: ${d.confidence_delta > 0 ? '+' : ''}${Math.round(d.confidence_delta * 100)}%
+            </div>
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);">
+            Original: ${Math.round(data.original.confidence_score*100)}% confidence · ${(data.original.risk_flags||[]).join(', ')||'no risks'}<br>
+            Modified: ${Math.round(data.modified.confidence_score*100)}% confidence · ${(data.modified.risk_flags||[]).join(', ')||'no risks'}
+          </div>`;
+      } catch (e) {
+        el.innerHTML = `<div style="color:#fca5a5;font-size:13px;margin-top:8px;">${e.message}</div>`;
+      }
+    }
+
+    // ── Batch upload ───────────────────────────────────────────────────────
+    const batchDrop = document.getElementById('batchDrop');
+    batchDrop.addEventListener('dragover', e => { e.preventDefault(); batchDrop.classList.add('drag-over'); });
+    batchDrop.addEventListener('dragleave', () => batchDrop.classList.remove('drag-over'));
+    batchDrop.addEventListener('drop', e => {
+      e.preventDefault(); batchDrop.classList.remove('drag-over');
+      const f = e.dataTransfer.files[0];
+      if (f) handleBatchFile(f);
+    });
+
+    async function handleBatchFile(file) {
+      if (!file) return;
+      const el = document.getElementById('batchResults');
+      el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">Uploading and evaluating…</div>';
+      const form = new FormData();
+      form.append('file', file);
+      try {
+        const res = await fetch(`${API}/evaluate-batch`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${sessionToken}` },
+          body: form,
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || `Error ${res.status}`);
+        }
+        const blob = await res.blob();
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url; a.download = 'pragma-batch-results.csv'; a.click();
+        URL.revokeObjectURL(url);
+        el.innerHTML = '<div class="batch-summary">✅ Done! Results CSV downloaded.</div>';
+      } catch (e) {
+        el.innerHTML = `<div style="color:#fca5a5;font-size:13px;">${e.message}</div>`;
+      }
+    }
+
+    // ── Orgs ───────────────────────────────────────────────────────────────
+    async function loadOrgs() {
+      const el = document.getElementById('orgList');
+      el.innerHTML = '';
+      try {
+        const res  = await fetch(`${API}/orgs`, { headers: authHeaders() });
+        const orgs = await res.json();
+        if (!orgs.length) { el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;margin-bottom:10px;">No organizations yet.</div>'; return; }
+        orgs.forEach(o => {
+          el.insertAdjacentHTML('beforeend', `
+            <div class="org-item">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span class="org-name">${o.name}</span>
+                <span class="org-role">${o.role}</span>
+              </div>
+              ${o.invite_code ? `<div class="org-code">Invite code: <strong>${o.invite_code}</strong></div>` : ''}
+            </div>`);
+        });
+      } catch (_) {}
+    }
+
+    async function createOrg() {
+      const name = document.getElementById('orgNameInput').value.trim();
+      if (!name) return;
+      const msg = document.getElementById('orgMsg');
+      try {
+        const res  = await fetch(`${API}/orgs`, { method:'POST', headers: authHeaders(), body: JSON.stringify({name}) });
+        const data = await res.json();
+        msg.textContent = `✓ Created! Invite code: ${data.invite_code}`;
+        document.getElementById('orgNameInput').value = '';
+        loadOrgs();
+      } catch (e) { msg.style.color='#fca5a5'; msg.textContent = e.message; }
+    }
+
+    async function joinOrg() {
+      const code = document.getElementById('orgInviteInput').value.trim();
+      if (!code) return;
+      const msg = document.getElementById('orgMsg');
+      try {
+        const res  = await fetch(`${API}/orgs/join`, { method:'POST', headers: authHeaders(), body: JSON.stringify({invite_code: code}) });
+        const data = await res.json();
+        msg.textContent = data.already_member ? 'Already a member!' : `✓ Joined ${data.name}!`;
+        document.getElementById('orgInviteInput').value = '';
+        loadOrgs();
+      } catch (e) { msg.style.color='#fca5a5'; msg.textContent = 'Invalid invite code.'; }
+    }
+
+    // ── API Keys ───────────────────────────────────────────────────────────
+    async function loadAPIKeys() {
+      const el = document.getElementById('apiKeyList');
+      el.innerHTML = '';
+      try {
+        const res  = await fetch(`${API}/api-keys`, { headers: authHeaders() });
+        const keys = await res.json();
+        if (!keys.length) { el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;margin-bottom:10px;">No API keys yet.</div>'; return; }
+        keys.forEach(k => {
+          el.insertAdjacentHTML('beforeend', `
+            <div class="key-item">
+              <div>
+                <div class="key-prefix">${k.key_prefix}…</div>
+                <div class="key-label">${k.label || 'Unlabelled'}</div>
+                <div class="key-stats">${k.calls_total} total calls · last used: ${k.last_used ? new Date(k.last_used).toLocaleDateString() : 'never'}</div>
+              </div>
+              <button class="btn-revoke" onclick="revokeKey(${k.key_id})">Revoke</button>
+            </div>`);
+        });
+      } catch (_) {}
+    }
+
+    async function createAPIKey() {
+      const label = document.getElementById('keyLabelInput').value.trim() || 'My API Key';
+      const box   = document.getElementById('newKeyBox');
+      const msg   = document.getElementById('apiKeyMsg');
+      try {
+        const res  = await fetch(`${API}/api-keys`, { method:'POST', headers: authHeaders(), body: JSON.stringify({label}) });
+        const data = await res.json();
+        box.style.display = 'block';
+        box.innerHTML = `<strong>Your new API key (copy now — shown once only):</strong><br><br>${data.key}`;
+        msg.textContent = '✓ Key created!';
+        document.getElementById('keyLabelInput').value = '';
+        loadAPIKeys();
+      } catch (e) { msg.style.color='#fca5a5'; msg.textContent = e.message; }
+    }
+
+    async function revokeKey(keyId) {
+      if (!confirm('Revoke this API key?')) return;
+      try {
+        await fetch(`${API}/api-keys/${keyId}`, { method:'DELETE', headers: authHeaders() });
+        loadAPIKeys();
+      } catch (_) {}
+    }
   </script>
 </body>
 </html>

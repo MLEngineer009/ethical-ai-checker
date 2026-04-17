@@ -10,7 +10,7 @@ import { useAuth } from "../context/AuthContext";
 import { api, Question } from "../services/api";
 import { RootStackParamList } from "../../App";
 
-type Props = { navigation: NativeStackNavigationProp<RootStackParamList, "Home"> };
+type Props = { navigation: NativeStackNavigationProp<RootStackParamList, "Main"> };
 
 const CATEGORIES = [
   { key: "hiring",     label: "Hiring",     icon: "🧑‍💼" },

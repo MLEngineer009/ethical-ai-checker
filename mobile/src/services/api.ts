@@ -73,6 +73,9 @@ export const api = {
   me: (token: string) =>
     request<{ name: string; picture: string }>("/me", { token }),
 
+  getStats: (token: string) =>
+    request<{ total_requests: number; history: any[] }>("/my-stats", { token }),
+
   evaluate: (decision: string, context: Record<string, string>, token: string, category = "other") =>
     request<EthicalAnalysis>("/evaluate-decision", {
       method: "POST",
