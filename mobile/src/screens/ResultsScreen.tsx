@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet,
-  Animated, Alert, ActivityIndicator,
+  Animated, Alert, ActivityIndicator, TextInput,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { File as FSFile, Paths } from "expo-file-system";
@@ -31,6 +31,17 @@ export function ResultsScreen({ route }: Props) {
   const [downloading, setDownloading] = useState(false);
   const confAnim = useRef(new Animated.Value(0)).current;
 
+  // Counterfactual
+  const [cfOpen, setCfOpen] = useState(false);
+  const [cfKey, setCfKey] = useState("");
+  const [cfValue, setCfValue] = useState("");
+  const [cfLoading, setCfLoading] = useState(false);
+  const [cfResult, setCfResult] = useState<null | {
+    diff: { flags_added: string[]; flags_removed: string[]; confidence_delta: number };
+    original: any; modified: any;
+    changed_key: string; modified_value: string;
+  }>(null);
+
   useEffect(() => {
     Animated.timing(confAnim, {
       toValue: analysis.confidence_score,
@@ -41,6 +52,22 @@ export function ResultsScreen({ route }: Props) {
   }, []);
 
   const toggle = (id: string) => setExpanded(e => e === id ? null : id);
+
+  const runCounterfactual = async () => {
+    if (!cfKey.trim() || !cfValue.trim() || !user) return;
+    setCfLoading(true);
+    setCfResult(null);
+    try {
+      const res = await api.counterfactual(
+        decision, context, "other", cfKey.trim(), cfValue.trim(), user.token
+      );
+      setCfResult(res);
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "Counterfactual failed.");
+    } finally {
+      setCfLoading(false);
+    }
+  };
 
   const downloadPDF = async () => {
     if (!user) return;
@@ -136,6 +163,66 @@ export function ResultsScreen({ route }: Props) {
           <Text style={styles.recText}>{analysis.recommendation}</Text>
         </GlassCard>
 
+        {/* Counterfactual */}
+        <GlassCard>
+          <TouchableOpacity onPress={() => { setCfOpen(o => !o); setCfResult(null); }} activeOpacity={0.8}>
+            <Text style={styles.cardLabel}>🔁 COUNTERFACTUAL — WHAT IF A VALUE CHANGED?</Text>
+          </TouchableOpacity>
+          {cfOpen && (
+            <View style={{ marginTop: 10 }}>
+              <View style={styles.cfRow}>
+                <TextInput
+                  value={cfKey}
+                  onChangeText={setCfKey}
+                  placeholder="Context key  (e.g. gender)"
+                  placeholderTextColor="rgba(255,255,255,0.3)"
+                  style={[styles.cfInput, { flex: 1 }]}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <TextInput
+                  value={cfValue}
+                  onChangeText={setCfValue}
+                  placeholder="New value"
+                  placeholderTextColor="rgba(255,255,255,0.3)"
+                  style={[styles.cfInput, { flex: 1 }]}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+              <TouchableOpacity onPress={runCounterfactual} disabled={cfLoading} activeOpacity={0.85}>
+                <LinearGradient colors={["#4f46e5", "#7c3aed"]}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                  style={[styles.cfRunBtn, cfLoading && { opacity: 0.6 }]}>
+                  {cfLoading
+                    ? <ActivityIndicator color="#fff" />
+                    : <Text style={styles.cfRunText}>Analyse</Text>}
+                </LinearGradient>
+              </TouchableOpacity>
+
+              {cfResult && (
+                <View style={styles.cfResultBox}>
+                  <Text style={styles.cfResultTitle}>
+                    "{cfResult.changed_key}" → "{cfResult.modified_value}"
+                  </Text>
+                  <Text style={styles.cfAdded}>
+                    Risks added: {cfResult.diff.flags_added.length ? cfResult.diff.flags_added.join(", ") : "none"}
+                  </Text>
+                  <Text style={styles.cfRemoved}>
+                    Risks removed: {cfResult.diff.flags_removed.length ? cfResult.diff.flags_removed.join(", ") : "none"}
+                  </Text>
+                  <Text style={[
+                    styles.cfDelta,
+                    { color: cfResult.diff.confidence_delta > 0 ? "#34d399" : cfResult.diff.confidence_delta < 0 ? "#fca5a5" : "rgba(255,255,255,0.5)" }
+                  ]}>
+                    Confidence delta: {cfResult.diff.confidence_delta > 0 ? "+" : ""}{Math.round(cfResult.diff.confidence_delta * 100)}%
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+        </GlassCard>
+
         {/* Download PDF */}
         <TouchableOpacity onPress={downloadPDF} disabled={downloading} activeOpacity={0.85}>
           <LinearGradient colors={["#059669", "#10b981"]}
@@ -216,4 +303,21 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", justifyContent: "center",
   },
   downloadText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  cfRow: { flexDirection: "row", gap: 8, marginBottom: 10 },
+  cfInput: {
+    color: "#fff", fontSize: 14,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
+    paddingHorizontal: 12, paddingVertical: 9,
+  },
+  cfRunBtn: { borderRadius: 12, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
+  cfRunText: { color: "#fff", fontSize: 14, fontWeight: "600" },
+  cfResultBox: {
+    marginTop: 12, backgroundColor: "rgba(255,255,255,0.04)",
+    borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", padding: 12,
+  },
+  cfResultTitle: { fontSize: 12, fontWeight: "700", color: "#e0d7ff", marginBottom: 8 },
+  cfAdded:   { fontSize: 13, color: "#34d399", marginBottom: 4 },
+  cfRemoved: { fontSize: 13, color: "#fca5a5", marginBottom: 4 },
+  cfDelta:   { fontSize: 13 },
 });

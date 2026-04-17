@@ -76,6 +76,27 @@ export const api = {
   getStats: (token: string) =>
     request<{ total_requests: number; history: any[] }>("/my-stats", { token }),
 
+  counterfactual: (
+    decision: string,
+    context: Record<string, string>,
+    category: string,
+    changedKey: string,
+    changedValue: string,
+    token: string,
+  ) =>
+    request<{
+      original: EthicalAnalysis;
+      modified: EthicalAnalysis;
+      changed_key: string;
+      original_value: string;
+      modified_value: string;
+      diff: { flags_added: string[]; flags_removed: string[]; confidence_delta: number };
+    }>("/counterfactual", {
+      method: "POST",
+      token,
+      body: { decision, context, category, changed_key: changedKey, changed_value: changedValue },
+    }),
+
   evaluate: (decision: string, context: Record<string, string>, token: string, category = "other") =>
     request<EthicalAnalysis>("/evaluate-decision", {
       method: "POST",
