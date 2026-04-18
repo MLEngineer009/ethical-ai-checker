@@ -577,6 +577,77 @@
       font-size: 11px; margin-top: 1px;
     }
 
+    /* Stats bar */
+    .stats-bar {
+      display: grid; grid-template-columns: repeat(2, 1fr);
+      gap: 10px; margin-bottom: 28px;
+    }
+    .stat-item {
+      background: rgba(0,0,0,0.25);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+    .stat-value {
+      font-size: 22px; font-weight: 800; letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #fff 30%, #a78bfa);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      line-height: 1.1; margin-bottom: 4px;
+    }
+    .stat-label {
+      font-size: 11px; color: var(--text-muted); line-height: 1.4;
+    }
+
+    /* Case studies */
+    .cases-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+      text-transform: uppercase; color: rgba(255,255,255,0.35);
+      margin-bottom: 10px;
+    }
+    .case-item {
+      display: flex; gap: 12px; align-items: flex-start;
+      padding: 11px 14px;
+      background: rgba(0,0,0,0.2);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 10px;
+      margin-bottom: 7px;
+    }
+    .case-verdict {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+      padding: 3px 8px; border-radius: 20px; white-space: nowrap; flex-shrink: 0;
+    }
+    .case-verdict.settled  { background: rgba(248,113,113,0.15); color: #fca5a5; border: 1px solid rgba(248,113,113,0.25); }
+    .case-verdict.ongoing  { background: rgba(251,191,36,0.15);  color: #fbbf24; border: 1px solid rgba(251,191,36,0.25); }
+    .case-verdict.scrapped { background: rgba(167,139,250,0.15); color: #a78bfa; border: 1px solid rgba(167,139,250,0.25); }
+    .case-text { font-size: 12px; color: var(--text-muted); line-height: 1.45; }
+    .case-text strong { color: var(--text); }
+
+    /* Regulatory deadlines */
+    .reg-deadlines {
+      display: flex; flex-direction: column; gap: 7px; margin-bottom: 24px;
+    }
+    .reg-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px;
+      background: rgba(0,0,0,0.2);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 10px;
+    }
+    .reg-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+    .reg-dot.live   { background: #f87171; box-shadow: 0 0 6px #f87171; }
+    .reg-dot.soon   { background: #fbbf24; box-shadow: 0 0 6px #fbbf24; }
+    .reg-body { flex: 1; }
+    .reg-name { font-size: 12px; font-weight: 700; color: var(--text); }
+    .reg-detail { font-size: 11px; color: var(--text-muted); }
+    .reg-fine {
+      font-size: 11px; font-weight: 700;
+      background: rgba(248,113,113,0.15); color: #fca5a5;
+      border: 1px solid rgba(248,113,113,0.2);
+      border-radius: 20px; padding: 2px 8px; white-space: nowrap;
+    }
+
     /* Sample output preview */
     .preview-card {
       background: rgba(0,0,0,0.3);
@@ -899,52 +970,117 @@
 
       <!-- Left: value prop -->
       <div class="landing-left">
-        <div class="landing-badge">⚖️ Pragma</div>
-        <h1 class="landing-h1">Catch ethical risks in AI decisions<br>before they become problems.</h1>
-        <p class="landing-sub">Paste in a business decision. Get a structured ethical analysis — three frameworks, risk flags, and a clear recommendation — in seconds.</p>
+        <div class="landing-badge">🛡️ Pragma</div>
+        <h1 class="landing-h1">Block risky AI decisions<br>before they become lawsuits.</h1>
+        <p class="landing-sub">Drop Pragma into your AI pipeline. It automatically flags bias, maps risks to real regulations, and generates audit-ready evidence — so compliance teams and lawyers sleep at night.</p>
 
         <ul class="landing-bullets">
           <li>
-            <div class="bullet-dot" style="background:rgba(248,113,113,0.2);color:#fca5a5;">⚑</div>
-            <span><strong>Automated risk detection</strong> — bias, fairness, discrimination, transparency, harm</span>
+            <div class="bullet-dot" style="background:rgba(248,113,113,0.2);color:#fca5a5;">🛡</div>
+            <span><strong>AI Decision Firewall</strong> — auto-block or flag high-risk decisions before they execute</span>
           </li>
           <li>
-            <div class="bullet-dot" style="background:rgba(167,139,250,0.2);color:#a78bfa;">φ</div>
-            <span><strong>Three ethical frameworks</strong> — Kantian, Utilitarian, Virtue Ethics in every analysis</span>
+            <div class="bullet-dot" style="background:rgba(167,139,250,0.2);color:#a78bfa;">⚖</div>
+            <span><strong>Regulatory mapping</strong> — every risk flag linked to EEOC, GDPR, EU AI Act, ADA, and more</span>
           </li>
           <li>
             <div class="bullet-dot" style="background:rgba(52,211,153,0.2);color:#34d399;">↓</div>
-            <span><strong>PDF audit report</strong> — downloadable documentation for compliance &amp; governance</span>
+            <span><strong>Audit-ready PDF reports</strong> — one-click documentation your compliance team can hand to regulators</span>
           </li>
           <li>
-            <div class="bullet-dot" style="background:rgba(251,191,36,0.2);color:#fbbf24;">✦</div>
-            <span><strong>7 decision categories</strong> — hiring, finance, healthcare, policy, and more</span>
+            <div class="bullet-dot" style="background:rgba(251,191,36,0.2);color:#fbbf24;">⚡</div>
+            <span><strong>API-first, drop-in integration</strong> — one call before your decision commits, works with any stack</span>
           </li>
         </ul>
 
+        <!-- Stats bar -->
+        <div class="stats-bar">
+          <div class="stat-item">
+            <div class="stat-value">$365K</div>
+            <div class="stat-label">First EEOC AI hiring settlement — iTutorGroup, 2023</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value">€35M</div>
+            <div class="stat-label">Max EU AI Act fine for high-risk AI violations (Aug 2026)</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value">99%</div>
+            <div class="stat-label">of Fortune 500 companies use some form of AI hiring automation</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value">$1,500</div>
+            <div class="stat-label">per-day NYC Local Law 144 penalty — in force since July 2023</div>
+          </div>
+        </div>
+
+        <!-- Real cases -->
+        <div class="cases-label">Real cases · Real consequences</div>
+        <div class="case-item">
+          <span class="case-verdict settled">SETTLED $365K</span>
+          <div class="case-text"><strong>EEOC v. iTutorGroup (2023)</strong> — AI automatically rejected applicants 55+ (female) and 60+ (male). First EEOC settlement involving AI discrimination.</div>
+        </div>
+        <div class="case-item">
+          <span class="case-verdict ongoing">CLASS ACTION</span>
+          <div class="case-text"><strong>Mobley v. Workday (2025)</strong> — AI applicant screening system alleged to discriminate by race, age &amp; disability. Class certified. Millions of applicants.</div>
+        </div>
+        <div class="case-item">
+          <span class="case-verdict scrapped">TOOL SCRAPPED</span>
+          <div class="case-text"><strong>Amazon AI Hiring Tool (2018)</strong> — Penalized résumés containing "women's" and excluded all-women's college graduates. Project abandoned after bias discovered.</div>
+        </div>
+
+        <!-- Regulatory deadlines -->
+        <div class="cases-label" style="margin-top:20px;">Regulatory deadlines</div>
+        <div class="reg-deadlines">
+          <div class="reg-item">
+            <div class="reg-dot live"></div>
+            <div class="reg-body">
+              <div class="reg-name">NYC Local Law 144</div>
+              <div class="reg-detail">Mandatory annual bias audits for AI hiring tools · In force July 2023</div>
+            </div>
+            <span class="reg-fine">$1,500/day</span>
+          </div>
+          <div class="reg-item">
+            <div class="reg-dot live"></div>
+            <div class="reg-body">
+              <div class="reg-name">GDPR Article 22</div>
+              <div class="reg-detail">Right to human review of automated decisions · EU residents</div>
+            </div>
+            <span class="reg-fine">4% revenue</span>
+          </div>
+          <div class="reg-item">
+            <div class="reg-dot soon"></div>
+            <div class="reg-body">
+              <div class="reg-name">EU AI Act — High-Risk AI</div>
+              <div class="reg-detail">Hiring, credit, healthcare AI must document &amp; test for bias · Aug 2026</div>
+            </div>
+            <span class="reg-fine">€35M or 7%</span>
+          </div>
+        </div>
+
         <!-- Sample output preview -->
         <div class="preview-card">
-          <div class="preview-label">Example output</div>
+          <div class="preview-label">Live firewall output</div>
           <div class="preview-decision">Reject loan application — zip code 60620, income $58k</div>
           <div class="preview-flags">
+            <span class="preview-flag" style="background:rgba(239,68,68,0.2);border-color:rgba(239,68,68,0.4);color:#fca5a5;">🚫 BLOCKED</span>
             <span class="preview-flag">discrimination</span>
             <span class="preview-flag">bias</span>
           </div>
-          <div class="preview-rec">Zip code is a known proxy for race and protected class. Replace with income, credit score, and debt-to-income ratio to eliminate disparate impact.</div>
+          <div class="preview-rec">Zip code is a known proxy for race — ECOA violation risk. Replace with income, credit score, and debt-to-income ratio to eliminate disparate impact.</div>
           <div class="preview-meta">
-            <span class="preview-conf">87% confidence</span>
-            <span>Finance · Kantian · Utilitarian · Virtue Ethics</span>
+            <span class="preview-conf">87% risk confidence</span>
+            <span>ECOA · Fair Housing Act · CFPB UDAAP</span>
           </div>
         </div>
-        <div style="font-size:11px;color:rgba(255,255,255,0.25);margin-top:4px;">No data stored. Anonymous metadata only.</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.25);margin-top:4px;">No decision text stored. Anonymous metadata only.</div>
       </div>
 
       <!-- Right: auth card -->
       <div class="auth-card-wrap">
         <div class="auth-card">
-          <span class="auth-icon">⚖️</span>
-          <div class="auth-title">Try it free</div>
-          <div class="auth-sub">No account required — start in seconds</div>
+          <span class="auth-icon">🛡️</span>
+          <div class="auth-title">Try the firewall free</div>
+          <div class="auth-sub">No account required — analyze your first decision in seconds</div>
 
           <div class="auth-error" id="authError"></div>
 
@@ -991,9 +1127,9 @@
 
     <!-- Header -->
     <div class="header">
-      <span class="icon">⚖️</span>
+      <span class="icon">🛡️</span>
       <h1>Pragma</h1>
-      <p>Practical AI ethics for automated decisions</p>
+      <p>AI compliance firewall — block risk before it becomes liability</p>
     </div>
 
     <!-- App tabs -->
@@ -1066,7 +1202,7 @@
     </div>
 
     <button class="btn btn-primary" id="btnEvaluate">
-      Evaluate Decision
+      Run Compliance Check
     </button>
 
     <!-- Error -->
@@ -1075,7 +1211,7 @@
     <!-- Loading skeletons -->
     <div class="loading-wrap" id="loadingWrap">
       <div class="spinner"></div>
-      <p>Analysing through ethical frameworks…</p>
+      <p>Running compliance check…</p>
       <div style="margin-top:20px;">
         <div class="skeleton-card"><div class="skeleton wide"></div><div class="skeleton med"></div><div class="skeleton short"></div></div>
         <div class="skeleton-card"><div class="skeleton wide"></div><div class="skeleton med"></div><div class="skeleton short"></div></div>
@@ -1086,8 +1222,17 @@
     <!-- Results -->
     <div class="results" id="resultsSection">
 
+      <!-- Firewall verdict banner -->
+      <div id="firewallBanner" style="display:none;border-radius:14px;padding:16px 20px;margin-bottom:16px;border:1px solid;display:flex;align-items:center;gap:12px;">
+        <span id="firewallIcon" style="font-size:24px;"></span>
+        <div>
+          <div id="firewallTitle" style="font-weight:700;font-size:15px;"></div>
+          <div id="firewallSub" style="font-size:13px;opacity:0.8;margin-top:2px;"></div>
+        </div>
+      </div>
+
       <div class="result-header" style="margin-bottom:16px;">
-        <h2>Analysis</h2>
+        <h2>Compliance Report</h2>
         <span class="provider-badge" id="providerBadge"></span>
       </div>
 
@@ -1652,7 +1797,41 @@
       }
     }
 
+    function renderFirewallBanner(data) {
+      const banner = document.getElementById('firewallBanner');
+      const icon   = document.getElementById('firewallIcon');
+      const title  = document.getElementById('firewallTitle');
+      const sub    = document.getElementById('firewallSub');
+
+      banner.style.display = 'flex';
+      if (data.firewall_action === 'block') {
+        banner.style.background = 'rgba(239,68,68,0.12)';
+        banner.style.borderColor = 'rgba(239,68,68,0.4)';
+        icon.textContent  = '🚫';
+        title.textContent = 'BLOCKED — High compliance risk detected';
+        title.style.color = '#fca5a5';
+        sub.textContent   = `${data.risk_flags.length} risk flag${data.risk_flags.length !== 1 ? 's' : ''} · ${Math.round(data.confidence_score * 100)}% risk confidence · Human override required`;
+      } else if (data.firewall_action === 'override_required') {
+        banner.style.background = 'rgba(251,191,36,0.1)';
+        banner.style.borderColor = 'rgba(251,191,36,0.35)';
+        icon.textContent  = '⚠️';
+        title.textContent = 'FLAGGED — Human review required before proceeding';
+        title.style.color = '#fbbf24';
+        sub.textContent   = `${data.risk_flags.length} risk flag${data.risk_flags.length !== 1 ? 's' : ''} detected · Review recommendation and regulatory refs below`;
+      } else {
+        banner.style.background = 'rgba(52,211,153,0.1)';
+        banner.style.borderColor = 'rgba(52,211,153,0.35)';
+        icon.textContent  = '✅';
+        title.textContent = 'ALLOWED — No blocking risks detected';
+        title.style.color = '#34d399';
+        sub.textContent   = 'Decision can proceed · Low compliance risk';
+      }
+    }
+
     function renderResults(data) {
+      // Firewall verdict
+      renderFirewallBanner(data);
+
       // Collapse all framework accordions for fresh render
       ['cardKantian','cardUtilitarian','cardVirtue'].forEach(id => {
         document.getElementById(id).classList.remove('open');

@@ -97,9 +97,36 @@ export function ResultsScreen({ route }: Props) {
       start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.bg}>
       <ScrollView contentContainerStyle={styles.scroll}>
 
+        {/* Firewall verdict banner */}
+        {(() => {
+          const isBlock    = analysis.firewall_action === "block";
+          const isWarn     = analysis.firewall_action === "override_required";
+          const bg    = isBlock ? "rgba(239,68,68,0.12)"   : isWarn ? "rgba(251,191,36,0.10)"  : "rgba(52,211,153,0.10)";
+          const border= isBlock ? "rgba(239,68,68,0.4)"    : isWarn ? "rgba(251,191,36,0.35)"  : "rgba(52,211,153,0.35)";
+          const icon  = isBlock ? "🚫" : isWarn ? "⚠️" : "✅";
+          const title = isBlock ? "BLOCKED — High compliance risk"
+                      : isWarn  ? "FLAGGED — Human review required"
+                      : "ALLOWED — Low compliance risk";
+          const titleColor = isBlock ? "#fca5a5" : isWarn ? "#fbbf24" : "#34d399";
+          const sub   = isBlock
+            ? `${analysis.risk_flags.length} risk flags · ${Math.round(analysis.confidence_score * 100)}% confidence · Override required`
+            : isWarn
+            ? `${analysis.risk_flags.length} risk flag${analysis.risk_flags.length !== 1 ? "s" : ""} · Review recommendation below`
+            : "Decision can proceed · No blocking risks detected";
+          return (
+            <View style={[styles.firewallBanner, { backgroundColor: bg, borderColor: border }]}>
+              <Text style={styles.firewallIcon}>{icon}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.firewallTitle, { color: titleColor }]}>{title}</Text>
+                <Text style={styles.firewallSub}>{sub}</Text>
+              </View>
+            </View>
+          );
+        })()}
+
         {/* Header */}
         <View style={styles.headerRow}>
-          <Text style={styles.heading}>Analysis</Text>
+          <Text style={styles.heading}>Compliance Report</Text>
           <View style={[styles.providerBadge, { borderColor: providerColor(analysis.provider) + "55" }]}>
             <Text style={[styles.providerText, { color: providerColor(analysis.provider) }]}>
               {analysis.provider.toUpperCase()}
@@ -243,6 +270,13 @@ export function ResultsScreen({ route }: Props) {
 
 const styles = StyleSheet.create({
   bg: { flex: 1 },
+  firewallBanner: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: 16,
+  },
+  firewallIcon: { fontSize: 24 },
+  firewallTitle: { fontSize: 13, fontWeight: "700", marginBottom: 3 },
+  firewallSub:   { fontSize: 12, color: "rgba(255,255,255,0.55)" },
   scroll: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40 },
   headerRow: {
     flexDirection: "row", alignItems: "center",

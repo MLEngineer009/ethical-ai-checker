@@ -86,6 +86,7 @@ class DecisionRequest(BaseModel):
     decision: str
     context: Dict[str, Any]
     category: str = "other"
+    block_threshold: float = 0.8   # confidence above this + 2+ flags → block
 
 
 class EthicalAnalysis(BaseModel):
@@ -97,6 +98,10 @@ class EthicalAnalysis(BaseModel):
     recommendation: str
     provider: str = "unknown"
     regulatory_refs: list[Dict[str, Any]] = []
+    # ── Firewall fields ────────────────────────────────────────────────────────
+    should_block: bool = False         # True → decision should be blocked
+    override_required: bool = False    # True → human review required before proceeding
+    firewall_action: str = "allow"     # "block" | "override_required" | "allow"
 
 
 class ReportRequest(BaseModel):
@@ -171,7 +176,7 @@ async def evaluate_decision(
         raise HTTPException(status_code=400, detail="Context cannot be empty")
 
     category = request.category if request.category in VALID_CATEGORIES else "other"
-    analysis = _run_evaluation(request.decision, request.context, category)
+    analysis = _run_evaluation(request.decision, request.context, category, request.block_threshold)
 
     database.log_request(
         google_sub=user["sub"],
@@ -273,7 +278,20 @@ async def get_questions(category: str = ""):
 
 # ── Bulk evaluation ───────────────────────────────────────────────────────────
 
-def _run_evaluation(decision: str, context: Dict[str, Any], category: str) -> Dict[str, Any]:
+def _compute_firewall(risk_flags: list, confidence_score: float, block_threshold: float = 0.8) -> Dict[str, Any]:
+    """Compute firewall action based on risk flags and confidence."""
+    should_block = confidence_score >= block_threshold and len(risk_flags) >= 2
+    override_required = len(risk_flags) >= 1 and not should_block
+    if should_block:
+        action = "block"
+    elif override_required:
+        action = "override_required"
+    else:
+        action = "allow"
+    return {"should_block": should_block, "override_required": override_required, "firewall_action": action}
+
+
+def _run_evaluation(decision: str, context: Dict[str, Any], category: str, block_threshold: float = 0.8) -> Dict[str, Any]:
     """Shared evaluation logic used by single and batch endpoints."""
     llm_analysis = orchestrator.evaluate(decision, context)
     risk_flags = detect_all_risks(decision, context)
@@ -291,6 +309,7 @@ def _run_evaluation(decision: str, context: Dict[str, Any], category: str) -> Di
         "recommendation":        llm_analysis.get("recommendation", ""),
         "provider":              llm_analysis.get("provider", "unknown"),
         "regulatory_refs":       get_regulatory_refs(risk_flags, category),
+        **_compute_firewall(risk_flags, confidence_score, block_threshold),
     }
 
 
@@ -430,16 +449,12 @@ async def create_org(req: CreateOrgRequest, user: dict = Depends(get_current_use
     name = req.name.strip()
     if not name:
         raise HTTPException(status_code=422, detail="Organization name cannot be empty")
-    if user.get("is_guest"):
-        raise HTTPException(status_code=403, detail="Guests cannot create organizations")
     return database.create_org(name, user["sub"])
 
 
 @app.post("/orgs/join", dependencies=[Depends(get_current_user)])
 async def join_org(req: JoinOrgRequest, user: dict = Depends(get_current_user)):
     """Join an organization using an invite code."""
-    if user.get("is_guest"):
-        raise HTTPException(status_code=403, detail="Guests cannot join organizations")
     org = database.get_org_by_invite(req.invite_code)
     if not org:
         raise HTTPException(status_code=404, detail="Invalid invite code")
@@ -471,8 +486,8 @@ class CreateAPIKeyRequest(BaseModel):
 @app.post("/api-keys", dependencies=[Depends(get_current_user)])
 async def create_api_key(req: CreateAPIKeyRequest, user: dict = Depends(get_current_user)):
     """Generate a new API key. The raw key is returned once — store it safely."""
-    if user.get("is_guest") or user.get("via_api_key"):
-        raise HTTPException(status_code=403, detail="Cannot create API keys from a guest or API session")
+    if user.get("via_api_key"):
+        raise HTTPException(status_code=403, detail="Cannot create API keys from an API key session")
     return database.create_api_key(user["sub"], req.label.strip() or "My API Key")
 
 

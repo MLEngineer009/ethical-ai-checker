@@ -12,6 +12,11 @@ export interface EthicalAnalysis {
   confidence_score: number;
   recommendation: string;
   provider: string;
+  regulatory_refs?: { law: string; jurisdiction: string; description: string; url: string; triggered_by: string }[];
+  // Firewall fields
+  should_block: boolean;
+  override_required: boolean;
+  firewall_action: "block" | "override_required" | "allow";
 }
 
 export interface AuthResponse {

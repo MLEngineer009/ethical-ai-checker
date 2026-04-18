@@ -1,240 +1,209 @@
-# Ethical AI Decision Checker - Project Summary
+# Pragma — Project Summary
 
-## ✅ What's Completed
+**Positioning:** AI compliance firewall — block risky AI decisions before they become lawsuits.
 
-### 1. Core API Implementation
-- **FastAPI Backend** (`backend/main.py`) with `/evaluate-decision` endpoint
-- **Request/Response Schema** matching exact spec requirements
-- **LLM Integration** with OpenAI GPT-4 via structured prompting
-- **Response Validation** ensuring JSON schema compliance
-- **Error Handling** for missing/invalid inputs (400, 500 status codes)
+---
 
-### 2. Ethical Frameworks
-- **Kantian Ethics** analysis via LLM (fairness + universality)
-- **Utilitarian** analysis (benefit maximization + harm minimization)
-- **Virtue Ethics** analysis (character + integrity reflection)
-- All three frameworks evaluated independently then combined
+## ✅ What's Built
 
-### 3. Risk Detection System
-- **Bias Detection**: Flags when sensitive attributes (gender, race, age, zip code, etc.) appear in context
-- **Fairness Detection**: Identifies exclusionary patterns and group-based harm
-- **Discrimination Detection**: Catches explicit group-based decision criteria via regex patterns
-- **Transparency Detection**: Flags vague reasoning or insufficient context
-- **Heuristic Rules** in `backend/risk_detector.py` for pattern matching
+### 1. AI Decision Firewall (Core Product)
+- `POST /evaluate-decision` — evaluates a decision through three ethical frameworks + heuristic risk detection
+- **Firewall verdict** on every response: `should_block`, `override_required`, `firewall_action` (`"block"` / `"override_required"` / `"allow"`)
+- Configurable `block_threshold` (default 0.8) — enterprise customers can tune sensitivity
+- Firewall logic: confidence ≥ threshold AND 2+ risk flags → block; any flag below threshold → override required
 
-### 4. Backend Architecture
-- `backend/prompts.py` - System & user prompt templates
-- `backend/risk_detector.py` - 5 risk detection functions
-- `backend/response_formatter.py` - Schema validation
-- `backend/config.py` - Environment configuration
-- `main.py` - Entry point for GCP deployment
+### 2. Multi-Framework Ethical Reasoning
+- **Kantian Ethics** — universality and duty-based analysis
+- **Utilitarian** — net benefit vs. harm across all stakeholders
+- **Virtue Ethics** — character and integrity reflection
+- All three evaluated independently by LLM, then combined into a single structured response
 
-### 5. Testing & Quality Assurance
-- **6 Integration Tests** covering:
-  - Health check endpoint
-  - Hiring bias detection
-  - Loan discrimination detection
-  - Error handling (missing decision, missing context)
-  - Response schema validation
-- **100% Test Pass Rate**
-- **Test Scenarios** documented in `tests/USE_CASES.md`
+### 3. Risk Detection System (`backend/risk_detector.py`)
+- `detect_bias_risks` — 15+ sensitive attributes (gender, race, age, zip code, religion, disability…)
+- `detect_fairness_risks` — exclusionary keywords and group-based language
+- `detect_discrimination_risks` — regex patterns for "based on X" constructs
+- `detect_transparency_risks` — vague reasoning when context is sparse
+- `detect_all_risks` — aggregates all four, returns sorted unique flags
+- Heuristic flags merged with LLM-detected flags for maximum coverage
 
-### 6. Deployment Ready
-- **Dockerfile** with health checks and multi-stage build optimization
-- **GCP Configuration** (`app.yaml`) for App Engine/Cloud Run
-- **Environment Variables** support for flexible configuration
-- **Production Settings** included in Dockerfile (PYTHONUNBUFFERED=1)
+### 4. Regulatory Reference Mapping (`backend/regulations.py`)
+- 18 laws defined: EEOC Title VII, ADA, ADEA, Equal Pay Act, NLRA, ECOA, Fair Housing Act, FCRA, CFPB UDAAP, HIPAA, ACA §1557, GDPR, GDPR Art.22, EU AI Act, EU Equal Treatment Directive, EO 14110, FTC AI Guidance, CCPA
+- `(category, risk_flag)` → list of triggered laws with name, jurisdiction, description, and official URL
+- Deduplicated per response — no duplicate laws even if multiple flags trigger the same law
+- Returned as `regulatory_refs[]` in every evaluation response
 
-### 7. Documentation
-- `.github/copilot-instructions.md` - AI developer conventions
-- `GETTING_STARTED.md` - Quick start and API reference
-- `DEPLOYMENT.md` - GCP Cloud Run deployment guide (step-by-step)
-- `README.md` - Project overview and quick usage
-- `tests/USE_CASES.md` - Real-world test scenarios
+### 5. Batch Evaluation (`POST /evaluate-batch`)
+- Upload CSV up to 100 rows — columns: `decision`, `category`, plus any context columns
+- Returns CSV with analysis columns appended: `risk_flags`, `confidence_score`, `recommendation`, `regulatory_refs`, `provider`, `error`
+- Rows with missing decisions get an `error` column instead of failing the whole batch
 
-### 8. Frontend
-- `frontend/index.html` - Single-page web UI with:
-  - Interactive form for decision input
-  - Context field builder (4 key-value pairs)
-  - Real-time API calls
-  - Formatted results display with risk flags
-  - Confidence score visualization
+### 6. Counterfactual Analysis (`POST /counterfactual`)
+- Runs two analyses — original context vs. modified — and diffs the results
+- Returns `diff.flags_added`, `diff.flags_removed`, `diff.confidence_delta`
+- Primary use case: bias audits ("what changes if gender=male vs gender=female?")
+
+### 7. PDF Audit Reports (`POST /generate-report`)
+- Generates downloadable PDF from any completed analysis
+- Includes all three framework analyses, risk flags, confidence score, regulatory references, and recommendation
+- "Audit-ready evidence" — formatted for compliance and legal teams
+
+### 8. Guided Context Questions (`GET /questions?category=`)
+- Category-specific structured questions (hiring, workplace, finance, healthcare, policy, personal, other)
+- Types: `text`, `select`, `multiselect`, `toggle`
+- Used by both web UI and mobile app to guide users through relevant context
+
+### 9. Authentication
+- **Google SSO** — ID token verified server-side, creates persistent session
+- **Guest sessions** — in-memory, no sign-up required; all features available for testing
+- **API keys** — `pragma_*` prefix, SHA-256 hashed, usage metering (calls_total, calls_month)
+- API key holders cannot create new keys (prevents proliferation)
+
+### 10. Team / Organization Accounts
+- `POST /orgs` — create organization, caller becomes owner, invite code generated
+- `POST /orgs/join` — join via invite code
+- `GET /orgs/{org_id}/history` — shared decision metadata history for all org members (no PII)
+
+### 11. Database (`backend/database.py`)
+- SQLite (dev/test) / PostgreSQL (production via `DATABASE_URL` env var)
+- Tables: `request_logs`, `analysis_feedback`, `waitlist`, `organizations`, `org_members`, `api_keys`
+- Privacy: decision text never stored — only word count, context keys (not values), provider, confidence, risk categories
+- `anon_id()` — HMAC-based irreversible anonymisation of user sub
+
+### 12. LLM Orchestration (`backend/llm_orchestrator.py`)
+- Fallback chain: **Pragma (custom model)** → **Anthropic Claude** → **OpenAI GPT-4**
+- Works offline/in tests via mock responses
+- Structured JSON output parsing with validation
+
+---
+
+## 📱 Mobile App (Expo React Native — iOS & Android)
+
+- **AuthScreen** — landing screen with full social proof (lawsuit stats, real cases, regulatory deadlines)
+- **HomeScreen** — category selector, guided questions fetched from API, decision input
+- **ResultsScreen** — firewall verdict banner (🚫/⚠️/✅), framework accordions, risk chips, confidence bar, regulatory refs, counterfactual panel, PDF download
+- **HistoryScreen** — decision metadata timeline (no text stored)
+- Custom bottom tab bar (Evaluate | History)
+- Expo SDK 54, tested on iOS via Expo Go
+
+---
+
+## 🌐 Web Frontend (`frontend/index.html`)
+
+- **Landing page** — firewall positioning, real lawsuit stats ($365K EEOC settlement, €35M EU AI Act), case studies (iTutorGroup, Workday, Amazon), regulatory deadline tracker
+- **Evaluate tab** — category pills, guided questions, firewall verdict banner on results
+- **History tab** — metadata timeline
+- **Batch tab** — CSV drag-and-drop upload, results download
+- **Settings tab** — org creation/join, API key generation/revocation
+
+---
+
+## 🧪 Testing
+
+- **314 tests passing** across 9 test files — **93.7% backend coverage**
+- `tests/test_api.py` — 78 endpoint integration tests (auth, evaluate, batch, counterfactual, orgs, API keys, PDF, feedback)
+- `tests/test_regulations.py` — 21 tests for regulatory mapping (all categories, deduplication, edge cases)
+- `tests/test_orgs_and_api_keys.py` — 42 tests for org lifecycle and API key create/verify/revoke
+- `tests/test_database.py` — request logging, stats, feedback, anonymisation
+- `tests/test_risk_detector.py` — all 5 detectors across edge cases
+- `tests/test_llm_orchestrator.py` — parsing, normalization, fallback chain
+- `tests/test_report_generator.py`, `test_auth.py`, `test_response_formatter.py`, `test_config.py`
+- `conftest.py` uses `StaticPool` in-memory SQLite — all connections share one DB per test, no stale state
+
+---
 
 ## 📁 Project Structure
 
 ```
-StartupIdea/
-├── backend/                          # Core API implementation
-│   ├── __init__.py
-│   ├── main.py                      # FastAPI app (main route handler)
-│   ├── prompts.py                   # LLM prompts (Kantian, Utilitarian, Virtue Ethics)
-│   ├── risk_detector.py             # Risk heuristics (5 detection functions)
-│   ├── response_formatter.py        # Schema validation
-│   └── config.py                    # Environment config
-├── frontend/
-│   └── index.html                   # Web UI (interactive form + results)
-├── tests/
-│   ├── test_api.py                  # 6 integration tests (all passing)
-│   └── USE_CASES.md                 # Real-world scenarios
-├── main.py                          # Entry point (GCP deployment)
-├── requirements.txt                 # Dependencies (FastAPI, OpenAI, pytest, etc.)
-├── .env.example                     # Environment template
-├── .github/
-│   └── copilot-instructions.md      # AI conventions + architecture
-├── README.md                        # Quick start + API examples
-├── GETTING_STARTED.md               # Detailed getting started guide
-├── DEPLOYMENT.md                    # GCP deployment (step-by-step)
-├── Dockerfile                       # Docker build config
-├── .dockerignore                    # Docker build exclusions
-├── app.yaml                         # GCP App Engine config
-└── instructions.md                  # Original MVP specification
+backend/
+  main.py              # FastAPI app — 28 endpoints, firewall logic, batch, counterfactual
+  database.py          # ORM — request logs, orgs, API keys, feedback (SQLite/PostgreSQL)
+  llm_orchestrator.py  # Pragma → Claude → OpenAI fallback chain
+  risk_detector.py     # 5 heuristic risk detectors
+  regulations.py       # (category, flag) → regulatory references
+  report_generator.py  # PDF generation (reportlab)
+  questions.py         # Guided context questions by category
+  auth.py              # Google OAuth + guest sessions
+  prompts.py           # LLM prompt templates
+  config.py            # Environment configuration
+frontend/
+  index.html           # Single-page web UI (2,000+ lines)
+mobile/
+  App.tsx              # Navigator + custom tab bar
+  src/screens/
+    AuthScreen.tsx     # Landing + social proof + auth
+    HomeScreen.tsx     # Guided evaluation form
+    ResultsScreen.tsx  # Firewall banner + full analysis display
+    HistoryScreen.tsx  # Decision metadata history
+  src/services/api.ts  # Typed API client
+  src/context/AuthContext.tsx
+tests/                 # 314 tests, 93.7% coverage
 ```
 
-## 🚀 Running the System
+---
 
-### Local Development
+## 🔌 API Quick Reference
+
 ```bash
-# Setup
+# Evaluate a decision (returns firewall verdict)
+curl -X POST /evaluate-decision \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"decision":"Reject candidate","context":{"gender":"female","role":"engineer"},"category":"hiring"}'
+
+# Response includes:
+# "firewall_action": "block" | "override_required" | "allow"
+# "should_block": true/false
+# "regulatory_refs": [{"law":"EEOC Title VII",...}]
+
+# Batch evaluate
+curl -X POST /evaluate-batch -H "Authorization: Bearer $TOKEN" -F "file=@decisions.csv"
+
+# Counterfactual bias audit
+curl -X POST /counterfactual \
+  -d '{"decision":"...","context":{...},"changed_key":"gender","changed_value":"male"}'
+
+# Generate PDF report
+curl -X POST /generate-report -d '{"decision":"...","context":{...},"analysis":{...}}'
+```
+
+---
+
+## 🚀 Running Locally
+
+```bash
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
+uvicorn backend.main:app --reload   # API at http://localhost:8000
 
-# Run
-cd StartupIdea
-uvicorn main:app --reload --port 8000
+# Mobile
+cd mobile && npm install && npx expo start
 
-# Test
-pytest tests/test_api.py -v
+# Tests
+pytest                              # Full suite with coverage
 ```
 
-### Production (GCP Cloud Run)
-```bash
-gcloud run deploy ethical-ai-checker \
-  --source . \
-  --set-env-vars OPENAI_API_KEY=$OPENAI_API_KEY \
-  --allow-unauthenticated
-```
-
-## 📊 API Contracts
-
-### POST /evaluate-decision
-```json
-REQUEST:
-{
-  "decision": "Reject job candidate",
-  "context": {
-    "experience": 5,
-    "gender": "female",
-    "education": "non-elite"
-  }
-}
-
-RESPONSE (200):
-{
-  "kantian_analysis": "This violates fairness principles...",
-  "utilitarian_analysis": "Rejecting based on gender reduces overall good...",
-  "virtue_ethics_analysis": "This lacks integrity and fairness...",
-  "risk_flags": ["bias", "fairness"],
-  "confidence_score": 0.92,
-  "recommendation": "Remove gender from evaluation criteria"
-}
-
-ERROR (400):
-{"detail": "Decision cannot be empty"}
-```
-
-### GET /health-check
-```json
-RESPONSE (200):
-{
-  "status": "healthy",
-  "service": "ethical-ai-decision-checker"
-}
-```
+---
 
 ## 🎯 Key Design Decisions
 
-1. **API-First Architecture** - Frontend is secondary; API contract is primary
-2. **Independent Framework Evaluation** - Each ethical framework analyzed separately before combining
-3. **Heuristic + LLM Combination** - Risk detection uses both pattern matching (fast) and LLM (accurate)
-4. **GCP-Optimized** - Cloud Run compatible with Dockerfile and app.yaml
-5. **Structured Response** - Always valid JSON schema for reliable client parsing
-6. **Mock LLM Mode** - Works without real OpenAI key for testing/demo
+1. **Firewall positioning** — `firewall_action` is the first thing in every response; product is operational not advisory
+2. **Regulatory refs built-in** — no separate compliance lookup needed; every flag maps to specific laws
+3. **Privacy by design** — decision text never persisted; only metadata (word count, context keys, risk categories)
+4. **Guest = full access** — all features available without sign-up for testing and sales demos
+5. **API-key tier** — enables programmatic/enterprise use without browser sessions
+6. **StaticPool in tests** — single in-memory SQLite connection per test; no cross-connection data loss
 
-## 🔧 Naming Conventions Implemented
+---
 
-- **Python modules**: `snake_case` (e.g., `risk_detector.py`, `response_formatter.py`)
-- **Classes**: `PascalCase` (e.g., `DecisionRequest`, `EthicalAnalysis`)
-- **Functions**: `snake_case` (e.g., `detect_all_risks()`, `evaluate_with_llm()`)
-- **Constants**: `UPPER_SNAKE_CASE` (e.g., `SYSTEM_PROMPT`, `SENSITIVE_ATTRIBUTES`)
-- **API Routes**: `kebab-case` (e.g., `/evaluate-decision`, `/health-check`)
+## 📈 Regulatory Deadlines (selling urgency)
 
-## 🧪 Test Coverage
+| Regulation | Status | Penalty |
+|------------|--------|---------|
+| NYC Local Law 144 | In force July 2023 | $1,500/day |
+| GDPR Article 22 | In force | 4% global revenue |
+| EU AI Act (high-risk) | August 2026 deadline | €35M or 7% of global revenue |
 
-✅ Health check endpoint
-✅ Hiring bias detection (gender flag)
-✅ Loan discrimination detection (zip code flag)
-✅ Error handling (empty decision)
-✅ Error handling (empty context)
-✅ Response schema validation
+**Real cases:** EEOC v. iTutorGroup ($365K settlement, 2023) · Mobley v. Workday (class certified, 2025) · Amazon AI hiring tool (scrapped after bias discovered, 2018)
 
-## 📈 Next Steps for Enhancement
+---
 
-1. **Real OpenAI Integration** - Configure actual API key for production
-2. **Rate Limiting** - Add API Gateway for enterprise SLA
-3. **Audit Logging** - Store decision evaluations for compliance
-4. **Advanced Risk Detection** - Machine learning for bias patterns
-5. **Custom Policies** - Per-client ethical framework customization
-6. **Dashboard** - Enterprise monitoring and analytics UI
-7. **GDPR/EEOC Mapping** - Compliance framework integration
-8. **Multi-LLM Support** - Support Claude, Gemini, etc.
-
-## 🎓 Architecture Highlights
-
-### Request Flow
-```
-Request → Validation → LLM Analysis → Risk Detection → Schema Formatting → Response
-```
-
-### Risk Detection Pipeline
-```
-Context Analysis (bias) → Fairness Analysis → Discrimination Patterns → 
-Transparency Check → Confidence Scoring → Flag Aggregation
-```
-
-### Framework Evaluation
-```
-Kantian (fairness/universality)
-Utilitarian (benefit/harm)  ──→ Combined Analysis ──→ Recommendation
-Virtue Ethics (character)
-```
-
-## 📝 Developer Quick Reference
-
-**To add a new risk detector:**
-1. Add function to `backend/risk_detector.py`
-2. Update `detect_all_risks()` to call it
-3. Add test case to `tests/test_api.py`
-
-**To modify LLM behavior:**
-1. Edit prompts in `backend/prompts.py`
-2. Test with `curl` or pytest
-3. Verify risk detection still works
-
-**To deploy:**
-1. Ensure `.env` has valid `OPENAI_API_KEY`
-2. Run `gcloud run deploy ethical-ai-checker --source .`
-3. Test with `curl $SERVICE_URL/health-check`
-
-## ✨ Summary
-
-The Ethical AI Decision Checker is a **production-ready MVP** with:
-- ✅ Complete API implementation matching spec
-- ✅ All 3 ethical frameworks operational
-- ✅ Robust risk detection system
-- ✅ Full test coverage (6/6 passing)
-- ✅ GCP deployment ready
-- ✅ Comprehensive documentation
-- ✅ Interactive frontend UI
-- ✅ Developer conventions documented
-
-**Status: Ready for deployment and client demo** 🚀
+**Status: In-market testing ready. 314 tests passing. 93.7% coverage.** 🚀

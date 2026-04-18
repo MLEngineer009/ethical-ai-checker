@@ -271,3 +271,214 @@ class TestFeedback:
         payload = {**self.PAYLOAD, "category": "not-a-category"}
         r = client.post("/feedback", json=payload, headers=guest_headers)
         assert r.status_code == 200  # accepted, coerced to "other"
+
+
+class TestEvaluateBatch:
+    GOOD_CSV = b"decision,category,role\nReject candidate,hiring,engineer\nApprove loan,finance,applicant"
+    MOCK_ANALYSIS = {
+        "kantian_analysis": "K", "utilitarian_analysis": "U",
+        "virtue_ethics_analysis": "V", "risk_flags": ["bias"],
+        "confidence_score": 0.7, "recommendation": "Caution",
+        "provider": "mock", "regulatory_refs": [],
+    }
+
+    def test_unauthenticated_returns_401(self, client):
+        r = client.post("/evaluate-batch", files={"file": ("data.csv", self.GOOD_CSV, "text/csv")})
+        assert r.status_code == 401
+
+    def test_valid_csv_returns_csv(self, client, guest_headers):
+        with patch("backend.main._run_evaluation", return_value=self.MOCK_ANALYSIS):
+            r = client.post("/evaluate-batch",
+                            files={"file": ("data.csv", self.GOOD_CSV, "text/csv")},
+                            headers=guest_headers)
+        assert r.status_code == 200
+        assert "text/csv" in r.headers["content-type"]
+
+    def test_result_csv_has_risk_flags_column(self, client, guest_headers):
+        with patch("backend.main._run_evaluation", return_value=self.MOCK_ANALYSIS):
+            r = client.post("/evaluate-batch",
+                            files={"file": ("data.csv", self.GOOD_CSV, "text/csv")},
+                            headers=guest_headers)
+        assert b"risk_flags" in r.content
+
+    def test_result_csv_has_recommendation_column(self, client, guest_headers):
+        with patch("backend.main._run_evaluation", return_value=self.MOCK_ANALYSIS):
+            r = client.post("/evaluate-batch",
+                            files={"file": ("data.csv", self.GOOD_CSV, "text/csv")},
+                            headers=guest_headers)
+        assert b"recommendation" in r.content
+
+    def test_content_disposition_filename(self, client, guest_headers):
+        with patch("backend.main._run_evaluation", return_value=self.MOCK_ANALYSIS):
+            r = client.post("/evaluate-batch",
+                            files={"file": ("data.csv", self.GOOD_CSV, "text/csv")},
+                            headers=guest_headers)
+        assert "pragma-batch-results.csv" in r.headers.get("content-disposition", "")
+
+    def test_empty_csv_returns_400(self, client, guest_headers):
+        r = client.post("/evaluate-batch",
+                        files={"file": ("empty.csv", b"decision,category\n", "text/csv")},
+                        headers=guest_headers)
+        assert r.status_code == 400
+
+    def test_over_100_rows_returns_400(self, client, guest_headers):
+        header = b"decision,category\n"
+        rows = b"".join(b"Reject,hiring\n" for _ in range(101))
+        r = client.post("/evaluate-batch",
+                        files={"file": ("big.csv", header + rows, "text/csv")},
+                        headers=guest_headers)
+        assert r.status_code == 400
+
+    def test_invalid_file_returns_400(self, client, guest_headers):
+        r = client.post("/evaluate-batch",
+                        files={"file": ("bad.csv", b"\xff\xfe invalid binary", "text/csv")},
+                        headers=guest_headers)
+        assert r.status_code == 400
+
+
+class TestCounterfactual:
+    PAYLOAD = {
+        "decision": "Reject job application",
+        "context": {"gender": "female", "experience": "5"},
+        "category": "hiring",
+        "changed_key": "gender",
+        "changed_value": "male",
+    }
+    MOCK_ANALYSIS = {
+        "kantian_analysis": "K", "utilitarian_analysis": "U",
+        "virtue_ethics_analysis": "V", "risk_flags": ["bias"],
+        "confidence_score": 0.8, "recommendation": "Caution",
+        "provider": "mock", "regulatory_refs": [],
+    }
+
+    def test_unauthenticated_returns_401(self, client):
+        assert client.post("/counterfactual", json=self.PAYLOAD).status_code == 401
+
+    def test_valid_request_returns_200(self, client, guest_headers):
+        with patch("backend.main._run_evaluation", return_value=self.MOCK_ANALYSIS):
+            r = client.post("/counterfactual", json=self.PAYLOAD, headers=guest_headers)
+        assert r.status_code == 200
+
+    def test_response_has_original_and_modified(self, client, guest_headers):
+        with patch("backend.main._run_evaluation", return_value=self.MOCK_ANALYSIS):
+            data = client.post("/counterfactual", json=self.PAYLOAD, headers=guest_headers).json()
+        assert "original" in data
+        assert "modified" in data
+
+    def test_response_has_diff(self, client, guest_headers):
+        with patch("backend.main._run_evaluation", return_value=self.MOCK_ANALYSIS):
+            data = client.post("/counterfactual", json=self.PAYLOAD, headers=guest_headers).json()
+        diff = data["diff"]
+        assert "flags_added" in diff
+        assert "flags_removed" in diff
+        assert "confidence_delta" in diff
+
+    def test_response_reflects_changed_key(self, client, guest_headers):
+        with patch("backend.main._run_evaluation", return_value=self.MOCK_ANALYSIS):
+            data = client.post("/counterfactual", json=self.PAYLOAD, headers=guest_headers).json()
+        assert data["changed_key"] == "gender"
+        assert data["modified_value"] == "male"
+
+    def test_empty_decision_returns_400(self, client, guest_headers):
+        payload = {**self.PAYLOAD, "decision": ""}
+        r = client.post("/counterfactual", json=payload, headers=guest_headers)
+        assert r.status_code == 400
+
+    def test_confidence_delta_is_numeric(self, client, guest_headers):
+        with patch("backend.main._run_evaluation", return_value=self.MOCK_ANALYSIS):
+            data = client.post("/counterfactual", json=self.PAYLOAD, headers=guest_headers).json()
+        assert isinstance(data["diff"]["confidence_delta"], (int, float))
+
+
+class TestOrgs:
+    def test_create_unauthenticated_returns_401(self, client):
+        assert client.post("/orgs", json={"name": "Test Org"}).status_code == 401
+
+    def test_create_returns_org_id(self, client, guest_headers):
+        r = client.post("/orgs", json={"name": "My Org"}, headers=guest_headers)
+        assert r.status_code == 200
+        assert "org_id" in r.json()
+
+    def test_create_returns_invite_code(self, client, guest_headers):
+        r = client.post("/orgs", json={"name": "Invite Org"}, headers=guest_headers)
+        assert "invite_code" in r.json()
+
+    def test_create_empty_name_returns_422(self, client, guest_headers):
+        r = client.post("/orgs", json={"name": "   "}, headers=guest_headers)
+        assert r.status_code == 422
+
+    def test_list_unauthenticated_returns_401(self, client):
+        assert client.get("/orgs").status_code == 401
+
+    def test_list_includes_created_org(self, client, guest_headers):
+        client.post("/orgs", json={"name": "Listed Org"}, headers=guest_headers)
+        orgs = client.get("/orgs", headers=guest_headers).json()
+        assert any(o["name"] == "Listed Org" for o in orgs)
+
+    def test_join_unauthenticated_returns_401(self, client):
+        assert client.post("/orgs/join", json={"invite_code": "abc"}).status_code == 401
+
+    def test_join_invalid_code_returns_404(self, client, guest_headers):
+        r = client.post("/orgs/join", json={"invite_code": "not-real"}, headers=guest_headers)
+        assert r.status_code == 404
+
+    def test_join_valid_code_returns_200(self, client, guest_headers):
+        # Create org with one user, join with a second guest
+        token2, _ = auth.create_guest_session()
+        headers2 = {"Authorization": f"Bearer {token2}"}
+        try:
+            created = client.post("/orgs", json={"name": "Join Test Org"}, headers=guest_headers).json()
+            r = client.post("/orgs/join", json={"invite_code": created["invite_code"]}, headers=headers2)
+            assert r.status_code == 200
+        finally:
+            auth.logout(token2)
+
+
+class TestAPIKeys:
+    def test_create_unauthenticated_returns_401(self, client):
+        assert client.post("/api-keys", json={"label": "Test"}).status_code == 401
+
+    def test_create_returns_raw_key(self, client, guest_headers):
+        r = client.post("/api-keys", json={"label": "My Key"}, headers=guest_headers)
+        assert r.status_code == 200
+        assert r.json()["key"].startswith("pragma_")
+
+    def test_create_with_api_key_returns_403(self, client, guest_headers):
+        # Create a key via the API, then try to use that key to create another
+        created = client.post("/api-keys", json={"label": "Meta Key"}, headers=guest_headers).json()
+        api_key_headers = {"Authorization": f"Bearer {created['key']}"}
+        r = client.post("/api-keys", json={"label": "Nested"}, headers=api_key_headers)
+        assert r.status_code == 403
+
+    def test_list_unauthenticated_returns_401(self, client):
+        assert client.get("/api-keys").status_code == 401
+
+    def test_list_empty_for_new_user(self, client, guest_headers):
+        r = client.get("/api-keys", headers=guest_headers)
+        assert r.status_code == 200
+        assert r.json() == []
+
+    def test_list_shows_created_key(self, client, guest_headers):
+        client.post("/api-keys", json={"label": "Listed Key"}, headers=guest_headers)
+        keys = client.get("/api-keys", headers=guest_headers).json()
+        assert len(keys) == 1
+        assert keys[0]["label"] == "Listed Key"
+
+    def test_revoke_unauthenticated_returns_401(self, client):
+        assert client.delete("/api-keys/1").status_code == 401
+
+    def test_revoke_valid_key(self, client, guest_headers):
+        created = client.post("/api-keys", json={"label": "Revokable"}, headers=guest_headers).json()
+        r = client.delete(f"/api-keys/{created['key_id']}", headers=guest_headers)
+        assert r.status_code == 200
+        assert r.json()["revoked"] is True
+
+    def test_revoked_key_is_inactive(self, client, guest_headers):
+        created = client.post("/api-keys", json={"label": "Soon Gone"}, headers=guest_headers).json()
+        client.delete(f"/api-keys/{created['key_id']}", headers=guest_headers)
+        keys = client.get("/api-keys", headers=guest_headers).json()
+        assert keys[0]["active"] is False
+
+    def test_revoke_wrong_key_id_returns_404(self, client, guest_headers):
+        r = client.delete("/api-keys/99999", headers=guest_headers)
+        assert r.status_code == 404

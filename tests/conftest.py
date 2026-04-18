@@ -6,6 +6,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
+from sqlalchemy.pool import StaticPool
 
 # Stub API keys before importing backend modules
 os.environ.setdefault("ANTHROPIC_API_KEY", "")
@@ -19,7 +20,11 @@ from backend import auth
 @pytest.fixture(autouse=True)
 def isolated_db():
     """Give each test its own in-memory SQLite database."""
-    test_engine = create_engine("sqlite:///:memory:")
+    test_engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     with patch.object(db_module, "_engine", test_engine):
         db_module.init_db()
         yield test_engine
