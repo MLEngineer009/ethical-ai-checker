@@ -1,209 +1,159 @@
 # Pragma — Project Summary
 
-**Positioning:** AI compliance firewall — block risky AI decisions before they become lawsuits.
+AI compliance firewall. Intercepts AI decisions, evaluates them against regulatory policy, blocks violations before they execute, and generates audit-ready evidence. Available as a web dashboard, iOS/Android mobile app, and Python SDK.
 
 ---
 
-## ✅ What's Built
+## What's Built
 
-### 1. AI Decision Firewall (Core Product)
-- `POST /evaluate-decision` — evaluates a decision through three ethical frameworks + heuristic risk detection
-- **Firewall verdict** on every response: `should_block`, `override_required`, `firewall_action` (`"block"` / `"override_required"` / `"allow"`)
-- Configurable `block_threshold` (default 0.8) — enterprise customers can tune sensitivity
-- Firewall logic: confidence ≥ threshold AND 2+ risk flags → block; any flag below threshold → override required
+### 1. AI Decision Firewall (Core Engine)
+Every evaluation returns a structured firewall verdict:
+- `firewall_action`: `"block"` | `"override_required"` | `"allow"`
+- `should_block`: boolean — confidence ≥ threshold AND 2+ risk flags
+- `confidence_score`: 0–1 float from the compliance model
+- `risk_flags`: list of detected risks (bias, discrimination, fairness, transparency…)
+- `regulatory_refs`: regulations triggered, with jurisdiction and citation URL
 
 ### 2. Multi-Framework Ethical Reasoning
-- **Kantian Ethics** — universality and duty-based analysis
-- **Utilitarian** — net benefit vs. harm across all stakeholders
-- **Virtue Ethics** — character and integrity reflection
-- All three evaluated independently by LLM, then combined into a single structured response
+Every decision is analyzed across three frameworks simultaneously:
+- **Kantian** — duty-based, treats people as ends not means
+- **Utilitarian** — greatest good, assesses aggregate harm
+- **Virtue Ethics** — character and integrity assessment
 
-### 3. Risk Detection System (`backend/risk_detector.py`)
-- `detect_bias_risks` — 15+ sensitive attributes (gender, race, age, zip code, religion, disability…)
-- `detect_fairness_risks` — exclusionary keywords and group-based language
-- `detect_discrimination_risks` — regex patterns for "based on X" constructs
-- `detect_transparency_risks` — vague reasoning when context is sparse
-- `detect_all_risks` — aggregates all four, returns sorted unique flags
-- Heuristic flags merged with LLM-detected flags for maximum coverage
+### 3. Compliance-Aware Chat (`POST /chat`)
+Conversational chatbot where every message is evaluated by the firewall before a response is generated. Blocked messages return the compliance result and regulations triggered — no AI response. Allowed messages return a contextual answer. Includes demo scenarios for hiring and lending decisions.
 
-### 4. Regulatory Reference Mapping (`backend/regulations.py`)
-- 18 laws defined: EEOC Title VII, ADA, ADEA, Equal Pay Act, NLRA, ECOA, Fair Housing Act, FCRA, CFPB UDAAP, HIPAA, ACA §1557, GDPR, GDPR Art.22, EU AI Act, EU Equal Treatment Directive, EO 14110, FTC AI Guidance, CCPA
-- `(category, risk_flag)` → list of triggered laws with name, jurisdiction, description, and official URL
-- Deduplicated per response — no duplicate laws even if multiple flags trigger the same law
-- Returned as `regulatory_refs[]` in every evaluation response
+### 4. Risk Detection (`backend/risk_detector.py`)
+Heuristic pattern matching across 8 risk categories:
+`bias`, `discrimination`, `privacy`, `transparency`, `fairness`, `autonomy`, `harm`, `manipulation`
 
-### 5. Batch Evaluation (`POST /evaluate-batch`)
-- Upload CSV up to 100 rows — columns: `decision`, `category`, plus any context columns
-- Returns CSV with analysis columns appended: `risk_flags`, `confidence_score`, `recommendation`, `regulatory_refs`, `provider`, `error`
-- Rows with missing decisions get an `error` column instead of failing the whole batch
+Combined with LLM-based analysis for nuanced cases. Heuristic flags are the authoritative blocking signal for the chat endpoint.
 
-### 6. Counterfactual Analysis (`POST /counterfactual`)
-- Runs two analyses — original context vs. modified — and diffs the results
-- Returns `diff.flags_added`, `diff.flags_removed`, `diff.confidence_delta`
-- Primary use case: bias audits ("what changes if gender=male vs gender=female?")
+### 5. Regulatory Reference Mapping (`backend/regulations.py`)
+Maps (category, risk_flag) pairs to specific regulations with citations:
+- EU AI Act (August 2026 enforcement deadline)
+- EEOC Title VII / Age Discrimination in Employment Act
+- GDPR Article 22 (automated decision-making)
+- NYC Local Law 144 ($1,500/day fine)
+- CFPB Equal Credit Opportunity Act
+- NIST AI Risk Management Framework
+- FTC AI Guidance / Executive Order 14110
 
-### 7. PDF Audit Reports (`POST /generate-report`)
-- Generates downloadable PDF from any completed analysis
-- Includes all three framework analyses, risk flags, confidence score, regulatory references, and recommendation
-- "Audit-ready evidence" — formatted for compliance and legal teams
+### 6. Batch Evaluation (`POST /evaluate-batch`)
+CSV upload, up to 100 rows. Returns results CSV with analysis columns appended.
 
-### 8. Guided Context Questions (`GET /questions?category=`)
-- Category-specific structured questions (hiring, workplace, finance, healthcare, policy, personal, other)
-- Types: `text`, `select`, `multiselect`, `toggle`
-- Used by both web UI and mobile app to guide users through relevant context
+### 7. Counterfactual Analysis (`POST /counterfactual`)
+Detects whether changing a protected attribute (gender, age, race) changes the compliance verdict. Returns `flags_added`, `flags_removed`, `confidence_delta`.
 
-### 9. Authentication
-- **Google SSO** — ID token verified server-side, creates persistent session
-- **Guest sessions** — in-memory, no sign-up required; all features available for testing
-- **API keys** — `pragma_*` prefix, SHA-256 hashed, usage metering (calls_total, calls_month)
-- API key holders cannot create new keys (prevents proliferation)
+### 8. PDF Audit Reports (`POST /generate-report`)
+One-click PDF generation from any completed analysis. Suitable for regulatory submission.
 
-### 10. Team / Organization Accounts
-- `POST /orgs` — create organization, caller becomes owner, invite code generated
-- `POST /orgs/join` — join via invite code
-- `GET /orgs/{org_id}/history` — shared decision metadata history for all org members (no PII)
+### 9. Guided Context Questions (`GET /questions`)
+Category-specific structured questions for `hiring`, `workplace`, `finance`, `healthcare`, `policy`, `personal`, `other`.
 
-### 11. Database (`backend/database.py`)
-- SQLite (dev/test) / PostgreSQL (production via `DATABASE_URL` env var)
-- Tables: `request_logs`, `analysis_feedback`, `waitlist`, `organizations`, `org_members`, `api_keys`
-- Privacy: decision text never stored — only word count, context keys (not values), provider, confidence, risk categories
-- `anon_id()` — HMAC-based irreversible anonymisation of user sub
+### 10. Authentication
+Google OAuth, guest sessions (full feature access, no sign-up), JWT session tokens.
 
-### 12. LLM Orchestration (`backend/llm_orchestrator.py`)
-- Fallback chain: **Pragma (custom model)** → **Anthropic Claude** → **OpenAI GPT-4**
-- Works offline/in tests via mock responses
-- Structured JSON output parsing with validation
+### 11. Organizations & Team Accounts
+Create workspaces, generate invite codes, join orgs, shared decision history.
+
+### 12. API Key Management
+Generate `pragma_*` API keys, track usage, revoke individually.
+
+### 13. LLM Orchestration (`backend/llm_orchestrator.py`)
+Fallback chain: Custom Pragma model → Claude (extended thinking) → GPT-4o → heuristic mock.
 
 ---
 
-## 📱 Mobile App (Expo React Native — iOS & Android)
+## Python SDK (`pragma-sdk/`)
 
-- **AuthScreen** — landing screen with full social proof (lawsuit stats, real cases, regulatory deadlines)
-- **HomeScreen** — category selector, guided questions fetched from API, decision input
-- **ResultsScreen** — firewall verdict banner (🚫/⚠️/✅), framework accordions, risk chips, confidence bar, regulatory refs, counterfactual panel, PDF download
-- **HistoryScreen** — decision metadata timeline (no text stored)
-- Custom bottom tab bar (Evaluate | History)
-- Expo SDK 54, tested on iOS via Expo Go
+Separate installable package. One-line integration:
 
----
-
-## 🌐 Web Frontend (`frontend/index.html`)
-
-- **Landing page** — firewall positioning, real lawsuit stats ($365K EEOC settlement, €35M EU AI Act), case studies (iTutorGroup, Workday, Amazon), regulatory deadline tracker
-- **Evaluate tab** — category pills, guided questions, firewall verdict banner on results
-- **History tab** — metadata timeline
-- **Batch tab** — CSV drag-and-drop upload, results download
-- **Settings tab** — org creation/join, API key generation/revocation
-
----
-
-## 🧪 Testing
-
-- **314 tests passing** across 9 test files — **93.7% backend coverage**
-- `tests/test_api.py` — 78 endpoint integration tests (auth, evaluate, batch, counterfactual, orgs, API keys, PDF, feedback)
-- `tests/test_regulations.py` — 21 tests for regulatory mapping (all categories, deduplication, edge cases)
-- `tests/test_orgs_and_api_keys.py` — 42 tests for org lifecycle and API key create/verify/revoke
-- `tests/test_database.py` — request logging, stats, feedback, anonymisation
-- `tests/test_risk_detector.py` — all 5 detectors across edge cases
-- `tests/test_llm_orchestrator.py` — parsing, normalization, fallback chain
-- `tests/test_report_generator.py`, `test_auth.py`, `test_response_formatter.py`, `test_config.py`
-- `conftest.py` uses `StaticPool` in-memory SQLite — all connections share one DB per test, no stale state
-
----
-
-## 📁 Project Structure
-
-```
-backend/
-  main.py              # FastAPI app — 28 endpoints, firewall logic, batch, counterfactual
-  database.py          # ORM — request logs, orgs, API keys, feedback (SQLite/PostgreSQL)
-  llm_orchestrator.py  # Pragma → Claude → OpenAI fallback chain
-  risk_detector.py     # 5 heuristic risk detectors
-  regulations.py       # (category, flag) → regulatory references
-  report_generator.py  # PDF generation (reportlab)
-  questions.py         # Guided context questions by category
-  auth.py              # Google OAuth + guest sessions
-  prompts.py           # LLM prompt templates
-  config.py            # Environment configuration
-frontend/
-  index.html           # Single-page web UI (2,000+ lines)
-mobile/
-  App.tsx              # Navigator + custom tab bar
-  src/screens/
-    AuthScreen.tsx     # Landing + social proof + auth
-    HomeScreen.tsx     # Guided evaluation form
-    ResultsScreen.tsx  # Firewall banner + full analysis display
-    HistoryScreen.tsx  # Decision metadata history
-  src/services/api.ts  # Typed API client
-  src/context/AuthContext.tsx
-tests/                 # 314 tests, 93.7% coverage
+```python
+client = Pragma(OpenAI(), policy_id="hr-v1", pragma_api_key="...")
+# Every client.chat.completions.create() call is now firewall-enforced
 ```
 
+- Sync (`Pragma`) and async (`AsyncPragma`) clients
+- Modes: `block` (raise `ComplianceError`), `flag` (attach `.pragma_result`), `audit`
+- Configurable `block_threshold` per instance
+- Supports OpenAI, AsyncOpenAI, AzureOpenAI, AsyncAzureOpenAI
+- Live end-to-end tested
+
 ---
 
-## 🔌 API Quick Reference
+## Web Dashboard (`frontend/index.html`)
+
+Single-file SaaS dashboard. Served directly from FastAPI.
+
+**Tabs:**
+- **Evaluate** — guided context, firewall verdict, regulatory refs, PDF download
+- **History** — past decision metadata
+- **Batch** — CSV drag-and-drop, results download
+- **Chat** — compliance chatbot, 4 demo scenarios, per-message firewall badges
+- **Settings** — org management, API key management
+
+**Landing page:** Real lawsuit data (iTutorGroup $365K, Workday class action), regulatory deadline tracker (NYC LL144, GDPR, EU AI Act Aug 2026).
+
+---
+
+## Mobile App (`mobile/`)
+
+Expo React Native — iOS and Android.
+
+**Screens:** Auth (social proof + sign-in), Home (evaluate), Results (firewall verdict banner), History, Chat (compliance chatbot with scenario shortcuts).
+
+---
+
+## Testing
+
+**Coverage: 93.7%** across 141 tests (78 API, 21 regulatory mapping, 42 org/API key).
+StaticPool-isolated in-memory SQLite per test for full isolation.
+
+---
+
+## API Quick Reference
 
 ```bash
-# Evaluate a decision (returns firewall verdict)
-curl -X POST /evaluate-decision \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '{"decision":"Reject candidate","context":{"gender":"female","role":"engineer"},"category":"hiring"}'
+# Guest session
+curl -X POST http://localhost:8000/auth/guest
 
-# Response includes:
-# "firewall_action": "block" | "override_required" | "allow"
-# "should_block": true/false
-# "regulatory_refs": [{"law":"EEOC Title VII",...}]
+# Evaluate
+curl -X POST http://localhost:8000/evaluate-decision \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"decision":"...","context":{"role":"engineer"},"category":"hiring"}'
 
-# Batch evaluate
-curl -X POST /evaluate-batch -H "Authorization: Bearer $TOKEN" -F "file=@decisions.csv"
+# Chat
+curl -X POST http://localhost:8000/chat \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"message":"Should we reject the 58-year-old?","category":"hiring"}'
 
-# Counterfactual bias audit
-curl -X POST /counterfactual \
+# Batch
+curl -X POST http://localhost:8000/evaluate-batch \
+  -H "Authorization: Bearer $TOKEN" -F "file=@decisions.csv"
+
+# Counterfactual
+curl -X POST http://localhost:8000/counterfactual \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"decision":"...","context":{...},"changed_key":"gender","changed_value":"male"}'
-
-# Generate PDF report
-curl -X POST /generate-report -d '{"decision":"...","context":{...},"analysis":{...}}'
 ```
 
 ---
 
-## 🚀 Running Locally
+## Running Locally
 
 ```bash
-python -m venv venv && source venv/bin/activate
+# Backend + web
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn backend.main:app --reload   # API at http://localhost:8000
+uvicorn backend.main:app --reload   # → http://localhost:8000
 
 # Mobile
 cd mobile && npm install && npx expo start
 
+# SDK
+cd pragma-sdk && pip install -e ".[dev]" && python test_live.py
+
 # Tests
-pytest                              # Full suite with coverage
+pytest --cov=backend --cov-report=term-missing
 ```
-
----
-
-## 🎯 Key Design Decisions
-
-1. **Firewall positioning** — `firewall_action` is the first thing in every response; product is operational not advisory
-2. **Regulatory refs built-in** — no separate compliance lookup needed; every flag maps to specific laws
-3. **Privacy by design** — decision text never persisted; only metadata (word count, context keys, risk categories)
-4. **Guest = full access** — all features available without sign-up for testing and sales demos
-5. **API-key tier** — enables programmatic/enterprise use without browser sessions
-6. **StaticPool in tests** — single in-memory SQLite connection per test; no cross-connection data loss
-
----
-
-## 📈 Regulatory Deadlines (selling urgency)
-
-| Regulation | Status | Penalty |
-|------------|--------|---------|
-| NYC Local Law 144 | In force July 2023 | $1,500/day |
-| GDPR Article 22 | In force | 4% global revenue |
-| EU AI Act (high-risk) | August 2026 deadline | €35M or 7% of global revenue |
-
-**Real cases:** EEOC v. iTutorGroup ($365K settlement, 2023) · Mobley v. Workday (class certified, 2025) · Amazon AI hiring tool (scrapped after bias discovered, 2018)
-
----
-
-**Status: In-market testing ready. 314 tests passing. 93.7% coverage.** 🚀

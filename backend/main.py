@@ -506,6 +506,109 @@ async def revoke_api_key(key_id: int, user: dict = Depends(get_current_user)):
     return {"revoked": True}
 
 
+CHAT_SYSTEM_PROMPT = """You are a helpful AI assistant that answers questions about hiring, HR policy, lending, and business decisions. You are professional, concise, and always remind users to follow fair and legal practices. Keep answers under 3 sentences."""
+
+CHAT_FALLBACK_ANSWERS = [
+    ("hire", "Base hiring decisions on verified qualifications, skills assessments, and structured interviews. Always document your criteria before reviewing candidates to ensure consistency."),
+    ("loan", "Credit decisions should be based on objective financial factors: income, debt-to-income ratio, credit history, and repayment capacity. Avoid using proxies that correlate with protected characteristics."),
+    ("fire", "Terminations should be documented, consistent, and based on clear performance or conduct criteria. Consult HR and legal before proceeding with any dismissal."),
+    ("promote", "Promotions should follow transparent criteria applied consistently across all eligible employees. Document the decision rationale and ensure it's reviewable."),
+    ("salary", "Compensation decisions should be based on role scope, market data, and performance metrics — not on personal characteristics. Conduct regular pay equity audits."),
+    ("interview", "Use structured interviews with standardized questions for all candidates. Score responses against predefined criteria before comparing candidates."),
+]
+
+def _generate_chat_response(message: str, history: list) -> str:
+    """Generate a chat response using the LLM orchestrator, with a fallback."""
+    try:
+        context = {"question": message}
+        result = orchestrator.evaluate(message, context)
+        rec = result.get("recommendation", "")
+        if rec and len(rec) > 20:
+            return rec
+    except Exception:
+        pass
+
+    msg_lower = message.lower()
+    for keyword, answer in CHAT_FALLBACK_ANSWERS:
+        if keyword in msg_lower:
+            return answer
+    return "That's a great question. Please consult your HR and legal teams to ensure your approach aligns with applicable regulations and your company's policies."
+
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+class ChatRequest(BaseModel):
+    message: str
+    history: List[ChatMessage] = []
+    category: str = "other"
+    block_threshold: float = 0.8
+
+class ChatResponse(BaseModel):
+    user_message: str
+    ai_response: Optional[str]
+    blocked: bool
+    firewall_action: str
+    risk_flags: List[str]
+    confidence_score: float
+    recommendation: str
+    violations: List[Dict[str, Any]] = []
+
+
+@app.post("/chat", dependencies=[Depends(get_current_user)])
+async def chat(request: ChatRequest, user: dict = Depends(get_current_user)) -> ChatResponse:
+    """
+    Compliance-aware chat endpoint.
+    Evaluates the user message through the Pragma firewall before generating a response.
+    Blocked messages return firewall details with no AI response.
+    """
+    if not request.message or not request.message.strip():
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+
+    category = request.category if request.category in VALID_CATEGORIES else "other"
+    context = {"input": request.message[:500]}
+
+    # Use heuristic flags as the primary block signal — the custom model is not
+    # calibrated enough to differentiate safe from risky via confidence score alone.
+    heuristic_flags = detect_all_risks(request.message, context)
+    analysis = _run_evaluation(request.message, context, category, request.block_threshold)
+
+    heuristic_block = (
+        analysis["confidence_score"] >= request.block_threshold
+        and len(heuristic_flags) >= 2
+    )
+    firewall_action = "block" if heuristic_block else (
+        "override_required" if len(heuristic_flags) >= 1 else "allow"
+    )
+    blocked = firewall_action == "block"
+
+    ai_response = None
+    if not blocked:
+        ai_response = _generate_chat_response(request.message, request.history)
+
+    database.log_request(
+        google_sub=user["sub"],
+        decision=request.message,
+        context=context,
+        provider=analysis["provider"],
+        confidence=analysis["confidence_score"],
+        risk_flags=analysis["risk_flags"],
+        category=category,
+    )
+
+    return ChatResponse(
+        user_message=request.message,
+        ai_response=ai_response,
+        blocked=blocked,
+        firewall_action=firewall_action,
+        risk_flags=heuristic_flags,
+        confidence_score=analysis["confidence_score"],
+        recommendation=analysis["recommendation"],
+        violations=analysis.get("regulatory_refs", []),
+    )
+
+
 @app.get("/")
 async def root():
     """Serve frontend UI."""

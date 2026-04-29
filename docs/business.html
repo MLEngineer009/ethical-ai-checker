@@ -169,23 +169,23 @@
       <div class="card">
         <h3 style="font-size:20px; margin-bottom:16px;">For Engineering Teams</h3>
         <ul style="line-height:2;">
-          <li>Drop-in API — one POST call returns full ethical analysis</li>
-          <li>Multi-framework reasoning: Kantian, Utilitarian, Virtue Ethics</li>
-          <li>Automatic risk flag detection (bias, discrimination, fairness)</li>
-          <li>Confidence scoring surfaces uncertain decisions for human review</li>
-          <li>PDF audit report generation for compliance documentation</li>
-          <li>Category-aware analysis: hiring, finance, healthcare, policy, and more</li>
+          <li><strong>Python SDK</strong> — one-line integration: <code>client = Pragma(OpenAI(), policy_id="hr-v1")</code></li>
+          <li>Firewall verdict on every call: block / override_required / allow</li>
+          <li>Automatic risk flag detection (bias, discrimination, fairness, transparency)</li>
+          <li>Regulatory mapping — EEOC, GDPR, EU AI Act, NYC LL144, CFPB auto-cited</li>
+          <li>Batch CSV evaluation, counterfactual bias audit, PDF audit report</li>
+          <li>Compliance-aware chat API for conversational AI use cases</li>
         </ul>
       </div>
       <div class="card">
-        <h3 style="font-size:20px; margin-bottom:16px;">For Business &amp; Legal</h3>
+        <h3 style="font-size:20px; margin-bottom:16px;">For Legal &amp; Compliance Teams</h3>
         <ul style="line-height:2;">
-          <li>Demonstrable due diligence for AI governance audits</li>
+          <li>Proactive enforcement — blocks violations before they execute</li>
+          <li>Audit-ready evidence trail — tamper-proof logs regulators can use</li>
+          <li>Explainable output non-technical stakeholders can read and defend</li>
           <li>No PII stored — anonymous metadata only, GDPR-safe by design</li>
-          <li>Explainable output that non-technical stakeholders can read</li>
-          <li>Model improves continuously — better today than yesterday</li>
-          <li>No vendor lock-in risk — we own the model weights</li>
-          <li>Plug into existing workflows via REST API</li>
+          <li>VPC-deployable — sensitive data never leaves your infrastructure</li>
+          <li>August 2026 EU AI Act deadline coverage out of the box</li>
         </ul>
       </div>
     </div>
@@ -411,17 +411,16 @@
           <span class="badge" style="background:rgba(74,222,128,0.15); color:#6ee7b7; font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">Done — MVP</span>
         </div>
         <ul style="color:var(--muted); font-size:14px; line-height:2.2;">
-          <li>POST /evaluate-decision API with 7 decision categories</li>
-          <li>Three ethical frameworks (Kant, Mill, Aristotle)</li>
-          <li>Heuristic + model risk detection (bias, fairness, discrimination, harm, transparency)</li>
-          <li>Provider chain: Pragma model → Claude → OpenAI → Mock</li>
-          <li>PDF audit report download</li>
-          <li>Google SSO + guest flow</li>
-          <li>Anonymous metadata logging (no PII) — PostgreSQL on Railway</li>
-          <li>Feedback flywheel — thumbs up/down → weak category detection → targeted retraining</li>
-          <li>Model distillation pipeline — generate_data, train, evaluate scripts</li>
-          <li>iOS-style web app + React Native mobile (Expo)</li>
-          <li>210 unit tests, 95.7% code coverage</li>
+          <li>AI Decision Firewall — block / override_required / allow verdict on every call</li>
+          <li>POST /evaluate-decision with 7 categories, 3 ethical frameworks, regulatory mapping</li>
+          <li>Compliance-aware Chat API — firewall intercepts before response is generated</li>
+          <li>Batch CSV evaluation (100 rows), counterfactual bias audit, PDF audit reports</li>
+          <li>Python SDK — Pragma(OpenAI(), policy_id=...) one-line integration, sync + async</li>
+          <li>Provider chain: Custom Pragma model → Claude → OpenAI → heuristic mock</li>
+          <li>SaaS web dashboard (Evaluate, History, Batch, Chat, Settings tabs)</li>
+          <li>iOS + Android mobile app with Chat screen and firewall verdict banners</li>
+          <li>Google SSO + guest sessions, org accounts, API key management</li>
+          <li>93.7% test coverage across 141 tests</li>
         </ul>
       </div>
       <div class="card" style="border-color:rgba(124,111,224,0.3);">

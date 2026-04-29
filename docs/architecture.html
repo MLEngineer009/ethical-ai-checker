@@ -442,7 +442,7 @@ HF_TOKEN=hf_... python ml/evaluate.py \<br>
       </div>
       <div class="card">
         <h3><span class="dot teal"></span> Mobile App</h3>
-        <p>React Native (Expo SDK 54) app for iOS &amp; Android. Same API as web. Category-specific guided questions (fetched from <code>GET /questions</code>), glassmorphism UI, PDF report sharing via native share sheet.</p>
+        <p>React Native (Expo) app for iOS &amp; Android. Screens: Auth (social proof + sign-in), Home (evaluate with guided questions), Results (firewall verdict banner, regulatory refs), History, Chat (compliance-aware chatbot with scenario shortcuts and per-message firewall badges). Shares the same API as the web dashboard.</p>
         <div class="stack-list">
           <span class="stack-pill">React Native</span>
           <span class="stack-pill">Expo</span>
@@ -646,7 +646,25 @@ HF_TOKEN=hf_... python ml/evaluate.py \<br>
             <td><span class="method post">POST</span></td>
             <td><code>/evaluate-decision</code></td>
             <td><span class="badge auth">Bearer</span></td>
-            <td>Run ethical analysis — Pragma model → Claude → OpenAI → Mock</td>
+            <td>Run compliance evaluation — returns firewall_action, risk_flags, regulatory_refs, confidence_score</td>
+          </tr>
+          <tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/chat</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Compliance-aware chat — firewall evaluates message before response is generated; blocked messages return verdict only</td>
+          </tr>
+          <tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/evaluate-batch</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>CSV upload (up to 100 rows) — returns CSV with firewall verdicts and regulatory refs appended</td>
+          </tr>
+          <tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/counterfactual</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Bias audit — compares original vs. modified context, diffs flags_added / flags_removed / confidence_delta</td>
           </tr>
           <tr>
             <td><span class="method post">POST</span></td>
@@ -662,12 +680,81 @@ HF_TOKEN=hf_... python ml/evaluate.py \<br>
           </tr>
           <tr>
             <td><span class="method get">GET</span></td>
+            <td><code>/questions</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Category-specific guided context questions for hiring, finance, healthcare, and more</td>
+          </tr>
+          <tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/orgs</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Create an organization workspace with auto-generated invite code</td>
+          </tr>
+          <tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/orgs/join</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Join an organization via invite code</td>
+          </tr>
+          <tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/api-keys</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Generate a <code>pragma_*</code> API key for programmatic SDK access</td>
+          </tr>
+          <tr>
+            <td><span class="method get">GET</span></td>
             <td><code>/health-check</code></td>
             <td><span class="badge pub">Public</span></td>
-            <td>Model availability status — <code>model.pragma</code>, <code>model.claude</code>, <code>model.openai</code></td>
+            <td>Model availability — <code>model.pragma</code>, <code>model.claude</code>, <code>model.openai</code></td>
           </tr>
         </tbody>
       </table>
+    </div>
+  </section>
+
+  <!-- SDK -->
+  <section id="sdk">
+    <h2>Python SDK</h2>
+    <p class="section-sub">Separate installable package that wraps OpenAI-compatible clients with one line of code.</p>
+    <div class="card-grid cols-2">
+      <div class="card">
+        <h3>Integration</h3>
+        <pre style="background:#0d0e14;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:16px;font-size:13px;overflow-x:auto;margin-top:12px;"><code>from openai import OpenAI
+from pragma import Pragma, ComplianceError
+
+client = Pragma(
+    OpenAI(),
+    policy_id="hr-compliance-v1",
+    pragma_api_key="pragma_...",
+    mode="block",          # block | flag | audit
+    block_threshold=0.8,   # tune sensitivity
+)
+
+try:
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[{"role":"user",
+          "content":"Reject her — she is 58."}]
+    )
+except ComplianceError as e:
+    print(e.result.firewall_action)  # "block"
+    print(e.result.risk_flags)       # ["bias","discrimination"]
+    print(e.result.violations[0].regulation)</code></pre>
+      </div>
+      <div class="card">
+        <h3>Architecture</h3>
+        <ul style="line-height:2.2; color:var(--muted); font-size:14px; margin-top:12px;">
+          <li><code>Pragma()</code> / <code>AsyncPragma()</code> — factory functions returning wrapped client</li>
+          <li>Intercepts <code>chat.completions.create()</code> — same interface as underlying client</li>
+          <li>Calls <code>POST /evaluate-decision</code> on the Pragma backend before forwarding to OpenAI</li>
+          <li>Mode <code>block</code> — raises <code>ComplianceError</code> with full <code>ComplianceResult</code></li>
+          <li>Mode <code>flag</code> — passes through, attaches <code>.pragma_result</code> to response</li>
+          <li>Mode <code>audit</code> — passes through silently, violations logged server-side</li>
+          <li>Supports sync + async, OpenAI + AzureOpenAI</li>
+          <li>Configurable <code>block_threshold</code> per client instance</li>
+        </ul>
+      </div>
     </div>
   </section>
 
