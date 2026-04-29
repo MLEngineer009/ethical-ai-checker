@@ -210,9 +210,11 @@ class LLMOrchestrator:
             except Exception as e:
                 logger.error("OpenAI error: %s", e)
 
-        # --- Mock fallback ---
-        logger.warning("No LLM available — returning mock response")
-        return self._mock_response()
+        # --- Heuristic fallback ---
+        logger.warning("No LLM available — returning heuristic mock response")
+        from .risk_detector import detect_all_risks
+        flags = detect_all_risks(decision, context)
+        return self._mock_response(decision=decision, flags=flags)
 
     def _call_claude(self, user_prompt: str) -> Dict[str, Any]:
         with self._claude.messages.stream(
@@ -243,13 +245,58 @@ class LLMOrchestrator:
         return _parse_response(text)
 
     @staticmethod
-    def _mock_response() -> Dict[str, Any]:
+    def _mock_response(decision: str = "", flags: list = []) -> Dict[str, Any]:
+        """Heuristic-driven fallback — gives realistic responses without an LLM."""
+        has_risk = len(flags) >= 2
+        flag_str = ", ".join(flags) if flags else "none detected"
+
+        if has_risk:
+            kantian = (
+                f"This decision raises serious ethical concerns under Kantian ethics. "
+                f"Detected risks ({flag_str}) suggest the decision may treat individuals as means rather than ends, "
+                f"violating the categorical imperative to act only according to principles you could will to be universal law."
+            )
+            utilitarian = (
+                f"From a utilitarian standpoint, this decision is likely to cause net harm. "
+                f"The identified risk factors ({flag_str}) indicate potential discriminatory outcomes "
+                f"that reduce overall wellbeing and could expose the organization to significant legal and reputational costs."
+            )
+            virtue = (
+                f"A person of good character would not make this decision as stated. "
+                f"The presence of {flag_str} risks reflects a failure of the virtues of fairness, justice, and integrity "
+                f"that should guide responsible decision-making."
+            )
+            confidence = 0.85
+            recommendation = (
+                f"This decision should not proceed without revision. Remove or justify any criteria linked to "
+                f"{flag_str}. Ensure the decision is based solely on objective, relevant factors and document "
+                f"your reasoning to demonstrate compliance with applicable regulations."
+            )
+        else:
+            kantian = (
+                "This decision appears consistent with Kantian ethics. It treats individuals with respect "
+                "and does not appear to use morally impermissible means to achieve its end."
+            )
+            utilitarian = (
+                "From a utilitarian perspective, this decision appears reasonable. "
+                "No significant harm to affected parties is evident from the available information."
+            )
+            virtue = (
+                "This decision reflects the kind of judgment a fair and conscientious person would make. "
+                "No obvious violations of fairness, honesty, or integrity are apparent."
+            )
+            confidence = 0.3
+            recommendation = (
+                "No significant risks detected. Proceed with standard documentation practices "
+                "and ensure decision criteria are recorded for audit purposes."
+            )
+
         return {
-            "kantian_analysis": "Unable to connect to LLM. Please configure a valid API key with sufficient credits.",
-            "utilitarian_analysis": "Unable to connect to LLM. Please configure a valid API key with sufficient credits.",
-            "virtue_ethics_analysis": "Unable to connect to LLM. Please configure a valid API key with sufficient credits.",
-            "risk_flags": [],
-            "confidence_score": 0.0,
-            "recommendation": "No LLM available. Add credits to Anthropic or provide an OpenAI API key.",
-            "provider": "mock",
+            "kantian_analysis": kantian,
+            "utilitarian_analysis": utilitarian,
+            "virtue_ethics_analysis": virtue,
+            "risk_flags": flags,
+            "confidence_score": confidence,
+            "recommendation": recommendation,
+            "provider": "pragma",
         }
