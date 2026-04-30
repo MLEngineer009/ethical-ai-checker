@@ -671,6 +671,10 @@
     .cf-removed { color: #fca5a5; font-size: 13px; }
     .cf-delta   { font-size: 13px; color: var(--text-muted); }
 
+    /* ── Proxy / HITL ── */
+    .proxy-section, .hitl-section { border-left: 3px solid rgba(239,68,68,0.4); }
+    .hitl-section { border-left-color: rgba(245,158,11,0.4); }
+
     /* ── History ── */
     .history-empty { text-align: center; color: var(--text-muted); padding: 40px 0; font-size: 14px; }
     .history-item { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 8px; }
@@ -950,6 +954,9 @@
         <button class="app-tab" onclick="switchTab('chat')">
           <span class="tab-icon">💬</span>Chat
         </button>
+        <button class="app-tab" onclick="switchTab('audit')">
+          <span class="tab-icon">🔐</span>Audit Log
+        </button>
         <button class="app-tab" onclick="switchTab('settings')">
           <span class="tab-icon">⚙️</span>Settings
         </button>
@@ -1109,6 +1116,25 @@
               <div class="reg-list" id="regList"></div>
             </div>
 
+            <!-- Proxy Variable Detection -->
+            <div class="card proxy-section" id="proxySection" style="display:none;">
+              <div class="card-title">🔍 Proxy Variable Guard — ECOA / Reg B</div>
+              <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;">These context fields correlate with protected demographics and are illegal to use as credit/fraud decision inputs under ECOA.</p>
+              <div id="proxyList"></div>
+            </div>
+
+            <!-- HITL Override Panel -->
+            <div class="card hitl-section" id="hitlSection" style="display:none;">
+              <div class="card-title">🧑‍⚖️ Human Override — EU AI Act Art. 14</div>
+              <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">An investigator can override this firewall verdict. Your reason will be recorded in the immutable audit trail.</p>
+              <div id="hitlOverrideRecorded" style="display:none;padding:10px 14px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;color:#4ade80;font-size:13px;font-weight:600;">✅ Override recorded in audit trail</div>
+              <div id="hitlOverrideForm">
+                <textarea id="hitlReason" placeholder="Reason for override (required — e.g. 'Manual review confirmed no discrimination')…" rows="3" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;color:var(--text-primary);font-size:13px;padding:10px 12px;resize:vertical;box-sizing:border-box;font-family:inherit;"></textarea>
+                <button class="btn btn-primary" onclick="submitHITLOverride()" style="margin-top:10px;background:rgba(245,158,11,0.15);border-color:rgba(245,158,11,0.4);color:#fbbf24;" id="hitlSubmitBtn">Record Override</button>
+                <div class="error-box" id="hitlError" style="margin-top:8px;"></div>
+              </div>
+            </div>
+
             <!-- Counterfactual -->
             <div class="download-section" id="cfSection" style="display:none;">
               <button class="cf-btn" onclick="toggleCFPanel()">🔁 Run Counterfactual — What if a context value changed?</button>
@@ -1194,6 +1220,21 @@
               <textarea class="chat-input" id="chatInput" placeholder="Ask a compliance question or describe a decision…" rows="1"
                 onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"></textarea>
               <button class="chat-send-btn" id="chatSendBtn" onclick="sendChat()">Send</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Audit Log tab ── -->
+        <div class="tab-pane" id="tab-audit">
+          <div class="card">
+            <div class="card-title">🔐 Immutable Audit Trail</div>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:4px;">One row per evaluation — input hash only, no raw decision text stored. Proxy variables and firewall verdicts are logged per ECOA &amp; EU AI Act requirements.</p>
+            <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+              <button class="btn btn-primary" style="padding:6px 14px;font-size:12px;" onclick="loadAuditLog()">🔄 Refresh</button>
+              <span style="font-size:12px;color:var(--text-subtle);align-self:center;" id="auditLogCount"></span>
+            </div>
+            <div id="auditLogTable">
+              <div class="history-empty">Loading audit log…</div>
             </div>
           </div>
         </div>
@@ -1665,12 +1706,46 @@
       document.getElementById('cfPanel').style.display   = 'none';
       document.getElementById('cfResults').innerHTML     = '';
 
+      // Proxy variable callout
+      const proxySection = document.getElementById('proxySection');
+      const proxyList    = document.getElementById('proxyList');
+      proxyList.innerHTML = '';
+      const proxies = data.proxy_variables_detected || [];
+      if (proxies.length) {
+        proxySection.style.display = 'block';
+        proxies.forEach(p => {
+          proxyList.insertAdjacentHTML('beforeend', `
+            <div style="background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:10px 14px;margin-bottom:8px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+                <span style="font-family:monospace;color:#fca5a5;font-size:13px;font-weight:700;">${p.field}</span>
+                <span style="font-size:11px;color:var(--text-muted);background:rgba(239,68,68,0.12);padding:2px 8px;border-radius:4px;">${p.regulation}</span>
+              </div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">${p.risk}</div>
+            </div>`);
+        });
+      } else {
+        proxySection.style.display = 'none';
+      }
+
+      // HITL override panel (show for block or override_required verdicts)
+      const hitlSection = document.getElementById('hitlSection');
+      if (data.firewall_action === 'block' || data.firewall_action === 'override_required') {
+        hitlSection.style.display = 'block';
+        document.getElementById('hitlOverrideRecorded').style.display = 'none';
+        document.getElementById('hitlOverrideForm').style.display = 'block';
+        document.getElementById('hitlReason').value = '';
+        document.getElementById('hitlError').style.display = 'none';
+        hitlSection.dataset.auditLogId = data.audit_log_id || '';
+      } else {
+        hitlSection.style.display = 'none';
+      }
+
       const resultsEl = document.getElementById('resultsSection');
       resultsEl.style.display = 'block';
 
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          const order = ['cardKantian','cardUtilitarian','cardVirtue','riskSection','confSection','recSection','regSection','cfSection','dlSection'];
+          const order = ['cardKantian','cardUtilitarian','cardVirtue','riskSection','confSection','recSection','regSection','proxySection','hitlSection','cfSection','dlSection'];
           order.forEach((id, i) => {
             const el = document.getElementById(id);
             if (el && el.style.display !== 'none') setTimeout(() => el.classList.add('visible'), i * 80);
@@ -1730,18 +1805,92 @@
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') evaluate();
     });
 
+    // ── HITL Override ─────────────────────────────────────────────────────
+    async function submitHITLOverride() {
+      const btn      = document.getElementById('hitlSubmitBtn');
+      const errEl    = document.getElementById('hitlError');
+      const reason   = document.getElementById('hitlReason').value.trim();
+      const auditId  = parseInt(document.getElementById('hitlSection').dataset.auditLogId);
+      errEl.style.display = 'none';
+      if (!reason) { errEl.textContent = 'Please enter a reason for the override.'; errEl.style.display = 'block'; return; }
+      if (!auditId) { errEl.textContent = 'No audit log entry linked to this evaluation.'; errEl.style.display = 'block'; return; }
+      btn.disabled = true; btn.textContent = 'Recording…';
+      try {
+        const res = await fetch(`${API}/audit/override`, {
+          method: 'POST', headers: authHeaders(),
+          body: JSON.stringify({ audit_log_id: auditId, reason }),
+        });
+        if (!res.ok) { const d = await res.json(); throw new Error(d.detail || 'Override failed'); }
+        document.getElementById('hitlOverrideForm').style.display = 'none';
+        document.getElementById('hitlOverrideRecorded').style.display = 'block';
+      } catch(e) {
+        errEl.textContent = e.message; errEl.style.display = 'block';
+      } finally {
+        btn.disabled = false; btn.textContent = 'Record Override';
+      }
+    }
+
+    // ── Audit Log ─────────────────────────────────────────────────────────
+    async function loadAuditLog() {
+      const container = document.getElementById('auditLogTable');
+      const countEl   = document.getElementById('auditLogCount');
+      container.innerHTML = '<div class="history-empty">Loading…</div>';
+      try {
+        const res = await fetch(`${API}/audit/log`, { headers: authHeaders() });
+        if (!res.ok) throw new Error('Failed to load audit log');
+        const rows = await res.json();
+        countEl.textContent = `${rows.length} entries`;
+        if (!rows.length) { container.innerHTML = '<div class="history-empty">No audit entries yet. Run a compliance check first.</div>'; return; }
+        const actionColor = { block: '#fca5a5', override_required: '#fbbf24', allow: '#4ade80' };
+        const actionLabel = { block: '🚫 BLOCKED', override_required: '⚠️ FLAGGED', allow: '✅ ALLOWED' };
+        container.innerHTML = `
+          <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:12px;">
+              <thead>
+                <tr style="border-bottom:1px solid var(--input-border);color:var(--text-subtle);text-transform:uppercase;letter-spacing:0.5px;font-size:11px;">
+                  <th style="padding:8px 10px;text-align:left;">ID</th>
+                  <th style="padding:8px 10px;text-align:left;">Time</th>
+                  <th style="padding:8px 10px;text-align:left;">Category</th>
+                  <th style="padding:8px 10px;text-align:left;">Verdict</th>
+                  <th style="padding:8px 10px;text-align:left;">Risk Flags</th>
+                  <th style="padding:8px 10px;text-align:left;">Proxy Vars</th>
+                  <th style="padding:8px 10px;text-align:left;">Override</th>
+                  <th style="padding:8px 10px;text-align:left;">Hash</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows.map(r => `
+                  <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+                    <td style="padding:8px 10px;color:var(--text-muted);">#${r.id}</td>
+                    <td style="padding:8px 10px;color:var(--text-muted);white-space:nowrap;">${new Date(r.timestamp).toLocaleString()}</td>
+                    <td style="padding:8px 10px;color:var(--text-subtle);text-transform:capitalize;">${r.category}</td>
+                    <td style="padding:8px 10px;font-weight:600;color:${actionColor[r.firewall_action] || '#ccc'}">${actionLabel[r.firewall_action] || r.firewall_action}</td>
+                    <td style="padding:8px 10px;">${r.risk_flags.length ? r.risk_flags.map(f=>`<span style="background:rgba(239,68,68,0.12);color:#fca5a5;padding:2px 6px;border-radius:4px;font-size:11px;margin-right:3px;">${f}</span>`).join('') : '<span style="color:var(--text-muted)">—</span>'}</td>
+                    <td style="padding:8px 10px;">${r.proxy_vars.length ? r.proxy_vars.map(v=>`<span style="background:rgba(251,191,36,0.1);color:#fbbf24;padding:2px 6px;border-radius:4px;font-size:11px;margin-right:3px;">${v}</span>`).join('') : '<span style="color:var(--text-muted)">—</span>'}</td>
+                    <td style="padding:8px 10px;">${r.hitl_override ? `<span style="color:#4ade80;font-weight:600;">✅ Yes</span>${r.hitl_reason ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${r.hitl_reason.substring(0,60)}…</div>` : ''}` : '<span style="color:var(--text-muted)">—</span>'}</td>
+                    <td style="padding:8px 10px;font-family:monospace;color:var(--text-muted);font-size:11px;">${r.input_hash}</td>
+                  </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>`;
+      } catch(e) {
+        container.innerHTML = `<div class="history-empty" style="color:#fca5a5;">Error: ${e.message}</div>`;
+      }
+    }
+
     // ── Tab switching ──────────────────────────────────────────────────────
-    const PAGE_TITLES = { evaluate: 'Evaluate Decision', history: 'Decision History', batch: 'Batch Evaluation', chat: 'AI Chat', settings: 'Settings' };
+    const PAGE_TITLES = { evaluate: 'Evaluate Decision', history: 'Decision History', batch: 'Batch Evaluation', chat: 'AI Chat', audit: 'Audit Log', settings: 'Settings' };
 
     function switchTab(name) {
       document.querySelectorAll('.app-tab').forEach((t,i) => {
-        const names = ['evaluate','history','batch','chat','settings'];
+        const names = ['evaluate','history','batch','chat','audit','settings'];
         t.classList.toggle('active', names[i] === name);
       });
       document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
       document.getElementById(`tab-${name}`).classList.add('active');
       document.getElementById('pageTitle').textContent = PAGE_TITLES[name] || name;
       if (name === 'history') loadHistory();
+      if (name === 'audit') loadAuditLog();
       if (name === 'settings') { loadOrgs(); loadAPIKeys(); }
     }
 

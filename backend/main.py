@@ -102,6 +102,8 @@ class EthicalAnalysis(BaseModel):
     should_block: bool = False         # True → decision should be blocked
     override_required: bool = False    # True → human review required before proceeding
     firewall_action: str = "allow"     # "block" | "override_required" | "allow"
+    audit_log_id: Optional[int] = None
+    proxy_variables_detected: list[Dict[str, Any]] = []
 
 
 class ReportRequest(BaseModel):
@@ -190,7 +192,7 @@ async def evaluate_decision(
         risk_flags=analysis["risk_flags"],
         category=category,
     )
-    database.log_audit(
+    audit_log_id = database.log_audit(
         google_sub=user["sub"],
         decision=request.decision,
         context=request.context,
@@ -203,6 +205,8 @@ async def evaluate_decision(
         category=category,
     )
 
+    analysis["audit_log_id"] = audit_log_id
+    analysis["proxy_variables_detected"] = proxy_report["proxy_variables_detected"]
     return EthicalAnalysis(**analysis)
 
 
@@ -224,6 +228,12 @@ async def hitl_override(request: HITLOverrideRequest, user: dict = Depends(get_c
         reason=request.reason,
     )
     return {"recorded": True, "audit_log_id": request.audit_log_id}
+
+
+@app.get("/audit/log", dependencies=[Depends(get_current_user)])
+async def get_audit_log(user: dict = Depends(get_current_user), limit: int = 50):
+    """Return the last N audit log entries for the current user."""
+    return database.get_audit_log(google_sub=user["sub"], limit=limit)
 
 
 @app.post("/feedback", dependencies=[Depends(get_current_user)])

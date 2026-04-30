@@ -232,6 +232,34 @@ def log_hitl_override(
         )
 
 
+def get_audit_log(google_sub: str, limit: int = 50) -> List[Dict]:
+    """Return recent audit entries for a user, newest first."""
+    aid = anon_id(google_sub)
+    with _engine.connect() as conn:
+        rows = conn.execute(
+            audit_log.select()
+            .where(audit_log.c.anon_id == aid)
+            .order_by(audit_log.c.id.desc())
+            .limit(limit)
+        ).fetchall()
+    return [
+        {
+            "id":             r.id,
+            "timestamp":      r.timestamp,
+            "category":       r.category,
+            "firewall_action": r.firewall_action,
+            "confidence":     r.confidence,
+            "risk_flags":     json.loads(r.risk_flags or "[]"),
+            "proxy_vars":     json.loads(r.proxy_vars or "[]"),
+            "regulatory_refs": json.loads(r.regulatory_refs or "[]"),
+            "hitl_override":  bool(r.hitl_override),
+            "hitl_reason":    r.hitl_reason,
+            "input_hash":     r.input_hash[:12] + "…",
+        }
+        for r in rows
+    ]
+
+
 def log_request(
     google_sub: str,
     decision: str,
