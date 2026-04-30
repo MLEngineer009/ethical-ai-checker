@@ -216,13 +216,13 @@ class TestOrchestratorEvaluate:
         with patch.object(orch, "_call_claude", side_effect=err_c):
             with patch.object(orch, "_call_openai", side_effect=err_o):
                 result = orch.evaluate("decision", {"x": 1})
-        assert result["provider"] == "mock"
-        assert result["confidence_score"] == 0.0
+        assert result["provider"] == "pragma"
+        assert result["confidence_score"] in (0.3, 0.85)  # heuristic mock: 0.3 = no risk, 0.85 = risky
 
     def test_no_clients_returns_mock(self):
         orch = _make_orchestrator(claude=None, openai=None)
         result = orch.evaluate("decision", {"x": 1})
-        assert result["provider"] == "mock"
+        assert result["provider"] == "pragma"
 
     def test_openai_rate_limit_returns_mock(self):
         orch = _make_orchestrator(claude=None, openai=MagicMock())
@@ -232,14 +232,14 @@ class TestOrchestratorEvaluate:
         err = OpenAIRateLimitError("rate limited", response=response_mock, body={})
         with patch.object(orch, "_call_openai", side_effect=err):
             result = orch.evaluate("decision", {"x": 1})
-        assert result["provider"] == "mock"
+        assert result["provider"] == "pragma"
 
     def test_mock_response_structure(self):
         result = LLMOrchestrator._mock_response()
         for key in ("kantian_analysis", "utilitarian_analysis", "virtue_ethics_analysis",
                     "risk_flags", "confidence_score", "recommendation", "provider"):
             assert key in result
-        assert result["provider"] == "mock"
+        assert result["provider"] == "pragma"
 
     def test_claude_not_configured_skips_to_openai(self):
         orch = _make_orchestrator(claude=None, openai=MagicMock())
