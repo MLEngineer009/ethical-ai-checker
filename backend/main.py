@@ -178,6 +178,9 @@ async def evaluate_decision(
     category = request.category if request.category in VALID_CATEGORIES else "other"
     analysis = _run_evaluation(request.decision, request.context, category, request.block_threshold)
 
+    from .risk_detector import get_proxy_variable_report
+    proxy_report = get_proxy_variable_report(request.context)
+
     database.log_request(
         google_sub=user["sub"],
         decision=request.decision,
@@ -187,8 +190,40 @@ async def evaluate_decision(
         risk_flags=analysis["risk_flags"],
         category=category,
     )
+    database.log_audit(
+        google_sub=user["sub"],
+        decision=request.decision,
+        context=request.context,
+        firewall_action=analysis["firewall_action"],
+        confidence=analysis["confidence_score"],
+        risk_flags=analysis["risk_flags"],
+        proxy_vars=[p["field"] for p in proxy_report["proxy_variables_detected"]],
+        regulatory_refs=analysis.get("regulatory_refs", []),
+        provider=analysis["provider"],
+        category=category,
+    )
 
     return EthicalAnalysis(**analysis)
+
+
+class HITLOverrideRequest(BaseModel):
+    audit_log_id: int
+    reason: str
+
+@app.post("/audit/override", dependencies=[Depends(get_current_user)])
+async def hitl_override(request: HITLOverrideRequest, user: dict = Depends(get_current_user)):
+    """
+    Record a human investigator override of a firewall verdict.
+    Meets EU AI Act Article 14 human oversight requirements.
+    """
+    if not request.reason or not request.reason.strip():
+        raise HTTPException(status_code=400, detail="Override reason cannot be empty")
+    database.log_hitl_override(
+        audit_log_id=request.audit_log_id,
+        investigator_sub=user["sub"],
+        reason=request.reason,
+    )
+    return {"recorded": True, "audit_log_id": request.audit_log_id}
 
 
 @app.post("/feedback", dependencies=[Depends(get_current_user)])

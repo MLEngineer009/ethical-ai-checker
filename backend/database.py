@@ -93,6 +93,26 @@ org_members = Table(
     Column("joined_at", String, nullable=False),
 )
 
+audit_log = Table(
+    "audit_log", _meta,
+    Column("id",                Integer, primary_key=True, autoincrement=True),
+    Column("anon_id",           String,  nullable=False),
+    Column("timestamp",         String,  nullable=False),
+    Column("input_hash",        String,  nullable=False),   # sha256(decision+context) — no PII
+    Column("decision_words",    Integer, nullable=False),
+    Column("category",          String,  nullable=False),
+    Column("firewall_action",   String,  nullable=False),   # block|override_required|allow
+    Column("confidence",        Float,   nullable=False),
+    Column("risk_flags",        String,  nullable=False),   # JSON list
+    Column("proxy_vars",        String,  nullable=False, server_default="[]"),  # JSON list of detected proxy fields
+    Column("regulatory_refs",   String,  nullable=False, server_default="[]"),  # JSON list of triggered regulations
+    Column("provider",          String,  nullable=False),
+    Column("model_version",     String,  nullable=False, server_default="unknown"),
+    Column("hitl_override",     Integer, nullable=False, server_default="0"),   # 1 if human overrode the verdict
+    Column("hitl_reason",       String,  nullable=True),    # investigator's override reason
+    Column("hitl_anon_id",      String,  nullable=True),    # who overrode it
+)
+
 api_keys = Table(
     "api_keys", _meta,
     Column("id",          Integer, primary_key=True, autoincrement=True),
@@ -149,6 +169,67 @@ def get_waitlist() -> List[Dict]:
 def anon_id(google_sub: str) -> str:
     """One-way hash of the session subject — not reversible, not PII."""
     return hashlib.sha256(f"pragma:{google_sub}".encode()).hexdigest()[:16]
+
+
+def log_audit(
+    google_sub: str,
+    decision: str,
+    context: Dict[str, Any],
+    firewall_action: str,
+    confidence: float,
+    risk_flags: List[str],
+    proxy_vars: List[str],
+    regulatory_refs: List[Dict],
+    provider: str,
+    category: str = "other",
+    model_version: str = "unknown",
+) -> int:
+    """
+    Immutable audit trail entry — one row per compliance evaluation.
+    Stores input hash (not raw text), firewall verdict, proxy variable report,
+    and regulatory refs triggered. Returns the audit log row ID.
+    """
+    input_hash = hashlib.sha256(
+        f"{decision}:{json.dumps(context, sort_keys=True)}".encode()
+    ).hexdigest()
+    with _engine.begin() as conn:
+        result = conn.execute(audit_log.insert().values(
+            anon_id         = anon_id(google_sub),
+            timestamp       = datetime.now(timezone.utc).isoformat(),
+            input_hash      = input_hash,
+            decision_words  = len(decision.split()),
+            category        = category,
+            firewall_action = firewall_action,
+            confidence      = round(confidence, 3),
+            risk_flags      = json.dumps(sorted(risk_flags)),
+            proxy_vars      = json.dumps(proxy_vars),
+            regulatory_refs = json.dumps([r.get("law", "") for r in regulatory_refs]),
+            provider        = provider,
+            model_version   = model_version,
+            hitl_override   = 0,
+        ))
+        return result.inserted_primary_key[0]
+
+
+def log_hitl_override(
+    audit_log_id: int,
+    investigator_sub: str,
+    reason: str,
+) -> None:
+    """
+    Record a human investigator override of the firewall verdict.
+    Meets EU AI Act Article 14 human oversight requirements.
+    """
+    with _engine.begin() as conn:
+        conn.execute(
+            audit_log.update()
+            .where(audit_log.c.id == audit_log_id)
+            .values(
+                hitl_override = 1,
+                hitl_reason   = reason[:500],
+                hitl_anon_id  = anon_id(investigator_sub),
+            )
+        )
 
 
 def log_request(
