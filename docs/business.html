@@ -175,13 +175,17 @@
           <li>Regulatory mapping — EEOC, GDPR, EU AI Act, NYC LL144, CFPB auto-cited</li>
           <li>Batch CSV evaluation, counterfactual bias audit, PDF audit report</li>
           <li>Compliance-aware chat API for conversational AI use cases</li>
+          <li><strong>Proxy Variable Guard</strong> — ECOA/Reg B proxy field detection on every evaluation</li>
+          <li><strong>EU AI Act data lineage</strong> — register AI systems, track Articles 9–14, issue compliance certificates</li>
         </ul>
       </div>
       <div class="card">
         <h3 style="font-size:20px; margin-bottom:16px;">For Legal &amp; Compliance Teams</h3>
         <ul style="line-height:2;">
           <li>Proactive enforcement — blocks violations before they execute</li>
-          <li>Audit-ready evidence trail — tamper-proof logs regulators can use</li>
+          <li><strong>Immutable audit trail</strong> — sha256-hashed inputs, firewall verdicts, proxy vars detected</li>
+          <li><strong>HITL Override</strong> — human investigators record override reasons per EU AI Act Art. 14</li>
+          <li><strong>EU AI Act Compliance Certificate</strong> — PDF readiness report for Articles 9–14, valid 1 year</li>
           <li>Explainable output non-technical stakeholders can read and defend</li>
           <li>No PII stored — anonymous metadata only, GDPR-safe by design</li>
           <li>VPC-deployable — sensitive data never leaves your infrastructure</li>
@@ -396,6 +400,20 @@
             <td style="color:var(--red);">Sends data to third-party LLM</td>
             <td style="color:var(--muted);">Varies</td>
           </tr>
+          <tr>
+            <td>Fintech proxy variable guard (ECOA/Reg B)</td>
+            <td style="color:var(--green);">Yes — 20+ proxy fields auto-detected</td>
+            <td style="color:var(--red);">No</td>
+            <td style="color:var(--red);">No</td>
+            <td style="color:var(--muted);">Partial — manual rules</td>
+          </tr>
+          <tr>
+            <td>EU AI Act Art. 9–14 compliance certificate</td>
+            <td style="color:var(--green);">Yes — live checklist + PDF certificate</td>
+            <td style="color:var(--red);">No</td>
+            <td style="color:var(--red);">No</td>
+            <td style="color:var(--muted);">Varies — expensive consulting</td>
+          </tr>
         </tbody>
       </table>
     </div>
@@ -417,10 +435,13 @@
           <li>Batch CSV evaluation (100 rows), counterfactual bias audit, PDF audit reports</li>
           <li>Python SDK — Pragma(OpenAI(), policy_id=...) one-line integration, sync + async</li>
           <li>Provider chain: Custom Pragma model → Claude → OpenAI → heuristic mock</li>
-          <li>SaaS web dashboard (Evaluate, History, Batch, Chat, Settings tabs)</li>
+          <li><strong style="color:var(--text);">Proxy Variable Guard</strong> — ECOA/Reg B fintech proxy field detection (zip_code, last_name, ip_country, email_domain…)</li>
+          <li><strong style="color:var(--text);">Immutable Audit Trail</strong> — sha256-hashed audit log, firewall verdicts, proxy vars, per-record HITL override</li>
+          <li><strong style="color:var(--text);">EU AI Act Data Lineage</strong> — register AI systems, Articles 9–14 compliance checklist, PDF compliance certificate</li>
+          <li>SaaS web dashboard (Evaluate, History, Batch, Chat, Audit Log 🔐, Compliance 🏛️, Settings tabs)</li>
           <li>iOS + Android mobile app with Chat screen and firewall verdict banners</li>
           <li>Google SSO + guest sessions, org accounts, API key management</li>
-          <li>93.7% test coverage across 141 tests</li>
+          <li>352 tests, all passing</li>
         </ul>
       </div>
       <div class="card" style="border-color:rgba(124,111,224,0.3);">
@@ -429,13 +450,13 @@
         </div>
         <ul style="color:var(--muted); font-size:14px; line-height:2.2;">
           <li>First Pragma model v1 deployed on HuggingFace</li>
-          <li>Enterprise dashboard with decision history &amp; approval trends</li>
-          <li>Custom ethical policies per organization</li>
-          <li>Compliance mapping — GDPR, EEOC, EU AI Act</li>
-          <li>Audit log export (CSV / JSON)</li>
+          <li>First pilot enterprise customer integration</li>
+          <li>Rate limiting enforcement (100 evals/month free tier)</li>
+          <li>Node.js SDK — <code>Pragma(openai, { policyId: "..." })</code></li>
           <li>Stripe billing integration</li>
-          <li>Team accounts &amp; role-based access</li>
-          <li>Model version tracking — A/B compare Pragma v1 vs v2</li>
+          <li>SHAP/LIME explainability when custom model exposes feature weights</li>
+          <li>Policy Builder UI — CEO-level no-code rule configuration</li>
+          <li>VPC-deployable Docker container + Helm chart for enterprise</li>
         </ul>
       </div>
       <div class="card" style="border-color:rgba(247,147,30,0.3);">

@@ -199,6 +199,127 @@ Categories: `hiring`, `workplace`, `finance`, `healthcare`, `policy`, `personal`
 | GET    | `/api-keys` | List keys with usage stats |
 | DELETE | `/api-keys/{key_id}` | Revoke a key |
 
+### Fintech Compliance
+
+**Proxy Variable Guard** — built into `POST /evaluate-decision`. When the decision context includes fields that proxy for protected demographics under ECOA/Regulation B, the response includes a `proxy_variables_detected` list and the `bias`/`discrimination` risk flags are automatically raised.
+
+Detected proxy fields:
+
+| Field | Risk |
+|-------|------|
+| `zip_code` | Geographic redlining proxy |
+| `last_name` | National origin / ethnicity proxy |
+| `ip_country` | National origin proxy |
+| `email_domain` | National origin / religion proxy |
+| `device_language` | National origin proxy |
+| `birth_date` / `age` | Age discrimination proxy |
+
+Updated `POST /evaluate-decision` response (now includes audit and proxy fields):
+```json
+{
+  "firewall_action": "block",
+  "risk_flags": ["bias", "discrimination"],
+  "confidence_score": 0.91,
+  "regulatory_refs": [...],
+  "audit_log_id": 42,
+  "proxy_variables_detected": [
+    {
+      "field": "zip_code",
+      "value": "90210",
+      "risk": "Geographic redlining proxy for race/national origin",
+      "regulation": "ECOA / Regulation B — 15 U.S.C. § 1691"
+    }
+  ]
+}
+```
+
+**`GET /proxy-variable-report`** — Returns a structured report of all proxy variables found in a given context, with field, value, risk description, and ECOA/Regulation B citation.
+
+**Immutable Audit Trail**
+
+Every call to `POST /evaluate-decision` writes one row to the `audit_log` table. The row stores the sha256 hash of the input (no raw PII), the firewall verdict, proxy variables detected, regulatory refs triggered, provider, and category.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET  | `/audit/log` | Last 50 audit entries for the current user |
+| POST | `/audit/override` | Record a human investigator override (EU AI Act Art. 14) |
+
+`POST /audit/override` request:
+```json
+{
+  "audit_log_id": 42,
+  "reason": "Reviewed by compliance officer — context cleared after manual review."
+}
+```
+
+Response:
+```json
+{ "status": "override recorded", "audit_log_id": 42 }
+```
+
+### EU AI Act Data Lineage & Compliance Certificate
+
+**Register an AI system — `POST /ai-systems`**
+```json
+{
+  "system_name": "LoanScore v2",
+  "company_name": "Acme Financial",
+  "risk_tier": "high",
+  "use_case": "Credit scoring for retail lending",
+  "model_version": "2.1.0",
+  "training_data_sources": ["internal-loan-history-2018-2023", "credit-bureau-feed"],
+  "intended_purpose": "Automated credit risk assessment",
+  "geographic_scope": "United States"
+}
+```
+
+Response includes the assigned `system_id`.
+
+**`GET /ai-systems`** — List all registered AI systems for the current user.
+
+**`GET /ai-systems/{id}/compliance`** — Compute the EU AI Act compliance checklist against the six key articles:
+
+| Article | Check | Pass condition |
+|---------|-------|----------------|
+| Art. 9 | Risk management | 10+ evaluations with risk flags recorded |
+| Art. 10 | Data governance | `training_data_sources` declared (non-empty) |
+| Art. 11 | Technical documentation | System profile fully completed |
+| Art. 12 | Record-keeping | Audit trail active (audit log entries exist) |
+| Art. 13 | Transparency | Regulatory refs mapped in evaluations |
+| Art. 14 | Human oversight | At least one HITL override recorded |
+
+Response:
+```json
+{
+  "system_id": 7,
+  "articles": {
+    "art_9_risk_management":      { "status": "pass",    "evidence": "14 risk-flagged evaluations" },
+    "art_10_data_governance":     { "status": "pass",    "evidence": "2 training sources declared" },
+    "art_11_technical_docs":      { "status": "pass",    "evidence": "All profile fields present" },
+    "art_12_record_keeping":      { "status": "pass",    "evidence": "Audit trail active" },
+    "art_13_transparency":        { "status": "partial", "evidence": "Regulatory refs present in 8/14 evaluations" },
+    "art_14_human_oversight":     { "status": "fail",    "evidence": "No HITL overrides recorded" }
+  },
+  "overall_score": 0.75,
+  "verdict": "partial"
+}
+```
+
+Verdicts: `ready` (score ≥ 0.9), `partial` (0.5–0.9), `not_ready` (< 0.5).
+
+**`POST /ai-systems/{id}/certificate`** — Generate a PDF compliance readiness certificate.
+
+> Note: This is a readiness report, not a legal notified-body certification under the EU AI Act.
+
+The PDF contains:
+- Certificate ID (e.g. `PRAGMA-A3F9C2`)
+- Issue date and valid-until date (1 year)
+- Company name, system name, risk tier
+- Per-article checklist with evidence
+- Overall compliance score
+
+The certificate record is stored in the `compliance_certificates` table and can be re-downloaded.
+
 ---
 
 ## Running Tests
@@ -210,7 +331,7 @@ pytest tests/test_regulations.py -v   # regulatory mapping
 pytest tests/test_orgs_and_api_keys.py -v
 ```
 
-Coverage: 93.7% across 78 tests.
+Coverage: 93.7% across 352 tests.
 
 ---
 
@@ -218,19 +339,21 @@ Coverage: 93.7% across 78 tests.
 
 ```
 backend/
-  main.py              # FastAPI app — all endpoints, firewall logic, chat
-  database.py          # SQLAlchemy ORM — request logs, orgs, API keys
-  llm_orchestrator.py  # Pragma model → Claude → OpenAI fallback chain
-  risk_detector.py     # Heuristic risk detection (bias, discrimination…)
-  regulations.py       # Risk flag → regulatory reference mapping
-  report_generator.py  # PDF audit report generation
-  questions.py         # Category-specific guided context questions
-  auth.py              # Google OAuth + guest session management
-  custom_model.py      # Fine-tuned Pragma compliance model interface
+  main.py                   # FastAPI app — all endpoints, firewall logic, chat
+  database.py               # SQLAlchemy ORM — request logs, orgs, API keys, audit log, AI systems, certificates
+  llm_orchestrator.py       # Pragma model → Claude → OpenAI fallback chain
+  risk_detector.py          # Heuristic risk detection (bias, discrimination…) + proxy variable guard
+  regulations.py            # Risk flag → regulatory reference mapping
+  report_generator.py       # PDF audit report generation
+  compliance_engine.py      # EU AI Act per-article compliance checklist computation
+  compliance_certificate.py # PDF compliance readiness certificate generation
+  questions.py              # Category-specific guided context questions
+  auth.py                   # Google OAuth + guest session management
+  custom_model.py           # Fine-tuned Pragma compliance model interface
 
 frontend/
   index.html           # Single-file SaaS dashboard (vanilla JS)
-                       # Tabs: Evaluate, History, Batch, Chat, Settings
+                       # Tabs: Evaluate, History, Batch, Chat, Audit Log (🔐), Compliance (🏛️), Settings
 
 mobile/
   App.tsx              # Tab navigator (Evaluate, History, Chat)
@@ -251,10 +374,12 @@ pragma-sdk/            # Python SDK (separate package)
     exceptions.py      # ComplianceError, PragmaAPIError, ConfigurationError
 
 tests/
-  conftest.py                 # Fixtures, isolated in-memory DB
-  test_api.py                 # 78 endpoint tests
-  test_regulations.py         # Regulatory mapping coverage
-  test_orgs_and_api_keys.py   # Org and API key lifecycle
+  conftest.py                    # Fixtures, isolated in-memory DB
+  test_api.py                    # 78 endpoint tests
+  test_regulations.py            # Regulatory mapping coverage
+  test_orgs_and_api_keys.py      # Org and API key lifecycle
+  test_fintech_compliance.py     # 18 tests: proxy variable guard, audit trail, HITL override
+  test_compliance.py             # 20 tests: AI system registration, per-article checklist, certificate PDF
 ```
 
 ---

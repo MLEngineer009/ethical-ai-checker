@@ -60,7 +60,34 @@ Create workspaces, generate invite codes, join orgs, shared decision history.
 ### 12. API Key Management
 Generate `pragma_*` API keys, track usage, revoke individually.
 
-### 13. LLM Orchestration (`backend/llm_orchestrator.py`)
+### 13. Fintech Compliance (`backend/risk_detector.py`, `backend/database.py`, `backend/main.py`)
+
+**Proxy Variable Guard (`detect_fintech_proxy_variables`)** — Scans the decision context for fields that proxy for protected demographics under ECOA/Regulation B: `zip_code`, `last_name`, `ip_country`, `email_domain`, `device_language`, `birth_date`, `age`, and others. Automatically raises `bias` and `discrimination` risk flags. Integrated into `detect_all_risks()` so every evaluation benefits with no extra API call. A dedicated `get_proxy_variable_report(context)` returns a structured list of `{field, value, risk, regulation}` objects with ECOA / Regulation B — 15 U.S.C. § 1691 citations.
+
+**Immutable Audit Trail** — Every `POST /evaluate-decision` call writes one row to the `audit_log` table. Stores: sha256 input hash (no raw PII), firewall verdict, proxy variables detected, regulatory refs triggered, provider, category. The `audit_log_id` is returned in the evaluate-decision response alongside `proxy_variables_detected`.
+
+**HITL Override (`POST /audit/override`)** — Investigators can record a human override for any flagged evaluation. Sets `hitl_override=1` and stores the reason. Satisfies EU AI Act Article 14 (human oversight). `GET /audit/log` returns the last 50 audit entries for the current user.
+
+### 14. EU AI Act Data Lineage & Compliance Certificate (`backend/compliance_engine.py`, `backend/compliance_certificate.py`)
+
+**AI System Registration (`POST /ai-systems`)** — Register a system with: `system_name`, `company_name`, `risk_tier` (minimal/limited/high/unacceptable), `use_case`, `model_version`, `training_data_sources` (list), `intended_purpose`, `geographic_scope`. Stored in the `ai_systems` table. `GET /ai-systems` lists registered systems.
+
+**Per-Article Compliance Checklist (`GET /ai-systems/{id}/compliance`)** — Evaluates the system against six EU AI Act articles:
+
+| Article | What is checked |
+|---------|----------------|
+| Art. 9 | Risk management — 10+ evaluations with risk flags |
+| Art. 10 | Data governance — training data sources declared |
+| Art. 11 | Technical documentation — system profile fully completed |
+| Art. 12 | Record-keeping — audit trail active |
+| Art. 13 | Transparency — regulatory refs mapped in evaluations |
+| Art. 14 | Human oversight — HITL overrides recorded |
+
+Returns per-article `status` (pass/partial/fail), `overall_score` (0–1), and `verdict` (ready/partial/not_ready).
+
+**PDF Compliance Readiness Certificate (`POST /ai-systems/{id}/certificate`)** — Generates a PDF report (not a legal notified-body certification) containing a unique certificate ID (e.g. `PRAGMA-A3F9C2`), issue date, valid-until date (1 year), company/system info, risk tier, per-article checklist with evidence, and overall score. Stored in the `compliance_certificates` table.
+
+### 15. LLM Orchestration (`backend/llm_orchestrator.py`)
 Fallback chain: Custom Pragma model → Claude (extended thinking) → GPT-4o → heuristic mock.
 
 ---
@@ -87,10 +114,12 @@ client = Pragma(OpenAI(), policy_id="hr-v1", pragma_api_key="...")
 Single-file SaaS dashboard. Served directly from FastAPI.
 
 **Tabs:**
-- **Evaluate** — guided context, firewall verdict, regulatory refs, PDF download
+- **Evaluate** — guided context, firewall verdict, regulatory refs, PDF download; shows detected ECOA proxy fields and HITL override panel for block/override_required verdicts
 - **History** — past decision metadata
 - **Batch** — CSV drag-and-drop, results download
 - **Chat** — compliance chatbot, 4 demo scenarios, per-message firewall badges
+- **Audit Log (🔐)** — table of past evaluations with verdict, risk flags, proxy variables detected, override status, and input hash
+- **Compliance (🏛️)** — register AI systems, view live EU AI Act compliance checklist per article, download PDF compliance certificate
 - **Settings** — org management, API key management
 
 **Landing page:** Real lawsuit data (iTutorGroup $365K, Workday class action), regulatory deadline tracker (NYC LL144, GDPR, EU AI Act Aug 2026).
@@ -107,7 +136,7 @@ Expo React Native — iOS and Android.
 
 ## Testing
 
-**Coverage: 93.7%** across 141 tests (78 API, 21 regulatory mapping, 42 org/API key).
+**Coverage: 93.7%** across 352 tests (78 API, 21 regulatory mapping, 42 org/API key, 18 fintech compliance, 20 EU AI Act compliance, plus additional coverage tests).
 StaticPool-isolated in-memory SQLite per test for full isolation.
 
 ---

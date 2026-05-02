@@ -432,7 +432,7 @@ HF_TOKEN=hf_... python ml/evaluate.py \<br>
     <div class="card-grid cols-3">
       <div class="card">
         <h3><span class="dot purple"></span> Web Frontend</h3>
-        <p>iOS-style glassmorphism single-page app. Hosted on Vercel. Category pills, feedback buttons, Google SSO.</p>
+        <p>iOS-style glassmorphism single-page app. Tabs: Evaluate (proxy var callout, HITL override panel), History, Batch, Chat, Audit Log 🔐, Compliance 🏛️ (EU AI Act checklist + certificate), Settings. Served from Railway, also deployable on Vercel.</p>
         <div class="stack-list">
           <span class="stack-pill">HTML5</span>
           <span class="stack-pill">Vanilla JS</span>
@@ -442,7 +442,7 @@ HF_TOKEN=hf_... python ml/evaluate.py \<br>
       </div>
       <div class="card">
         <h3><span class="dot teal"></span> Mobile App</h3>
-        <p>React Native (Expo) app for iOS &amp; Android. Screens: Auth (social proof + sign-in), Home (evaluate with guided questions), Results (firewall verdict banner, regulatory refs), History, Chat (compliance-aware chatbot with scenario shortcuts and per-message firewall badges). Shares the same API as the web dashboard.</p>
+        <p>React Native (Expo) app for iOS &amp; Android. Screens: Auth (social proof + sign-in), Home (evaluate with guided questions), Results (firewall verdict banner, regulatory refs, counterfactual analysis), History, Chat (compliance-aware chatbot with scenario shortcuts and per-message firewall badges). Shares the same API as the web dashboard.</p>
         <div class="stack-list">
           <span class="stack-pill">React Native</span>
           <span class="stack-pill">Expo</span>
@@ -646,7 +646,7 @@ HF_TOKEN=hf_... python ml/evaluate.py \<br>
             <td><span class="method post">POST</span></td>
             <td><code>/evaluate-decision</code></td>
             <td><span class="badge auth">Bearer</span></td>
-            <td>Run compliance evaluation — returns firewall_action, risk_flags, regulatory_refs, confidence_score</td>
+            <td>Run compliance evaluation — returns firewall_action, risk_flags, regulatory_refs, confidence_score, audit_log_id, proxy_variables_detected</td>
           </tr>
           <tr>
             <td><span class="method post">POST</span></td>
@@ -701,6 +701,42 @@ HF_TOKEN=hf_... python ml/evaluate.py \<br>
             <td><code>/api-keys</code></td>
             <td><span class="badge auth">Bearer</span></td>
             <td>Generate a <code>pragma_*</code> API key for programmatic SDK access</td>
+          </tr>
+          <tr>
+            <td><span class="method get">GET</span></td>
+            <td><code>/audit/log</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Last 50 audit entries for current user — verdict, risk flags, proxy vars detected, HITL override status, input hash</td>
+          </tr>
+          <tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/audit/override</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Record human investigator override of a firewall verdict — requires reason; EU AI Act Art. 14 compliance</td>
+          </tr>
+          <tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/ai-systems</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Register an AI system for EU AI Act data lineage tracking (system_name, company, risk_tier, training_data_sources…)</td>
+          </tr>
+          <tr>
+            <td><span class="method get">GET</span></td>
+            <td><code>/ai-systems</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>List all registered AI systems for the current user</td>
+          </tr>
+          <tr>
+            <td><span class="method get">GET</span></td>
+            <td><code>/ai-systems/{id}/compliance</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>EU AI Act Articles 9–14 compliance checklist — per-article pass/partial/fail, overall score, verdict</td>
+          </tr>
+          <tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/ai-systems/{id}/certificate</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Generate PDF compliance readiness certificate — certificate ID, valid 1 year, stored in compliance_certificates table</td>
           </tr>
           <tr>
             <td><span class="method get">GET</span></td>
@@ -827,6 +863,9 @@ except ComplianceError as e:
           <li>Provider used (pragma / claude / openai / mock)</li>
           <li>Confidence score, risk flag count, decision category</li>
           <li>Feedback ratings (👍 / 👎) per category — for model retraining</li>
+          <li>Audit log: sha256 input hash, firewall verdict, proxy vars detected, HITL override reason</li>
+          <li>AI system profiles (company name, risk tier, training data sources) — EU AI Act Art. 10</li>
+          <li>Compliance certificates (certificate ID, articles status, issue date)</li>
         </ul>
       </div>
       <div class="card">
@@ -865,9 +904,60 @@ CREATE TABLE analysis_feedback (
   rating           INTEGER,  -- 1 = thumbs up, -1 = thumbs down
   category         TEXT,
   provider         TEXT,
-  model_version    TEXT,     -- e.g. "pragma-v1", "unknown"
+  model_version    TEXT,
   confidence       REAL,
   risk_categories  TEXT      -- JSON array
+);
+
+-- Immutable audit trail (fintech compliance + EU AI Act Art. 12)
+CREATE TABLE audit_log (
+  id                SERIAL PRIMARY KEY,
+  anon_id           TEXT,
+  timestamp         TEXT,
+  input_hash        TEXT,     -- sha256(decision+context) — no raw PII
+  decision_words    INTEGER,
+  category          TEXT,
+  firewall_action   TEXT,     -- block | override_required | allow
+  confidence        REAL,
+  risk_flags        TEXT,     -- JSON array
+  proxy_vars        TEXT,     -- JSON array of detected ECOA proxy fields
+  regulatory_refs   TEXT,     -- JSON array of triggered regulation names
+  provider          TEXT,
+  model_version     TEXT,
+  hitl_override     INTEGER,  -- 1 if a human investigator overrode the verdict
+  hitl_reason       TEXT,     -- investigator's written reason
+  hitl_anon_id      TEXT      -- who overrode it (anon)
+);
+
+-- EU AI Act data lineage — registered AI systems
+CREATE TABLE ai_systems (
+  id                      SERIAL PRIMARY KEY,
+  anon_id                 TEXT,
+  system_name             TEXT,
+  company_name            TEXT,
+  risk_tier               TEXT,  -- minimal | limited | high | unacceptable
+  use_case                TEXT,
+  model_version           TEXT,
+  training_data_sources   TEXT,  -- JSON array (Art. 10 data governance)
+  intended_purpose        TEXT,
+  geographic_scope        TEXT,
+  created_at              TEXT,
+  updated_at              TEXT
+);
+
+-- EU AI Act compliance certificates
+CREATE TABLE compliance_certificates (
+  id                  SERIAL PRIMARY KEY,
+  certificate_id      TEXT UNIQUE,  -- e.g. PRAGMA-A3F9C2
+  ai_system_id        INTEGER,
+  anon_id             TEXT,
+  issued_at           TEXT,
+  valid_until         TEXT,         -- 1 year from issue
+  overall_score       REAL,
+  articles_status     TEXT,         -- JSON {art_9: "pass", art_10: "fail", ...}
+  total_evaluations   INTEGER,
+  hitl_overrides      INTEGER,
+  proxy_vars_caught   INTEGER
 );</code>
     </div>
   </section>
