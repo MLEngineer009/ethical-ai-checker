@@ -127,6 +127,39 @@ api_keys = Table(
     Column("active",      Integer, nullable=False, server_default="1"),  # 1=active
 )
 
+# ── EU AI Act Data Lineage ─────────────────────────────────────────────────────
+
+ai_systems = Table(
+    "ai_systems", _meta,
+    Column("id",                  Integer, primary_key=True, autoincrement=True),
+    Column("anon_id",             String,  nullable=False),          # owner
+    Column("system_name",         String,  nullable=False),
+    Column("company_name",        String,  nullable=False),
+    Column("risk_tier",           String,  nullable=False),          # minimal|limited|high|unacceptable
+    Column("use_case",            String,  nullable=False),
+    Column("model_version",       String,  nullable=False, server_default="unknown"),
+    Column("training_data_sources", String, nullable=False, server_default="[]"),  # JSON list
+    Column("intended_purpose",    String,  nullable=False, server_default=""),
+    Column("geographic_scope",    String,  nullable=False, server_default=""),
+    Column("created_at",          String,  nullable=False),
+    Column("updated_at",          String,  nullable=False),
+)
+
+compliance_certificates = Table(
+    "compliance_certificates", _meta,
+    Column("id",                  Integer, primary_key=True, autoincrement=True),
+    Column("certificate_id",      String,  nullable=False, unique=True),  # UUID
+    Column("ai_system_id",        Integer, nullable=False),
+    Column("anon_id",             String,  nullable=False),
+    Column("issued_at",           String,  nullable=False),
+    Column("valid_until",         String,  nullable=False),          # 1 year
+    Column("overall_score",       Float,   nullable=False),          # 0.0–1.0
+    Column("articles_status",     String,  nullable=False),          # JSON dict
+    Column("total_evaluations",   Integer, nullable=False, server_default="0"),
+    Column("hitl_overrides",      Integer, nullable=False, server_default="0"),
+    Column("proxy_vars_caught",   Integer, nullable=False, server_default="0"),
+)
+
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
@@ -569,3 +602,139 @@ def verify_api_key(raw_key: str) -> Dict[str, Any] | None:
             )
         )
     return {"anon_id": row.anon_id, "key_id": row.id}
+
+
+# ── AI System (EU AI Act Data Lineage) ────────────────────────────────────────
+
+def create_ai_system(
+    google_sub: str,
+    system_name: str,
+    company_name: str,
+    risk_tier: str,
+    use_case: str,
+    model_version: str = "unknown",
+    training_data_sources: List[str] = [],
+    intended_purpose: str = "",
+    geographic_scope: str = "",
+) -> Dict[str, Any]:
+    aid = anon_id(google_sub)
+    now = datetime.now(timezone.utc).isoformat()
+    with _engine.begin() as conn:
+        result = conn.execute(ai_systems.insert().values(
+            anon_id=aid,
+            system_name=system_name,
+            company_name=company_name,
+            risk_tier=risk_tier,
+            use_case=use_case,
+            model_version=model_version,
+            training_data_sources=json.dumps(training_data_sources),
+            intended_purpose=intended_purpose,
+            geographic_scope=geographic_scope,
+            created_at=now,
+            updated_at=now,
+        ))
+    system_id = result.inserted_primary_key[0]
+    return {"system_id": system_id, "system_name": system_name, "company_name": company_name}
+
+
+def get_ai_systems(google_sub: str) -> List[Dict]:
+    aid = anon_id(google_sub)
+    with _engine.connect() as conn:
+        rows = conn.execute(
+            ai_systems.select()
+            .where(ai_systems.c.anon_id == aid)
+            .order_by(ai_systems.c.id.desc())
+        ).fetchall()
+    return [
+        {
+            "system_id":            r.id,
+            "system_name":          r.system_name,
+            "company_name":         r.company_name,
+            "risk_tier":            r.risk_tier,
+            "use_case":             r.use_case,
+            "model_version":        r.model_version,
+            "training_data_sources": json.loads(r.training_data_sources or "[]"),
+            "intended_purpose":     r.intended_purpose,
+            "geographic_scope":     r.geographic_scope,
+            "created_at":           r.created_at,
+        }
+        for r in rows
+    ]
+
+
+def get_ai_system(system_id: int, google_sub: str) -> Dict | None:
+    aid = anon_id(google_sub)
+    with _engine.connect() as conn:
+        row = conn.execute(
+            ai_systems.select()
+            .where(ai_systems.c.id == system_id)
+            .where(ai_systems.c.anon_id == aid)
+        ).fetchone()
+    if not row:
+        return None
+    return {
+        "system_id":            row.id,
+        "system_name":          row.system_name,
+        "company_name":         row.company_name,
+        "risk_tier":            row.risk_tier,
+        "use_case":             row.use_case,
+        "model_version":        row.model_version,
+        "training_data_sources": json.loads(row.training_data_sources or "[]"),
+        "intended_purpose":     row.intended_purpose,
+        "geographic_scope":     row.geographic_scope,
+        "created_at":           row.created_at,
+    }
+
+
+def get_audit_stats_for_system(google_sub: str) -> Dict[str, Any]:
+    """Aggregate stats from audit_log used to drive the compliance checklist."""
+    aid = anon_id(google_sub)
+    with _engine.connect() as conn:
+        rows = conn.execute(
+            audit_log.select().where(audit_log.c.anon_id == aid)
+        ).fetchall()
+    if not rows:
+        return {"total": 0, "hitl_overrides": 0, "proxy_vars_caught": 0,
+                "has_regulatory_refs": False, "has_risk_flags": False, "categories": set()}
+    total = len(rows)
+    hitl = sum(1 for r in rows if r.hitl_override)
+    proxy = sum(len(json.loads(r.proxy_vars or "[]")) for r in rows)
+    has_reg = any(json.loads(r.regulatory_refs or "[]") for r in rows)
+    has_flags = any(json.loads(r.risk_flags or "[]") for r in rows)
+    cats = {r.category for r in rows}
+    return {
+        "total":              total,
+        "hitl_overrides":     hitl,
+        "proxy_vars_caught":  proxy,
+        "has_regulatory_refs": has_reg,
+        "has_risk_flags":     has_flags,
+        "categories":         list(cats),
+    }
+
+
+def save_certificate(
+    google_sub: str,
+    ai_system_id: int,
+    certificate_id: str,
+    overall_score: float,
+    articles_status: Dict,
+    total_evaluations: int,
+    hitl_overrides: int,
+    proxy_vars_caught: int,
+) -> None:
+    aid = anon_id(google_sub)
+    now = datetime.now(timezone.utc)
+    valid_until = now.replace(year=now.year + 1).isoformat()
+    with _engine.begin() as conn:
+        conn.execute(compliance_certificates.insert().values(
+            certificate_id=certificate_id,
+            ai_system_id=ai_system_id,
+            anon_id=aid,
+            issued_at=now.isoformat(),
+            valid_until=valid_until,
+            overall_score=round(overall_score, 3),
+            articles_status=json.dumps(articles_status),
+            total_evaluations=total_evaluations,
+            hitl_overrides=hitl_overrides,
+            proxy_vars_caught=proxy_vars_caught,
+        ))

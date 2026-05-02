@@ -236,6 +236,92 @@ async def get_audit_log(user: dict = Depends(get_current_user), limit: int = 50)
     return database.get_audit_log(google_sub=user["sub"], limit=limit)
 
 
+# ── EU AI Act — AI System Registration & Compliance ──────────────────────────
+
+class AISystemRequest(BaseModel):
+    system_name: str
+    company_name: str
+    risk_tier: str                          # minimal|limited|high|unacceptable
+    use_case: str
+    model_version: str = "unknown"
+    training_data_sources: List[str] = []
+    intended_purpose: str = ""
+    geographic_scope: str = ""
+
+
+VALID_RISK_TIERS = {"minimal", "limited", "high", "unacceptable"}
+
+
+@app.post("/ai-systems", dependencies=[Depends(get_current_user)])
+async def register_ai_system(request: AISystemRequest, user: dict = Depends(get_current_user)):
+    """Register an AI system for EU AI Act data lineage tracking."""
+    if not request.system_name.strip():
+        raise HTTPException(status_code=400, detail="system_name is required")
+    if not request.company_name.strip():
+        raise HTTPException(status_code=400, detail="company_name is required")
+    if request.risk_tier not in VALID_RISK_TIERS:
+        raise HTTPException(status_code=400, detail=f"risk_tier must be one of {VALID_RISK_TIERS}")
+    return database.create_ai_system(
+        google_sub=user["sub"],
+        system_name=request.system_name.strip(),
+        company_name=request.company_name.strip(),
+        risk_tier=request.risk_tier,
+        use_case=request.use_case.strip(),
+        model_version=request.model_version,
+        training_data_sources=request.training_data_sources,
+        intended_purpose=request.intended_purpose.strip(),
+        geographic_scope=request.geographic_scope.strip(),
+    )
+
+
+@app.get("/ai-systems", dependencies=[Depends(get_current_user)])
+async def list_ai_systems(user: dict = Depends(get_current_user)):
+    """List all AI systems registered by the current user."""
+    return database.get_ai_systems(google_sub=user["sub"])
+
+
+@app.get("/ai-systems/{system_id}/compliance", dependencies=[Depends(get_current_user)])
+async def get_compliance_status(system_id: int, user: dict = Depends(get_current_user)):
+    """Compute EU AI Act compliance checklist for a registered AI system."""
+    from .compliance_engine import compute_compliance
+    system = database.get_ai_system(system_id=system_id, google_sub=user["sub"])
+    if not system:
+        raise HTTPException(status_code=404, detail="AI system not found")
+    stats = database.get_audit_stats_for_system(google_sub=user["sub"])
+    return compute_compliance(system=system, stats=stats)
+
+
+@app.post("/ai-systems/{system_id}/certificate", dependencies=[Depends(get_current_user)])
+async def issue_certificate(system_id: int, user: dict = Depends(get_current_user)):
+    """Generate a PDF compliance readiness certificate for a registered AI system."""
+    from .compliance_engine import compute_compliance
+    from .compliance_certificate import generate_certificate
+    system = database.get_ai_system(system_id=system_id, google_sub=user["sub"])
+    if not system:
+        raise HTTPException(status_code=404, detail="AI system not found")
+    stats = database.get_audit_stats_for_system(google_sub=user["sub"])
+    compliance = compute_compliance(system=system, stats=stats)
+
+    certificate_id = "PRAGMA-" + secrets.token_hex(6).upper()
+    database.save_certificate(
+        google_sub=user["sub"],
+        ai_system_id=system_id,
+        certificate_id=certificate_id,
+        overall_score=compliance["overall_score"],
+        articles_status={k: v["status"] for k, v in compliance["articles"].items()},
+        total_evaluations=stats["total"],
+        hitl_overrides=stats["hitl_overrides"],
+        proxy_vars_caught=stats["proxy_vars_caught"],
+    )
+
+    pdf_bytes = generate_certificate(compliance=compliance, certificate_id=certificate_id)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="pragma-certificate-{certificate_id}.pdf"'},
+    )
+
+
 @app.post("/feedback", dependencies=[Depends(get_current_user)])
 async def submit_feedback(
     request: FeedbackRequest,
