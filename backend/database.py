@@ -131,18 +131,31 @@ api_keys = Table(
 
 ai_systems = Table(
     "ai_systems", _meta,
-    Column("id",                  Integer, primary_key=True, autoincrement=True),
-    Column("anon_id",             String,  nullable=False),          # owner
-    Column("system_name",         String,  nullable=False),
-    Column("company_name",        String,  nullable=False),
-    Column("risk_tier",           String,  nullable=False),          # minimal|limited|high|unacceptable
-    Column("use_case",            String,  nullable=False),
-    Column("model_version",       String,  nullable=False, server_default="unknown"),
-    Column("training_data_sources", String, nullable=False, server_default="[]"),  # JSON list
-    Column("intended_purpose",    String,  nullable=False, server_default=""),
-    Column("geographic_scope",    String,  nullable=False, server_default=""),
-    Column("created_at",          String,  nullable=False),
-    Column("updated_at",          String,  nullable=False),
+    # ── Core profile (Arts 10, 11) ──────────────────────────────────────────
+    Column("id",                    Integer, primary_key=True, autoincrement=True),
+    Column("anon_id",               String,  nullable=False),
+    Column("system_name",           String,  nullable=False),
+    Column("company_name",          String,  nullable=False),
+    Column("risk_tier",             String,  nullable=False),   # minimal|limited|high|unacceptable
+    Column("use_case",              String,  nullable=False),
+    Column("model_version",         String,  nullable=False, server_default="unknown"),
+    Column("training_data_sources", String,  nullable=False, server_default="[]"),  # JSON list
+    Column("intended_purpose",      String,  nullable=False, server_default=""),
+    Column("geographic_scope",      String,  nullable=False, server_default=""),
+    # ── Declarative article checks ──────────────────────────────────────────
+    Column("art4_literacy_training",    Integer, nullable=False, server_default="0"),  # bool
+    Column("art6_annex_category",       String,  nullable=False, server_default=""),   # Annex III category
+    Column("art15_accuracy_metric",     String,  nullable=False, server_default=""),   # e.g. "F1=0.94"
+    Column("art15_robustness_tested",   Integer, nullable=False, server_default="0"),  # bool
+    Column("art17_qms_documented",      Integer, nullable=False, server_default="0"),  # bool
+    Column("art25_instructions_provided", Integer, nullable=False, server_default="0"),# bool
+    Column("art25_monitoring_active",   Integer, nullable=False, server_default="0"),  # bool
+    Column("art27_fria_conducted",      Integer, nullable=False, server_default="0"),  # bool
+    Column("art30_eu_db_registered",    Integer, nullable=False, server_default="0"),  # bool
+    Column("art30_registration_number", String,  nullable=False, server_default=""),
+    Column("art33_conformity_type",     String,  nullable=False, server_default=""),   # self-assessment|third-party|pending
+    Column("created_at",               String,  nullable=False),
+    Column("updated_at",               String,  nullable=False),
 )
 
 compliance_certificates = Table(
@@ -166,12 +179,34 @@ compliance_certificates = Table(
 def init_db() -> None:
     """Create tables if they don't exist. Safe to call multiple times."""
     _meta.create_all(_engine, checkfirst=True)
-    # Migration: add category column to pre-existing request_logs tables
     insp = inspect(_engine)
+
+    # Migration: request_logs.category
     cols = [c["name"] for c in insp.get_columns("request_logs")]
     if "category" not in cols:
         with _engine.begin() as conn:
             conn.execute(text("ALTER TABLE request_logs ADD COLUMN category VARCHAR DEFAULT 'other'"))
+
+    # Migration: ai_systems declarative article columns
+    if "ai_systems" in insp.get_table_names():
+        ai_cols = {c["name"] for c in insp.get_columns("ai_systems")}
+        new_cols = [
+            ("art4_literacy_training",     "INTEGER DEFAULT 0"),
+            ("art6_annex_category",        "VARCHAR DEFAULT ''"),
+            ("art15_accuracy_metric",      "VARCHAR DEFAULT ''"),
+            ("art15_robustness_tested",    "INTEGER DEFAULT 0"),
+            ("art17_qms_documented",       "INTEGER DEFAULT 0"),
+            ("art25_instructions_provided","INTEGER DEFAULT 0"),
+            ("art25_monitoring_active",    "INTEGER DEFAULT 0"),
+            ("art27_fria_conducted",       "INTEGER DEFAULT 0"),
+            ("art30_eu_db_registered",     "INTEGER DEFAULT 0"),
+            ("art30_registration_number",  "VARCHAR DEFAULT ''"),
+            ("art33_conformity_type",      "VARCHAR DEFAULT ''"),
+        ]
+        with _engine.begin() as conn:
+            for col_name, col_def in new_cols:
+                if col_name not in ai_cols:
+                    conn.execute(text(f"ALTER TABLE ai_systems ADD COLUMN {col_name} {col_def}"))
 
 
 def add_to_waitlist(email: str) -> bool:
@@ -616,6 +651,18 @@ def create_ai_system(
     training_data_sources: List[str] = [],
     intended_purpose: str = "",
     geographic_scope: str = "",
+    # Declarative article fields
+    art4_literacy_training: bool = False,
+    art6_annex_category: str = "",
+    art15_accuracy_metric: str = "",
+    art15_robustness_tested: bool = False,
+    art17_qms_documented: bool = False,
+    art25_instructions_provided: bool = False,
+    art25_monitoring_active: bool = False,
+    art27_fria_conducted: bool = False,
+    art30_eu_db_registered: bool = False,
+    art30_registration_number: str = "",
+    art33_conformity_type: str = "",
 ) -> Dict[str, Any]:
     aid = anon_id(google_sub)
     now = datetime.now(timezone.utc).isoformat()
@@ -630,6 +677,17 @@ def create_ai_system(
             training_data_sources=json.dumps(training_data_sources),
             intended_purpose=intended_purpose,
             geographic_scope=geographic_scope,
+            art4_literacy_training=int(art4_literacy_training),
+            art6_annex_category=art6_annex_category,
+            art15_accuracy_metric=art15_accuracy_metric,
+            art15_robustness_tested=int(art15_robustness_tested),
+            art17_qms_documented=int(art17_qms_documented),
+            art25_instructions_provided=int(art25_instructions_provided),
+            art25_monitoring_active=int(art25_monitoring_active),
+            art27_fria_conducted=int(art27_fria_conducted),
+            art30_eu_db_registered=int(art30_eu_db_registered),
+            art30_registration_number=art30_registration_number,
+            art33_conformity_type=art33_conformity_type,
             created_at=now,
             updated_at=now,
         ))
@@ -682,6 +740,17 @@ def get_ai_system(system_id: int, google_sub: str) -> Dict | None:
         "training_data_sources": json.loads(row.training_data_sources or "[]"),
         "intended_purpose":     row.intended_purpose,
         "geographic_scope":     row.geographic_scope,
+        "art4_literacy_training":     bool(getattr(row, "art4_literacy_training", 0)),
+        "art6_annex_category":        getattr(row, "art6_annex_category", "") or "",
+        "art15_accuracy_metric":      getattr(row, "art15_accuracy_metric", "") or "",
+        "art15_robustness_tested":    bool(getattr(row, "art15_robustness_tested", 0)),
+        "art17_qms_documented":       bool(getattr(row, "art17_qms_documented", 0)),
+        "art25_instructions_provided":bool(getattr(row, "art25_instructions_provided", 0)),
+        "art25_monitoring_active":    bool(getattr(row, "art25_monitoring_active", 0)),
+        "art27_fria_conducted":       bool(getattr(row, "art27_fria_conducted", 0)),
+        "art30_eu_db_registered":     bool(getattr(row, "art30_eu_db_registered", 0)),
+        "art30_registration_number":  getattr(row, "art30_registration_number", "") or "",
+        "art33_conformity_type":      getattr(row, "art33_conformity_type", "") or "",
         "created_at":           row.created_at,
     }
 

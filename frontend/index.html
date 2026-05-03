@@ -943,7 +943,7 @@
 
       <nav class="sidebar-nav">
         <button class="app-tab active" onclick="switchTab('evaluate')">
-          <span class="tab-icon">⚡</span>Evaluate
+          <span class="tab-icon">🛡️</span>Risk Screen
         </button>
         <button class="app-tab" onclick="switchTab('history')">
           <span class="tab-icon">📋</span>History
@@ -955,10 +955,10 @@
           <span class="tab-icon">💬</span>Chat
         </button>
         <button class="app-tab" onclick="switchTab('audit')">
-          <span class="tab-icon">🔐</span>Audit Log
+          <span class="tab-icon">🔐</span>Audit Trail
         </button>
         <button class="app-tab" onclick="switchTab('compliance')">
-          <span class="tab-icon">🏛️</span>Compliance
+          <span class="tab-icon">🏛️</span>EU AI Act
         </button>
         <button class="app-tab" onclick="switchTab('settings')">
           <span class="tab-icon">⚙️</span>Settings
@@ -977,7 +977,7 @@
     <!-- Main content -->
     <main class="main-content">
       <div class="content-topbar">
-        <h1 class="content-title" id="pageTitle">Evaluate Decision</h1>
+        <h1 class="content-title" id="pageTitle">Risk Screen</h1>
         <div class="topbar-right">
           <span class="provider-badge" id="providerBadge" style="display:none;"></span>
         </div>
@@ -1062,55 +1062,17 @@
             </div>
 
             <div class="result-header" style="margin-bottom:14px;">
-              <h2>Compliance Report</h2>
-            </div>
-
-            <!-- Frameworks -->
-            <div class="framework-card" id="cardKantian">
-              <div class="framework-header" onclick="toggleAccordion('cardKantian')">
-                <div class="framework-label"><span class="dot"></span>Kantian Ethics</div>
-                <span class="accordion-chevron">▼</span>
+              <h2>Regulatory Risk Report</h2>
+              <div id="auditBadge" style="display:none;margin-top:6px;font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:6px;">
+                <span style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);border-radius:4px;padding:2px 8px;color:#4ade80;font-weight:600;" id="auditBadgeText"></span>
+                <span>Recorded in immutable audit trail · sha256 hashed</span>
               </div>
-              <div class="framework-body"><p id="txtKantian"></p></div>
-            </div>
-
-            <div class="framework-card" id="cardUtilitarian">
-              <div class="framework-header" onclick="toggleAccordion('cardUtilitarian')">
-                <div class="framework-label" style="color:#818cf8;"><span class="dot" style="background:#818cf8;"></span>Utilitarianism</div>
-                <span class="accordion-chevron">▼</span>
-              </div>
-              <div class="framework-body"><p id="txtUtilitarian"></p></div>
-            </div>
-
-            <div class="framework-card" id="cardVirtue">
-              <div class="framework-header" onclick="toggleAccordion('cardVirtue')">
-                <div class="framework-label" style="color:#a78bfa;"><span class="dot" style="background:#a78bfa;"></span>Virtue Ethics</div>
-                <span class="accordion-chevron">▼</span>
-              </div>
-              <div class="framework-body"><p id="txtVirtue"></p></div>
             </div>
 
             <!-- Risk flags -->
             <div class="card risk-section" id="riskSection">
-              <div class="card-title">⚠️ Risk Detection</div>
+              <div class="card-title">⚠️ Violations Detected</div>
               <div class="risk-wrap" id="riskWrap"></div>
-            </div>
-
-            <!-- Confidence -->
-            <div class="card confidence-section" id="confSection">
-              <div class="card-title">Confidence Score</div>
-              <div class="confidence-row">
-                <div class="confidence-value" id="confValue">—</div>
-                <div class="confidence-bar-bg">
-                  <div class="confidence-bar-fill" id="confBar"></div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Recommendation -->
-            <div class="card rec-section" id="recSection">
-              <div class="card-title">💡 Recommendation</div>
-              <div class="rec-text" id="txtRec"></div>
             </div>
 
             <!-- Regulatory refs -->
@@ -1121,9 +1083,26 @@
 
             <!-- Proxy Variable Detection -->
             <div class="card proxy-section" id="proxySection" style="display:none;">
-              <div class="card-title">🔍 Proxy Variable Guard — ECOA / Reg B</div>
-              <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;">These context fields correlate with protected demographics and are illegal to use as credit/fraud decision inputs under ECOA.</p>
+              <div class="card-title">🔍 ECOA Proxy Variable Guard</div>
+              <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;">These context fields are illegal proxies for protected demographics under ECOA / Regulation B. Using them in credit or hiring decisions exposes you to CFPB enforcement.</p>
               <div id="proxyList"></div>
+            </div>
+
+            <!-- Recommendation -->
+            <div class="card rec-section" id="recSection">
+              <div class="card-title">💡 Recommended Action</div>
+              <div class="rec-text" id="txtRec"></div>
+            </div>
+
+            <!-- Confidence -->
+            <div class="card confidence-section" id="confSection">
+              <div class="card-title">Risk Confidence Score</div>
+              <div class="confidence-row">
+                <div class="confidence-value" id="confValue">—</div>
+                <div class="confidence-bar-bg">
+                  <div class="confidence-bar-fill" id="confBar"></div>
+                </div>
+              </div>
             </div>
 
             <!-- HITL Override Panel -->
@@ -1135,6 +1114,31 @@
                 <textarea id="hitlReason" placeholder="Reason for override (required — e.g. 'Manual review confirmed no discrimination')…" rows="3" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;color:var(--text-primary);font-size:13px;padding:10px 12px;resize:vertical;box-sizing:border-box;font-family:inherit;"></textarea>
                 <button class="btn btn-primary" onclick="submitHITLOverride()" style="margin-top:10px;background:rgba(245,158,11,0.15);border-color:rgba(245,158,11,0.4);color:#fbbf24;" id="hitlSubmitBtn">Record Override</button>
                 <div class="error-box" id="hitlError" style="margin-top:8px;"></div>
+              </div>
+            </div>
+
+            <!-- Explainability (demoted ethical frameworks) -->
+            <div class="framework-card" id="cardExplainability" style="border-color:rgba(255,255,255,0.06);">
+              <div class="framework-header" onclick="toggleAccordion('cardExplainability')">
+                <div class="framework-label" style="color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:0.8px;">🔬 Explainability — Why was this flagged?</div>
+                <span class="accordion-chevron">▼</span>
+              </div>
+              <div class="framework-body" style="padding:0;">
+                <p style="font-size:12px;color:var(--text-muted);padding:12px 16px 0;margin:0;">Multi-framework reasoning used as supporting evidence. Not a legal determination.</p>
+                <div style="padding:12px 16px;display:flex;flex-direction:column;gap:10px;">
+                  <div>
+                    <div style="font-size:11px;font-weight:600;color:var(--text-subtle);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Kantian Ethics</div>
+                    <p id="txtKantian" style="font-size:13px;color:var(--text-muted);line-height:1.5;margin:0;"></p>
+                  </div>
+                  <div>
+                    <div style="font-size:11px;font-weight:600;color:var(--text-subtle);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Utilitarianism</div>
+                    <p id="txtUtilitarian" style="font-size:13px;color:var(--text-muted);line-height:1.5;margin:0;"></p>
+                  </div>
+                  <div>
+                    <div style="font-size:11px;font-weight:600;color:var(--text-subtle);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Virtue Ethics</div>
+                    <p id="txtVirtue" style="font-size:13px;color:var(--text-muted);line-height:1.5;margin:0;"></p>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1230,8 +1234,8 @@
         <!-- ── Audit Log tab ── -->
         <div class="tab-pane" id="tab-audit">
           <div class="card">
-            <div class="card-title">🔐 Immutable Audit Trail</div>
-            <p style="font-size:13px;color:var(--text-muted);margin-bottom:4px;">One row per evaluation — input hash only, no raw decision text stored. Proxy variables and firewall verdicts are logged per ECOA &amp; EU AI Act requirements.</p>
+            <div class="card-title">🔐 Regulatory Audit Trail</div>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:4px;">One row per evaluation — SHA-256 input hash, no raw decision text stored. Proxy variables and firewall verdicts logged per ECOA &amp; EU AI Act Art. 12 requirements. Hand this to a regulator.</p>
             <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
               <button class="btn btn-primary" style="padding:6px 14px;font-size:12px;" onclick="loadAuditLog()">🔄 Refresh</button>
               <span style="font-size:12px;color:var(--text-subtle);align-self:center;" id="auditLogCount"></span>
@@ -1247,8 +1251,8 @@
 
           <!-- Register AI System -->
           <div class="card" id="complianceRegisterCard">
-            <div class="card-title">🏛️ Register AI System — EU AI Act Data Lineage</div>
-            <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Register your AI system to generate a compliance readiness certificate covering EU AI Act Articles 9–14. This creates an auditable data lineage record.</p>
+            <div class="card-title">🏛️ Register AI System — EU AI Act Full Compliance</div>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Register your AI system for a complete 15-article EU AI Act compliance assessment covering Arts. 4, 5, 6, 9–15, 17, 25, 27, 30, and 33. Generates an auditable compliance certificate.</p>
 
             <div id="registeredSystemsList" style="margin-bottom:16px;"></div>
 
@@ -1289,10 +1293,103 @@
                   <input type="text" id="sysIntendedPurpose" placeholder="e.g. Automate initial loan eligibility screening for consumer applicants" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;color:var(--text-primary);font-size:13px;padding:9px 12px;box-sizing:border-box;">
                 </div>
                 <div style="grid-column:1/-1;">
-                  <div class="card-title" style="font-size:11px;margin-bottom:4px;">Training Data Sources <span style="color:var(--text-muted);font-weight:400;">(one per line — Art. 10 data governance)</span></div>
+                  <div class="card-title" style="font-size:11px;margin-bottom:4px;">Training Data Sources <span style="color:var(--text-muted);font-weight:400;">(one per line — Art. 10)</span></div>
                   <textarea id="sysDataSources" rows="3" placeholder="Equifax credit bureau data&#10;Internal loan history 2015–2023&#10;HMDA public dataset" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;color:var(--text-primary);font-size:13px;padding:9px 12px;box-sizing:border-box;resize:vertical;font-family:inherit;"></textarea>
                 </div>
               </div>
+
+              <!-- ── Declarative Article Declarations ── -->
+              <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--card-border);">
+                <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-subtle);margin-bottom:14px;">Compliance Declarations — Arts. 4, 6, 15, 17, 25, 27, 30, 33</div>
+
+                <!-- Art. 4 -->
+                <div style="margin-bottom:12px;">
+                  <div style="font-size:11px;font-weight:600;color:var(--accent2);margin-bottom:6px;">Article 4 — AI Literacy</div>
+                  <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:var(--text-muted);">
+                    <input type="checkbox" id="sysArt4Literacy" style="margin-top:2px;accent-color:var(--accent);">
+                    AI literacy training has been provided to all staff who operate or oversee this system
+                  </label>
+                </div>
+
+                <!-- Art. 6 -->
+                <div style="margin-bottom:12px;">
+                  <div style="font-size:11px;font-weight:600;color:var(--accent2);margin-bottom:6px;">Article 6 — Annex III Classification</div>
+                  <select id="sysArt6Annex" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;color:var(--text-primary);font-size:13px;padding:9px 12px;box-sizing:border-box;">
+                    <option value="">— Not applicable / not yet classified</option>
+                    <option value="A.1 — Biometric identification and categorisation">A.1 — Biometric identification and categorisation</option>
+                    <option value="A.2 — Critical infrastructure management">A.2 — Critical infrastructure management</option>
+                    <option value="A.3 — Education and vocational training">A.3 — Education and vocational training</option>
+                    <option value="A.4 — Employment, workforce management, and access to self-employment">A.4 — Employment / workforce management</option>
+                    <option value="A.5 — Access to essential private services and public benefits">A.5 — Access to essential services and public benefits</option>
+                    <option value="A.6 — Law enforcement">A.6 — Law enforcement</option>
+                    <option value="A.7 — Migration, asylum, and border control management">A.7 — Migration, asylum, and border control</option>
+                    <option value="A.8 — Administration of justice and democratic processes">A.8 — Administration of justice and democratic processes</option>
+                  </select>
+                </div>
+
+                <!-- Art. 15 -->
+                <div style="margin-bottom:12px;">
+                  <div style="font-size:11px;font-weight:600;color:var(--accent2);margin-bottom:6px;">Article 15 — Accuracy, Robustness & Cybersecurity</div>
+                  <input type="text" id="sysArt15Accuracy" placeholder="Accuracy metric — e.g. F1=0.94, AUC=0.91, precision=0.92" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;color:var(--text-primary);font-size:13px;padding:9px 12px;box-sizing:border-box;margin-bottom:6px;">
+                  <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:var(--text-muted);">
+                    <input type="checkbox" id="sysArt15Robustness" style="margin-top:2px;accent-color:var(--accent);">
+                    Adversarial and edge-case robustness testing has been conducted
+                  </label>
+                </div>
+
+                <!-- Art. 17 -->
+                <div style="margin-bottom:12px;">
+                  <div style="font-size:11px;font-weight:600;color:var(--accent2);margin-bottom:6px;">Article 17 — Quality Management System</div>
+                  <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:var(--text-muted);">
+                    <input type="checkbox" id="sysArt17QMS" style="margin-top:2px;accent-color:var(--accent);">
+                    A documented quality management system covering development, testing, and monitoring is in place
+                  </label>
+                </div>
+
+                <!-- Art. 25 -->
+                <div style="margin-bottom:12px;">
+                  <div style="font-size:11px;font-weight:600;color:var(--accent2);margin-bottom:6px;">Article 25 — Deployer Obligations</div>
+                  <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:var(--text-muted);margin-bottom:6px;">
+                    <input type="checkbox" id="sysArt25Instructions" style="margin-top:2px;accent-color:var(--accent);">
+                    Instructions for use have been provided to all deployers of this system
+                  </label>
+                  <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:var(--text-muted);">
+                    <input type="checkbox" id="sysArt25Monitoring" style="margin-top:2px;accent-color:var(--accent);">
+                    Post-deployment monitoring is active and reviewed regularly
+                  </label>
+                </div>
+
+                <!-- Art. 27 -->
+                <div style="margin-bottom:12px;">
+                  <div style="font-size:11px;font-weight:600;color:var(--accent2);margin-bottom:6px;">Article 27 — Fundamental Rights Impact Assessment (FRIA)</div>
+                  <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:var(--text-muted);">
+                    <input type="checkbox" id="sysArt27FRIA" style="margin-top:2px;accent-color:var(--accent);">
+                    A Fundamental Rights Impact Assessment has been completed and documented before deployment
+                  </label>
+                </div>
+
+                <!-- Art. 30 -->
+                <div style="margin-bottom:12px;">
+                  <div style="font-size:11px;font-weight:600;color:var(--accent2);margin-bottom:6px;">Article 30 — EU AI Database Registration</div>
+                  <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:var(--text-muted);margin-bottom:6px;">
+                    <input type="checkbox" id="sysArt30Registered" style="margin-top:2px;accent-color:var(--accent);">
+                    System is registered in the EU AI Act public database
+                  </label>
+                  <input type="text" id="sysArt30RegNumber" placeholder="EU registration number (if available)" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;color:var(--text-primary);font-size:13px;padding:9px 12px;box-sizing:border-box;">
+                </div>
+
+                <!-- Art. 33 -->
+                <div style="margin-bottom:4px;">
+                  <div style="font-size:11px;font-weight:600;color:var(--accent2);margin-bottom:6px;">Article 33 — Conformity Assessment</div>
+                  <select id="sysArt33Conformity" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;color:var(--text-primary);font-size:13px;padding:9px 12px;box-sizing:border-box;">
+                    <option value="">— Not yet started</option>
+                    <option value="self-assessment">Self-assessment completed (Annex VI)</option>
+                    <option value="third-party">Third-party notified body assessment completed</option>
+                    <option value="pending">In progress / pending</option>
+                  </select>
+                </div>
+              </div>
+
               <div class="error-box" id="registerSysError" style="margin-top:8px;"></div>
               <button class="btn btn-primary" onclick="registerAISystem()" style="margin-top:12px;" id="registerSysBtn">Register System</button>
             </details>
@@ -1301,7 +1398,7 @@
           <!-- Compliance Checklist -->
           <div class="card" id="complianceChecklistCard" style="display:none;">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
-              <div class="card-title" style="margin:0;">EU AI Act Compliance Assessment</div>
+              <div class="card-title" style="margin:0;">EU AI Act Full Compliance — 15 Articles</div>
               <div style="display:flex;gap:8px;">
                 <button class="btn btn-primary" style="padding:7px 14px;font-size:12px;" onclick="loadComplianceChecklist(activeSystemId)">🔄 Refresh</button>
                 <button class="btn btn-download" style="padding:7px 14px;font-size:12px;" onclick="downloadCertificate(activeSystemId)" id="certDownloadBtn">⬇ Download Certificate</button>
@@ -1666,8 +1763,9 @@
       document.getElementById('btnEvaluate').disabled = true;
       document.getElementById('providerBadge').style.display = 'none';
 
-      ['cardKantian','cardUtilitarian','cardVirtue','riskSection','confSection','recSection','dlSection'].forEach(id => {
-        document.getElementById(id).classList.remove('visible');
+      ['riskSection','confSection','recSection','regSection','proxySection','hitlSection','cardExplainability','dlSection'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('visible');
       });
 
       try {
@@ -1724,14 +1822,23 @@
     function renderResults(data) {
       renderFirewallBanner(data);
 
-      ['cardKantian','cardUtilitarian','cardVirtue'].forEach(id => {
-        document.getElementById(id).classList.remove('open');
-      });
+      // Collapse explainability section on each new result
+      document.getElementById('cardExplainability').classList.remove('open');
 
-      document.getElementById('txtKantian').textContent    = data.kantian_analysis;
+      document.getElementById('txtKantian').textContent     = data.kantian_analysis;
       document.getElementById('txtUtilitarian').textContent = data.utilitarian_analysis;
       document.getElementById('txtVirtue').textContent      = data.virtue_ethics_analysis;
       document.getElementById('txtRec').textContent         = data.recommendation;
+
+      // Audit trail badge
+      const auditBadge = document.getElementById('auditBadge');
+      const auditBadgeText = document.getElementById('auditBadgeText');
+      if (data.audit_log_id) {
+        auditBadgeText.textContent = `Audit #${data.audit_log_id}`;
+        auditBadge.style.display = 'flex';
+      } else {
+        auditBadge.style.display = 'none';
+      }
 
       // Provider badge in topbar
       const prov = data.provider || 'unknown';
@@ -1819,7 +1926,7 @@
 
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          const order = ['cardKantian','cardUtilitarian','cardVirtue','riskSection','confSection','recSection','regSection','proxySection','hitlSection','cfSection','dlSection'];
+          const order = ['riskSection','regSection','proxySection','recSection','confSection','hitlSection','cardExplainability','cfSection','dlSection'];
           order.forEach((id, i) => {
             const el = document.getElementById(id);
             if (el && el.style.display !== 'none') setTimeout(() => el.classList.add('visible'), i * 80);
@@ -2037,14 +2144,26 @@
       const sources = document.getElementById('sysDataSources').value
         .split('\n').map(s => s.trim()).filter(Boolean);
       const payload = {
-        system_name:           document.getElementById('sysName').value.trim(),
-        company_name:          document.getElementById('sysCompany').value.trim(),
-        risk_tier:             document.getElementById('sysRiskTier').value,
-        use_case:              document.getElementById('sysUseCase').value.trim(),
-        model_version:         document.getElementById('sysModelVersion').value.trim() || 'unknown',
-        training_data_sources: sources,
-        intended_purpose:      document.getElementById('sysIntendedPurpose').value.trim(),
-        geographic_scope:      document.getElementById('sysGeoScope').value.trim(),
+        system_name:                document.getElementById('sysName').value.trim(),
+        company_name:               document.getElementById('sysCompany').value.trim(),
+        risk_tier:                  document.getElementById('sysRiskTier').value,
+        use_case:                   document.getElementById('sysUseCase').value.trim(),
+        model_version:              document.getElementById('sysModelVersion').value.trim() || 'unknown',
+        training_data_sources:      sources,
+        intended_purpose:           document.getElementById('sysIntendedPurpose').value.trim(),
+        geographic_scope:           document.getElementById('sysGeoScope').value.trim(),
+        // Declarative article declarations
+        art4_literacy_training:     document.getElementById('sysArt4Literacy').checked,
+        art6_annex_category:        document.getElementById('sysArt6Annex').value,
+        art15_accuracy_metric:      document.getElementById('sysArt15Accuracy').value.trim(),
+        art15_robustness_tested:    document.getElementById('sysArt15Robustness').checked,
+        art17_qms_documented:       document.getElementById('sysArt17QMS').checked,
+        art25_instructions_provided:document.getElementById('sysArt25Instructions').checked,
+        art25_monitoring_active:    document.getElementById('sysArt25Monitoring').checked,
+        art27_fria_conducted:       document.getElementById('sysArt27FRIA').checked,
+        art30_eu_db_registered:     document.getElementById('sysArt30Registered').checked,
+        art30_registration_number:  document.getElementById('sysArt30RegNumber').value.trim(),
+        art33_conformity_type:      document.getElementById('sysArt33Conformity').value,
       };
       if (!payload.system_name || !payload.company_name || !payload.use_case) {
         errEl.textContent = 'System name, company name, and use case are required.';
@@ -2087,7 +2206,7 @@
     }
 
     // ── Tab switching ──────────────────────────────────────────────────────
-    const PAGE_TITLES = { evaluate: 'Evaluate Decision', history: 'Decision History', batch: 'Batch Evaluation', chat: 'AI Chat', audit: 'Audit Log', compliance: 'EU AI Act Compliance', settings: 'Settings' };
+    const PAGE_TITLES = { evaluate: 'Risk Screen', history: 'Decision History', batch: 'Batch Evaluation', chat: 'AI Chat', audit: 'Regulatory Audit Trail', compliance: 'EU AI Act Readiness', settings: 'Settings' };
 
     function switchTab(name) {
       document.querySelectorAll('.app-tab').forEach((t,i) => {

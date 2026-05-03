@@ -24,6 +24,22 @@ SYSTEM_PAYLOAD = {
     "geographic_scope": "EU",
 }
 
+# All declarative article fields set to passing values (15-article framework)
+FULL_COMPLIANCE_PAYLOAD = {
+    **SYSTEM_PAYLOAD,
+    "art4_literacy_training": True,
+    "art6_annex_category": "A.5 — Access to and enjoyment of essential private services and public services and benefits",
+    "art15_accuracy_metric": "F1=0.94",
+    "art15_robustness_tested": True,
+    "art17_qms_documented": True,
+    "art25_instructions_provided": True,
+    "art25_monitoring_active": True,
+    "art27_fria_conducted": True,
+    "art30_eu_db_registered": True,
+    "art30_registration_number": "EU-2026-001",
+    "art33_conformity_type": "self-assessment",
+}
+
 
 # ── AI System Registration ────────────────────────────────────────────────────
 
@@ -82,12 +98,11 @@ class TestComplianceChecklist:
         assert r.status_code == 200
         data = r.json()
         assert "articles" in data
-        assert "art_9" in data["articles"]
-        assert "art_10" in data["articles"]
-        assert "art_11" in data["articles"]
-        assert "art_12" in data["articles"]
-        assert "art_13" in data["articles"]
-        assert "art_14" in data["articles"]
+        # All 15 articles must be present
+        for key in ["art_4", "art_5", "art_6", "art_9", "art_10", "art_11",
+                    "art_12", "art_13", "art_14", "art_15", "art_17",
+                    "art_25", "art_27", "art_30", "art_33"]:
+            assert key in data["articles"], f"Missing article: {key}"
 
     def test_compliance_overall_score_range(self, isolated_db):
         headers = auth_headers(client)
@@ -147,13 +162,167 @@ class TestComplianceChecklist:
         assert result["articles"]["art_14"]["status"] == "partial"
 
     def test_full_compliance_high_score(self):
-        system = {**SYSTEM_PAYLOAD, "system_id": 1,
-                  "intended_purpose": "Screening", "geographic_scope": "EU"}
+        system = {
+            **FULL_COMPLIANCE_PAYLOAD,
+            "system_id": 1,
+        }
         stats = {"total": 15, "hitl_overrides": 3, "proxy_vars_caught": 2,
                  "has_regulatory_refs": True, "has_risk_flags": True, "categories": ["finance"]}
         result = compute_compliance(system, stats)
         assert result["overall_score"] >= 0.75
         assert result["verdict"] in ("ready", "partial")
+
+    # ── Art. 4 ────────────────────────────────────────────────────────────────
+
+    def test_art4_passes_with_literacy_training(self):
+        system = {**SYSTEM_PAYLOAD, "system_id": 1, "art4_literacy_training": True}
+        stats = {"total": 0, "hitl_overrides": 0, "proxy_vars_caught": 0,
+                 "has_regulatory_refs": False, "has_risk_flags": False, "categories": []}
+        result = compute_compliance(system, stats)
+        assert result["articles"]["art_4"]["status"] == "pass"
+
+    def test_art4_fails_without_literacy_training(self):
+        system = {**SYSTEM_PAYLOAD, "system_id": 1, "art4_literacy_training": False}
+        stats = {"total": 0, "hitl_overrides": 0, "proxy_vars_caught": 0,
+                 "has_regulatory_refs": False, "has_risk_flags": False, "categories": []}
+        result = compute_compliance(system, stats)
+        assert result["articles"]["art_4"]["status"] == "fail"
+
+    # ── Art. 5 ────────────────────────────────────────────────────────────────
+
+    def test_art5_passes_for_legitimate_use_case(self):
+        system = {**SYSTEM_PAYLOAD, "system_id": 1,
+                  "use_case": "Credit scoring for personal loans",
+                  "intended_purpose": "Automate initial loan eligibility screening"}
+        stats = {"total": 0, "hitl_overrides": 0, "proxy_vars_caught": 0,
+                 "has_regulatory_refs": False, "has_risk_flags": False, "categories": []}
+        result = compute_compliance(system, stats)
+        assert result["articles"]["art_5"]["status"] == "pass"
+
+    def test_art5_prohibits_social_scoring(self):
+        system = {**SYSTEM_PAYLOAD, "system_id": 1,
+                  "use_case": "Social scoring system for citizens",
+                  "intended_purpose": "Rank citizens by behavior for public authorities"}
+        stats = {"total": 0, "hitl_overrides": 0, "proxy_vars_caught": 0,
+                 "has_regulatory_refs": False, "has_risk_flags": False, "categories": []}
+        result = compute_compliance(system, stats)
+        assert result["articles"]["art_5"]["status"] == "fail"
+        assert result["verdict"] == "prohibited"
+
+    def test_art5_prohibits_emotion_recognition(self):
+        system = {**SYSTEM_PAYLOAD, "system_id": 1,
+                  "use_case": "Emotion recognition for workplace monitoring",
+                  "intended_purpose": "Monitor employee emotions during working hours"}
+        stats = {"total": 0, "hitl_overrides": 0, "proxy_vars_caught": 0,
+                 "has_regulatory_refs": False, "has_risk_flags": False, "categories": []}
+        result = compute_compliance(system, stats)
+        assert result["articles"]["art_5"]["status"] == "fail"
+        assert result["verdict"] == "prohibited"
+
+    def test_art5_prohibits_real_time_biometric(self):
+        system = {**SYSTEM_PAYLOAD, "system_id": 1,
+                  "use_case": "Real-time biometric identification in public spaces",
+                  "intended_purpose": "Identify individuals in crowds"}
+        stats = {"total": 0, "hitl_overrides": 0, "proxy_vars_caught": 0,
+                 "has_regulatory_refs": False, "has_risk_flags": False, "categories": []}
+        result = compute_compliance(system, stats)
+        assert result["articles"]["art_5"]["status"] == "fail"
+        assert result["verdict"] == "prohibited"
+
+    # ── Art. 6 ────────────────────────────────────────────────────────────────
+
+    def test_art6_passes_with_annex_category(self):
+        system = {**SYSTEM_PAYLOAD, "system_id": 1,
+                  "art6_annex_category": "A.5 — Access to and enjoyment of essential private services and public services and benefits"}
+        stats = {"total": 0, "hitl_overrides": 0, "proxy_vars_caught": 0,
+                 "has_regulatory_refs": False, "has_risk_flags": False, "categories": []}
+        result = compute_compliance(system, stats)
+        assert result["articles"]["art_6"]["status"] == "pass"
+
+    def test_art6_partial_without_annex_category(self):
+        system = {**SYSTEM_PAYLOAD, "system_id": 1, "art6_annex_category": ""}
+        stats = {"total": 0, "hitl_overrides": 0, "proxy_vars_caught": 0,
+                 "has_regulatory_refs": False, "has_risk_flags": False, "categories": []}
+        result = compute_compliance(system, stats)
+        assert result["articles"]["art_6"]["status"] == "partial"
+
+    # ── Art. 15 ───────────────────────────────────────────────────────────────
+
+    def test_art15_passes_with_metric_and_robustness(self):
+        system = {**SYSTEM_PAYLOAD, "system_id": 1,
+                  "art15_accuracy_metric": "F1=0.94", "art15_robustness_tested": True}
+        stats = {"total": 0, "hitl_overrides": 0, "proxy_vars_caught": 0,
+                 "has_regulatory_refs": False, "has_risk_flags": False, "categories": []}
+        result = compute_compliance(system, stats)
+        assert result["articles"]["art_15"]["status"] == "pass"
+
+    def test_art15_partial_with_metric_no_robustness(self):
+        system = {**SYSTEM_PAYLOAD, "system_id": 1,
+                  "art15_accuracy_metric": "Accuracy=0.91", "art15_robustness_tested": False}
+        stats = {"total": 0, "hitl_overrides": 0, "proxy_vars_caught": 0,
+                 "has_regulatory_refs": False, "has_risk_flags": False, "categories": []}
+        result = compute_compliance(system, stats)
+        assert result["articles"]["art_15"]["status"] == "partial"
+
+    def test_art15_fails_without_metric(self):
+        system = {**SYSTEM_PAYLOAD, "system_id": 1,
+                  "art15_accuracy_metric": "", "art15_robustness_tested": False}
+        stats = {"total": 0, "hitl_overrides": 0, "proxy_vars_caught": 0,
+                 "has_regulatory_refs": False, "has_risk_flags": False, "categories": []}
+        result = compute_compliance(system, stats)
+        assert result["articles"]["art_15"]["status"] == "fail"
+
+    # ── Art. 17 ───────────────────────────────────────────────────────────────
+
+    def test_art17_passes_with_qms(self):
+        system = {**SYSTEM_PAYLOAD, "system_id": 1, "art17_qms_documented": True}
+        stats = {"total": 0, "hitl_overrides": 0, "proxy_vars_caught": 0,
+                 "has_regulatory_refs": False, "has_risk_flags": False, "categories": []}
+        result = compute_compliance(system, stats)
+        assert result["articles"]["art_17"]["status"] == "pass"
+
+    # ── Art. 27 ───────────────────────────────────────────────────────────────
+
+    def test_art27_passes_with_fria(self):
+        system = {**SYSTEM_PAYLOAD, "system_id": 1, "art27_fria_conducted": True}
+        stats = {"total": 0, "hitl_overrides": 0, "proxy_vars_caught": 0,
+                 "has_regulatory_refs": False, "has_risk_flags": False, "categories": []}
+        result = compute_compliance(system, stats)
+        assert result["articles"]["art_27"]["status"] == "pass"
+
+    # ── Art. 30 ───────────────────────────────────────────────────────────────
+
+    def test_art30_passes_with_registration(self):
+        system = {**SYSTEM_PAYLOAD, "system_id": 1,
+                  "art30_eu_db_registered": True, "art30_registration_number": "EU-2026-001"}
+        stats = {"total": 0, "hitl_overrides": 0, "proxy_vars_caught": 0,
+                 "has_regulatory_refs": False, "has_risk_flags": False, "categories": []}
+        result = compute_compliance(system, stats)
+        assert result["articles"]["art_30"]["status"] == "pass"
+
+    def test_art30_partial_registered_no_number(self):
+        system = {**SYSTEM_PAYLOAD, "system_id": 1,
+                  "art30_eu_db_registered": True, "art30_registration_number": ""}
+        stats = {"total": 0, "hitl_overrides": 0, "proxy_vars_caught": 0,
+                 "has_regulatory_refs": False, "has_risk_flags": False, "categories": []}
+        result = compute_compliance(system, stats)
+        assert result["articles"]["art_30"]["status"] == "partial"
+
+    # ── Art. 33 ───────────────────────────────────────────────────────────────
+
+    def test_art33_passes_with_conformity_type(self):
+        system = {**SYSTEM_PAYLOAD, "system_id": 1, "art33_conformity_type": "third-party"}
+        stats = {"total": 0, "hitl_overrides": 0, "proxy_vars_caught": 0,
+                 "has_regulatory_refs": False, "has_risk_flags": False, "categories": []}
+        result = compute_compliance(system, stats)
+        assert result["articles"]["art_33"]["status"] == "pass"
+
+    def test_art33_partial_with_pending(self):
+        system = {**SYSTEM_PAYLOAD, "system_id": 1, "art33_conformity_type": "pending"}
+        stats = {"total": 0, "hitl_overrides": 0, "proxy_vars_caught": 0,
+                 "has_regulatory_refs": False, "has_risk_flags": False, "categories": []}
+        result = compute_compliance(system, stats)
+        assert result["articles"]["art_33"]["status"] == "partial"
 
 
 # ── Certificate Generation ────────────────────────────────────────────────────

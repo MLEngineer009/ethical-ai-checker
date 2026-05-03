@@ -239,6 +239,7 @@ async def get_audit_log(user: dict = Depends(get_current_user), limit: int = 50)
 # ── EU AI Act — AI System Registration & Compliance ──────────────────────────
 
 class AISystemRequest(BaseModel):
+    # Core profile
     system_name: str
     company_name: str
     risk_tier: str                          # minimal|limited|high|unacceptable
@@ -247,9 +248,22 @@ class AISystemRequest(BaseModel):
     training_data_sources: List[str] = []
     intended_purpose: str = ""
     geographic_scope: str = ""
+    # Declarative article fields
+    art4_literacy_training: bool = False
+    art6_annex_category: str = ""
+    art15_accuracy_metric: str = ""
+    art15_robustness_tested: bool = False
+    art17_qms_documented: bool = False
+    art25_instructions_provided: bool = False
+    art25_monitoring_active: bool = False
+    art27_fria_conducted: bool = False
+    art30_eu_db_registered: bool = False
+    art30_registration_number: str = ""
+    art33_conformity_type: str = ""         # self-assessment|third-party|pending
 
 
 VALID_RISK_TIERS = {"minimal", "limited", "high", "unacceptable"}
+VALID_CONFORMITY_TYPES = {"self-assessment", "third-party", "pending", ""}
 
 
 @app.post("/ai-systems", dependencies=[Depends(get_current_user)])
@@ -261,6 +275,8 @@ async def register_ai_system(request: AISystemRequest, user: dict = Depends(get_
         raise HTTPException(status_code=400, detail="company_name is required")
     if request.risk_tier not in VALID_RISK_TIERS:
         raise HTTPException(status_code=400, detail=f"risk_tier must be one of {VALID_RISK_TIERS}")
+    if request.art33_conformity_type not in VALID_CONFORMITY_TYPES:
+        raise HTTPException(status_code=400, detail=f"art33_conformity_type must be one of {VALID_CONFORMITY_TYPES}")
     return database.create_ai_system(
         google_sub=user["sub"],
         system_name=request.system_name.strip(),
@@ -271,6 +287,17 @@ async def register_ai_system(request: AISystemRequest, user: dict = Depends(get_
         training_data_sources=request.training_data_sources,
         intended_purpose=request.intended_purpose.strip(),
         geographic_scope=request.geographic_scope.strip(),
+        art4_literacy_training=request.art4_literacy_training,
+        art6_annex_category=request.art6_annex_category.strip(),
+        art15_accuracy_metric=request.art15_accuracy_metric.strip(),
+        art15_robustness_tested=request.art15_robustness_tested,
+        art17_qms_documented=request.art17_qms_documented,
+        art25_instructions_provided=request.art25_instructions_provided,
+        art25_monitoring_active=request.art25_monitoring_active,
+        art27_fria_conducted=request.art27_fria_conducted,
+        art30_eu_db_registered=request.art30_eu_db_registered,
+        art30_registration_number=request.art30_registration_number.strip(),
+        art33_conformity_type=request.art33_conformity_type.strip(),
     )
 
 
