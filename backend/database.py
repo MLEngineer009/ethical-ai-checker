@@ -11,10 +11,13 @@ Tables:
 
 import hashlib
 import json
+import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
+
+logger = logging.getLogger(__name__)
 
 from sqlalchemy import (
     Column, Float, Integer, String,
@@ -27,11 +30,15 @@ def _make_url() -> str:
     url = os.getenv("DATABASE_URL", "")
     if url:
         # Railway uses postgres:// — SQLAlchemy 2.x requires postgresql://
-        return url.replace("postgres://", "postgresql://", 1)
+        url = url.replace("postgres://", "postgresql://", 1)
+        logger.info("Database: PostgreSQL (Railway)")
+        return url
     # Local dev / tests: SQLite file
     data_dir = Path(os.getenv("DATA_DIR", str(Path(__file__).parent.parent / "data")))
     data_dir.mkdir(exist_ok=True)
-    return f"sqlite:///{data_dir}/metadata.db"
+    db_path = data_dir / "metadata.db"
+    logger.info("Database: SQLite — %s", db_path)
+    return f"sqlite:///{db_path}"
 
 
 _engine = create_engine(_make_url(), pool_pre_ping=True)
@@ -184,6 +191,7 @@ def init_db() -> None:
     # Migration: request_logs.category
     cols = [c["name"] for c in insp.get_columns("request_logs")]
     if "category" not in cols:
+        logger.info("Migration: adding request_logs.category column")
         with _engine.begin() as conn:
             conn.execute(text("ALTER TABLE request_logs ADD COLUMN category VARCHAR DEFAULT 'other'"))
 
@@ -206,7 +214,9 @@ def init_db() -> None:
         with _engine.begin() as conn:
             for col_name, col_def in new_cols:
                 if col_name not in ai_cols:
+                    logger.info("Migration: adding ai_systems.%s column", col_name)
                     conn.execute(text(f"ALTER TABLE ai_systems ADD COLUMN {col_name} {col_def}"))
+    logger.info("Database schema up to date")
 
 
 def add_to_waitlist(email: str) -> bool:
@@ -220,8 +230,10 @@ def add_to_waitlist(email: str) -> bool:
                 email     = email.lower().strip(),
                 timestamp = datetime.now(timezone.utc).isoformat(),
             ))
+        logger.info("Waitlist signup — email=%s", email.split("@")[0] + "@…")
         return True
     except Exception:
+        logger.debug("Waitlist duplicate — email already registered")
         return False  # unique constraint violation = already signed up
 
 
@@ -260,23 +272,29 @@ def log_audit(
     input_hash = hashlib.sha256(
         f"{decision}:{json.dumps(context, sort_keys=True)}".encode()
     ).hexdigest()
-    with _engine.begin() as conn:
-        result = conn.execute(audit_log.insert().values(
-            anon_id         = anon_id(google_sub),
-            timestamp       = datetime.now(timezone.utc).isoformat(),
-            input_hash      = input_hash,
-            decision_words  = len(decision.split()),
-            category        = category,
-            firewall_action = firewall_action,
-            confidence      = round(confidence, 3),
-            risk_flags      = json.dumps(sorted(risk_flags)),
-            proxy_vars      = json.dumps(proxy_vars),
-            regulatory_refs = json.dumps([r.get("law", "") for r in regulatory_refs]),
-            provider        = provider,
-            model_version   = model_version,
-            hitl_override   = 0,
-        ))
-        return result.inserted_primary_key[0]
+    try:
+        with _engine.begin() as conn:
+            result = conn.execute(audit_log.insert().values(
+                anon_id         = anon_id(google_sub),
+                timestamp       = datetime.now(timezone.utc).isoformat(),
+                input_hash      = input_hash,
+                decision_words  = len(decision.split()),
+                category        = category,
+                firewall_action = firewall_action,
+                confidence      = round(confidence, 3),
+                risk_flags      = json.dumps(sorted(risk_flags)),
+                proxy_vars      = json.dumps(proxy_vars),
+                regulatory_refs = json.dumps([r.get("law", "") for r in regulatory_refs]),
+                provider        = provider,
+                model_version   = model_version,
+                hitl_override   = 0,
+            ))
+            row_id = result.inserted_primary_key[0]
+        logger.debug("Audit log entry created — id=%d action=%s", row_id, firewall_action)
+        return row_id
+    except Exception:
+        logger.exception("Failed to write audit log entry — action=%s category=%s", firewall_action, category)
+        raise
 
 
 def log_hitl_override(
@@ -507,8 +525,10 @@ def join_org(org_id: int, google_sub: str) -> bool:
                 org_id=org_id, anon_id=aid, role="member",
                 joined_at=datetime.now(timezone.utc).isoformat(),
             ))
+        logger.info("User joined org — org_id=%d", org_id)
         return True
     except Exception:
+        logger.exception("Failed to add member to org — org_id=%d", org_id)
         return False
 
 
@@ -692,6 +712,7 @@ def create_ai_system(
             updated_at=now,
         ))
     system_id = result.inserted_primary_key[0]
+    logger.info("AI system created — id=%d name=%r risk_tier=%s", system_id, system_name, risk_tier)
     return {"system_id": system_id, "system_name": system_name, "company_name": company_name}
 
 

@@ -19,7 +19,10 @@ Articles covered:
   Art. 33 — Conformity assessment
 """
 
+import logging
 from typing import Any, Dict, List
+
+logger = logging.getLogger(__name__)
 
 # ── Prohibited use-case patterns (Art. 5) ─────────────────────────────────────
 
@@ -96,6 +99,10 @@ def _check_art5(system: Dict, stats: Dict) -> Dict:
     # Screen use case text for prohibited patterns
     hits = _check_prohibited(use_case, _PROHIBITED_PATTERNS)
     if hits:
+        logger.warning(
+            "Art. 5 PROHIBITED — system=%r hits=%s",
+            system.get("system_name", "unknown"), hits,
+        )
         return {
             "title": "Article 5 — Prohibited AI Practices",
             "description": "Certain AI practices are prohibited outright regardless of safeguards.",
@@ -361,7 +368,14 @@ def compute_compliance(system: Dict, stats: Dict) -> Dict[str, Any]:
     Compute the full EU AI Act compliance checklist (15 articles) for a
     registered AI system. Returns per-article status plus overall score.
     """
-    checks = {key: fn(system, stats) for key, fn in _CHECKERS}
+    try:
+        checks = {key: fn(system, stats) for key, fn in _CHECKERS}
+    except Exception:
+        logger.exception(
+            "Compliance check failed — system_id=%s name=%r",
+            system.get("system_id"), system.get("system_name"),
+        )
+        raise
 
     statuses = [c["status"] for c in checks.values()]
     passes   = statuses.count("pass")
@@ -382,6 +396,11 @@ def compute_compliance(system: Dict, stats: Dict) -> Dict[str, Any]:
     # Art. 5 fail always overrides the verdict — prohibited system cannot be certified
     if checks["art_5"]["status"] == "fail":
         verdict, verdict_label = "prohibited", "PROHIBITED — Cannot be deployed in the EU"
+
+    logger.info(
+        "Compliance computed — system=%r score=%.3f verdict=%s passes=%d partials=%d fails=%d",
+        system.get("system_name"), score, verdict, passes, partials, fails,
+    )
 
     risk_tier = system.get("risk_tier", "unknown")
     return {

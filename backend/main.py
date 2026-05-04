@@ -2,6 +2,7 @@
 
 import csv
 import io
+import logging
 import os
 import secrets
 from typing import Any, Dict, List, Optional
@@ -26,11 +27,21 @@ from . import auth
 from . import database
 from . import questions as questions_module
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s — %(message)s",
+    datefmt="%Y-%m-%dT%H:%M:%S",
+)
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(*_):
+    logger.info("Pragma API starting — initialising database")
     database.init_db()
+    logger.info("Database ready")
     yield
+    logger.info("Pragma API shutting down")
 
 
 # Initialize FastAPI app
@@ -128,8 +139,10 @@ async def google_auth(req: GoogleAuthRequest):
     """Verify Google ID token and return a session token."""
     user_info = auth.verify_google_token(req.credential)
     if not user_info:
+        logger.warning("Google auth failed — invalid credential")
         raise HTTPException(status_code=401, detail="Invalid Google credential")
     token = auth.create_session(user_info)
+    logger.info("Google auth success — user=%s", user_info.get("name", "unknown"))
     return {
         "token":   token,
         "name":    user_info["name"],
@@ -141,6 +154,7 @@ async def google_auth(req: GoogleAuthRequest):
 async def guest_auth():
     """Create a temporary guest session — no sign-in required."""
     token, user_info = auth.create_guest_session()
+    logger.info("Guest session created — name=%s", user_info.get("name", "guest"))
     return {"token": token, "name": user_info["name"], "picture": "", "is_guest": True}
 
 
@@ -182,6 +196,20 @@ async def evaluate_decision(
 
     from .risk_detector import get_proxy_variable_report
     proxy_report = get_proxy_variable_report(request.context)
+
+    action = analysis["firewall_action"]
+    if action == "block":
+        logger.warning(
+            "Firewall BLOCK — category=%s confidence=%.2f flags=%s",
+            category, analysis["confidence_score"], analysis["risk_flags"],
+        )
+    elif action == "override_required":
+        logger.info(
+            "Firewall OVERRIDE_REQUIRED — category=%s confidence=%.2f flags=%s",
+            category, analysis["confidence_score"], analysis["risk_flags"],
+        )
+    else:
+        logger.info("Firewall ALLOW — category=%s confidence=%.2f", category, analysis["confidence_score"])
 
     database.log_request(
         google_sub=user["sub"],
@@ -227,6 +255,7 @@ async def hitl_override(request: HITLOverrideRequest, user: dict = Depends(get_c
         investigator_sub=user["sub"],
         reason=request.reason,
     )
+    logger.info("HITL override recorded — audit_log_id=%d", request.audit_log_id)
     return {"recorded": True, "audit_log_id": request.audit_log_id}
 
 
@@ -277,6 +306,10 @@ async def register_ai_system(request: AISystemRequest, user: dict = Depends(get_
         raise HTTPException(status_code=400, detail=f"risk_tier must be one of {VALID_RISK_TIERS}")
     if request.art33_conformity_type not in VALID_CONFORMITY_TYPES:
         raise HTTPException(status_code=400, detail=f"art33_conformity_type must be one of {VALID_CONFORMITY_TYPES}")
+    logger.info(
+        "AI system registration — name=%r company=%r risk_tier=%s",
+        request.system_name, request.company_name, request.risk_tier,
+    )
     return database.create_ai_system(
         google_sub=user["sub"],
         system_name=request.system_name.strip(),
@@ -329,6 +362,16 @@ async def issue_certificate(system_id: int, user: dict = Depends(get_current_use
     stats = database.get_audit_stats_for_system(google_sub=user["sub"])
     compliance = compute_compliance(system=system, stats=stats)
 
+    verdict = compliance["verdict"]
+    logger.info(
+        "Certificate request — system_id=%d name=%r score=%.3f verdict=%s",
+        system_id, system["system_name"], compliance["overall_score"], verdict,
+    )
+    if verdict == "prohibited":
+        logger.warning(
+            "Certificate DENIED — system_id=%d is prohibited under EU AI Act Art. 5", system_id
+        )
+
     certificate_id = "PRAGMA-" + secrets.token_hex(6).upper()
     database.save_certificate(
         google_sub=user["sub"],
@@ -341,7 +384,12 @@ async def issue_certificate(system_id: int, user: dict = Depends(get_current_use
         proxy_vars_caught=stats["proxy_vars_caught"],
     )
 
-    pdf_bytes = generate_certificate(compliance=compliance, certificate_id=certificate_id)
+    try:
+        pdf_bytes = generate_certificate(compliance=compliance, certificate_id=certificate_id)
+    except Exception:
+        logger.exception("Certificate PDF generation failed — system_id=%d cert=%s", system_id, certificate_id)
+        raise HTTPException(status_code=500, detail="Certificate generation failed")
+    logger.info("Certificate issued — id=%s system_id=%d", certificate_id, system_id)
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
@@ -383,8 +431,9 @@ async def generate_report(request: ReportRequest) -> Response:
             media_type="application/pdf",
             headers={"Content-Disposition": "attachment; filename=ethical-analysis-report.pdf"},
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Report generation failed: {str(e)}")
+    except Exception:
+        logger.exception("PDF report generation failed")
+        raise HTTPException(status_code=500, detail="Report generation failed")
 
 
 # ── Public endpoints ──────────────────────────────────────────────────────────
@@ -489,12 +538,14 @@ async def evaluate_batch(
         reader = csv.DictReader(io.StringIO(text))
         rows = list(reader)
     except Exception:
+        logger.warning("Batch upload rejected — invalid CSV from user=%s", user["sub"][:8])
         raise HTTPException(status_code=400, detail="Invalid CSV file")
 
     if not rows:
         raise HTTPException(status_code=400, detail="CSV is empty")
     if len(rows) > 100:
         raise HTTPException(status_code=400, detail="Batch limit is 100 rows")
+    logger.info("Batch evaluation started — rows=%d user=%s", len(rows), user["sub"][:8])
 
     RESERVED = {"decision", "category"}
     results = []
@@ -525,7 +576,8 @@ async def evaluate_batch(
                 "error":            "",
             })
         except Exception as e:
-            results.append({**row, "error": str(e), "risk_flags": "",
+            logger.error("Batch row evaluation failed — decision=%r error=%s", decision[:60], e)
+            results.append({**row, "error": "evaluation error", "risk_flags": "",
                             "confidence_score": "", "recommendation": "", "regulatory_refs": ""})
 
     # Build output CSV
