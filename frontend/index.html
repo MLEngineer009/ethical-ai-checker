@@ -733,47 +733,6 @@
       color: var(--text-subtle); margin-bottom: 8px; margin-top: 20px;
     }
 
-    /* ── Chat tab ── */
-    .chat-cat { background: transparent; border: 1px solid var(--input-border); border-radius: 20px; color: var(--text-muted); font-size: 12px; font-weight: 500; font-family: inherit; padding: 4px 12px; cursor: pointer; transition: all 0.15s; }
-    .chat-cat.active, .chat-cat:hover { background: rgba(99,102,241,0.12); border-color: var(--accent); color: var(--accent2); }
-    .chat-messages { flex: 1; overflow-y: auto; padding: 20px 20px 8px; display: flex; flex-direction: column; gap: 14px; }
-    .chat-intro { text-align: center; margin: auto; max-width: 420px; padding: 20px 0; }
-    .chat-intro-icon { font-size: 36px; margin-bottom: 10px; }
-    .chat-intro-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
-    .chat-intro-sub { font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 18px; }
-    .chat-scenarios { display: flex; flex-direction: column; gap: 6px; text-align: left; }
-    .chat-scenario-label { font-size: 11px; font-weight: 600; color: var(--text-subtle); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-    .chat-scenario-btn { background: var(--input-bg); border: 1px solid var(--input-border); border-radius: 8px; color: var(--text-muted); font-size: 13px; font-family: inherit; padding: 8px 12px; cursor: pointer; text-align: left; transition: all 0.15s; }
-    .chat-scenario-btn:hover { border-color: var(--accent); color: var(--text); }
-    .chat-bubble-row { display: flex; gap: 10px; align-items: flex-start; }
-    .chat-bubble-row.user { flex-direction: row-reverse; }
-    .chat-avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; margin-top: 2px; }
-    .chat-avatar.ai { background: rgba(99,102,241,0.15); }
-    .chat-avatar.user { background: rgba(34,197,94,0.12); }
-    .chat-bubble { max-width: 75%; }
-    .chat-bubble-row.user .chat-bubble { align-items: flex-end; }
-    .chat-bubble-text { background: var(--input-bg); border: 1px solid var(--input-border); border-radius: 12px; padding: 10px 14px; font-size: 14px; color: var(--text); line-height: 1.5; }
-    .chat-bubble-row.user .chat-bubble-text { background: rgba(99,102,241,0.1); border-color: rgba(99,102,241,0.25); }
-    .chat-firewall-badge { display: flex; align-items: center; gap: 6px; margin-top: 6px; padding: 6px 10px; border-radius: 8px; font-size: 12px; font-weight: 600; }
-    .chat-firewall-badge.blocked { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); color: #fca5a5; }
-    .chat-firewall-badge.flagged { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2); color: #fcd34d; }
-    .chat-firewall-badge.allowed { background: rgba(34,197,94,0.06); border: 1px solid rgba(34,197,94,0.15); color: #4ade80; }
-    .chat-flags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
-    .chat-flag-pill { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.15); border-radius: 4px; color: #fca5a5; font-size: 11px; padding: 2px 7px; }
-    .chat-rec { font-size: 12px; color: var(--text-muted); margin-top: 6px; line-height: 1.4; }
-    .chat-typing { display: flex; align-items: center; gap: 6px; color: var(--text-subtle); font-size: 13px; }
-    .chat-typing-dots { display: flex; gap: 3px; }
-    .chat-typing-dots span { width: 5px; height: 5px; background: var(--text-subtle); border-radius: 50%; animation: typingDot 1.2s ease-in-out infinite; }
-    .chat-typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-    .chat-typing-dots span:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes typingDot { 0%,60%,100% { opacity: 0.2; } 30% { opacity: 1; } }
-    .chat-input-row { padding: 12px 16px; border-top: 1px solid var(--input-border); display: flex; gap: 10px; align-items: flex-end; }
-    .chat-input { flex: 1; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: 10px; color: var(--text); font-size: 14px; font-family: inherit; padding: 10px 14px; resize: none; outline: none; max-height: 120px; overflow-y: auto; transition: border-color 0.15s; }
-    .chat-input:focus { border-color: var(--accent); }
-    .chat-send-btn { background: var(--accent); color: #fff; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; font-family: inherit; padding: 10px 18px; cursor: pointer; white-space: nowrap; transition: background 0.15s; }
-    .chat-send-btn:hover { background: var(--accent-hover); }
-    .chat-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
     @media (max-width: 768px) {
       .sidebar { display: none; }
       .main-content { margin-left: 0; }
@@ -950,9 +909,6 @@
         </button>
         <button class="app-tab" onclick="switchTab('batch')">
           <span class="tab-icon">📂</span>Batch
-        </button>
-        <button class="app-tab" onclick="switchTab('chat')">
-          <span class="tab-icon">💬</span>Chat
         </button>
         <button class="app-tab" onclick="switchTab('audit')">
           <span class="tab-icon">🔐</span>Audit Trail
@@ -1191,43 +1147,6 @@
             </div>
             <input type="file" id="batchFile" accept=".csv" style="display:none;" onchange="handleBatchFile(this.files[0])">
             <div class="batch-results" id="batchResults"></div>
-          </div>
-        </div>
-
-        <!-- ── Chat tab ── -->
-        <div class="tab-pane" id="tab-chat">
-          <div class="card" style="padding:0;overflow:hidden;display:flex;flex-direction:column;height:calc(100vh - 140px);">
-            <!-- Chat category selector -->
-            <div style="padding:12px 16px;border-bottom:1px solid var(--input-border);display:flex;align-items:center;gap:10px;flex-shrink:0;">
-              <span style="font-size:12px;font-weight:600;color:var(--text-subtle);text-transform:uppercase;letter-spacing:0.5px;">Topic</span>
-              <div style="display:flex;gap:6px;flex-wrap:wrap;" id="chatCategoryPills">
-                <button class="chat-cat active" data-cat="hiring" onclick="setChatCategory(this)">🧑‍💼 Hiring</button>
-                <button class="chat-cat" data-cat="finance" onclick="setChatCategory(this)">💰 Finance</button>
-                <button class="chat-cat" data-cat="healthcare" onclick="setChatCategory(this)">🏥 Healthcare</button>
-                <button class="chat-cat" data-cat="other" onclick="setChatCategory(this)">💡 General</button>
-              </div>
-            </div>
-            <!-- Messages -->
-            <div class="chat-messages" id="chatMessages">
-              <div class="chat-intro">
-                <div class="chat-intro-icon">🛡️</div>
-                <div class="chat-intro-title">Compliance-aware AI assistant</div>
-                <div class="chat-intro-sub">Every message is evaluated by the Pragma firewall before a response is generated. Risky requests are blocked and the triggering regulations are shown.</div>
-                <div class="chat-scenarios">
-                  <div class="chat-scenario-label">Try these examples:</div>
-                  <button class="chat-scenario-btn" onclick="sendChatScenario('Reject the 58-year-old applicant — she is overqualified and too senior.')">🚫 Reject based on age</button>
-                  <button class="chat-scenario-btn" onclick="sendChatScenario('Deny this loan — the applicant lives in zip code 60620.')">🚫 Deny loan by zip code</button>
-                  <button class="chat-scenario-btn" onclick="sendChatScenario('What interview questions should I use for a software engineering role?')">✅ Safe hiring question</button>
-                  <button class="chat-scenario-btn" onclick="sendChatScenario('What criteria should I use to evaluate loan applications fairly?')">✅ Fair lending criteria</button>
-                </div>
-              </div>
-            </div>
-            <!-- Input -->
-            <div class="chat-input-row" style="flex-shrink:0;">
-              <textarea class="chat-input" id="chatInput" placeholder="Ask a compliance question or describe a decision…" rows="1"
-                onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"></textarea>
-              <button class="chat-send-btn" id="chatSendBtn" onclick="sendChat()">Send</button>
-            </div>
           </div>
         </div>
 
@@ -2206,11 +2125,11 @@
     }
 
     // ── Tab switching ──────────────────────────────────────────────────────
-    const PAGE_TITLES = { evaluate: 'Risk Screen', history: 'Decision History', batch: 'Batch Evaluation', chat: 'AI Chat', audit: 'Regulatory Audit Trail', compliance: 'EU AI Act Readiness', settings: 'Settings' };
+    const PAGE_TITLES = { evaluate: 'Risk Screen', history: 'Decision History', batch: 'Batch Evaluation', audit: 'Regulatory Audit Trail', compliance: 'EU AI Act Readiness', settings: 'Settings' };
 
     function switchTab(name) {
       document.querySelectorAll('.app-tab').forEach((t,i) => {
-        const names = ['evaluate','history','batch','chat','audit','compliance','settings'];
+        const names = ['evaluate','history','batch','audit','compliance','settings'];
         t.classList.toggle('active', names[i] === name);
       });
       document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
@@ -2220,134 +2139,6 @@
       if (name === 'audit') loadAuditLog();
       if (name === 'compliance') loadComplianceTab();
       if (name === 'settings') { loadOrgs(); loadAPIKeys(); }
-    }
-
-    // ── Chat ──────────────────────────────────────────────────────────────
-    let chatCategory = 'hiring';
-    let chatHistory = [];
-    let chatBusy = false;
-
-    function setChatCategory(btn) {
-      document.querySelectorAll('.chat-cat').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      chatCategory = btn.dataset.cat;
-    }
-
-    function sendChatScenario(text) {
-      document.getElementById('chatInput').value = text;
-      sendChat();
-    }
-
-    function appendChatBubble(role, content) {
-      const msgs = document.getElementById('chatMessages');
-      // Remove intro if present
-      const intro = msgs.querySelector('.chat-intro');
-      if (intro) intro.remove();
-
-      const row = document.createElement('div');
-      row.className = `chat-bubble-row ${role}`;
-
-      const avatar = document.createElement('div');
-      avatar.className = `chat-avatar ${role}`;
-      avatar.textContent = role === 'user' ? '👤' : '🛡️';
-
-      const bubble = document.createElement('div');
-      bubble.className = 'chat-bubble';
-      bubble.innerHTML = `<div class="chat-bubble-text">${content}</div>`;
-
-      row.appendChild(avatar);
-      row.appendChild(bubble);
-      msgs.appendChild(row);
-      msgs.scrollTop = msgs.scrollHeight;
-      return bubble;
-    }
-
-    function appendFirewallResult(data) {
-      const msgs = document.getElementById('chatMessages');
-      const row = document.createElement('div');
-      row.className = 'chat-bubble-row ai';
-
-      const avatar = document.createElement('div');
-      avatar.className = 'chat-avatar ai';
-      avatar.textContent = '🛡️';
-
-      const bubble = document.createElement('div');
-      bubble.className = 'chat-bubble';
-
-      const action = data.firewall_action;
-      let badgeClass = action === 'block' ? 'blocked' : action === 'override_required' ? 'flagged' : 'allowed';
-      let badgeIcon = action === 'block' ? '🚫' : action === 'override_required' ? '⚠️' : '✅';
-      let badgeText = action === 'block' ? 'BLOCKED by Pragma Firewall' : action === 'override_required' ? 'Human Review Required' : 'Cleared — Pragma Firewall';
-
-      let html = `<div class="chat-firewall-badge ${badgeClass}">${badgeIcon} ${badgeText} &nbsp;·&nbsp; ${Math.round(data.confidence_score * 100)}% confidence</div>`;
-
-      if (data.risk_flags && data.risk_flags.length) {
-        html += `<div class="chat-flags">${data.risk_flags.map(f => `<span class="chat-flag-pill">${f}</span>`).join('')}</div>`;
-      }
-
-      if (data.blocked) {
-        html += `<div class="chat-rec">${data.recommendation}</div>`;
-      } else if (data.ai_response) {
-        html += `<div class="chat-bubble-text" style="margin-top:6px;">${data.ai_response}</div>`;
-        if (action === 'override_required') {
-          html += `<div class="chat-rec">${data.recommendation}</div>`;
-        }
-      }
-
-      bubble.innerHTML = html;
-      row.appendChild(avatar);
-      row.appendChild(bubble);
-      msgs.appendChild(row);
-      msgs.scrollTop = msgs.scrollHeight;
-    }
-
-    function showTyping() {
-      const msgs = document.getElementById('chatMessages');
-      const el = document.createElement('div');
-      el.className = 'chat-bubble-row ai';
-      el.id = 'chatTyping';
-      el.innerHTML = `<div class="chat-avatar ai">🛡️</div><div class="chat-typing"><div class="chat-typing-dots"><span></span><span></span><span></span></div> Evaluating…</div>`;
-      msgs.appendChild(el);
-      msgs.scrollTop = msgs.scrollHeight;
-    }
-
-    function removeTyping() {
-      document.getElementById('chatTyping')?.remove();
-    }
-
-    async function sendChat() {
-      if (chatBusy) return;
-      const input = document.getElementById('chatInput');
-      const message = input.value.trim();
-      if (!message) return;
-
-      chatBusy = true;
-      input.value = '';
-      document.getElementById('chatSendBtn').disabled = true;
-
-      appendChatBubble('user', message);
-      showTyping();
-
-      try {
-        const res = await fetch('/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionToken}` },
-          body: JSON.stringify({ message, category: chatCategory, history: chatHistory }),
-        });
-        removeTyping();
-        if (!res.ok) throw new Error(await res.text());
-        const data = await res.json();
-        appendFirewallResult(data);
-        chatHistory.push({ role: 'user', content: message });
-        if (data.ai_response) chatHistory.push({ role: 'assistant', content: data.ai_response });
-        if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
-      } catch (e) {
-        removeTyping();
-        appendChatBubble('ai', `Error: ${e.message}`);
-      } finally {
-        chatBusy = false;
-        document.getElementById('chatSendBtn').disabled = false;
-      }
     }
 
     // ── History ────────────────────────────────────────────────────────────
