@@ -7,7 +7,6 @@ import { AuthScreen } from "./src/screens/AuthScreen";
 import { HomeScreen } from "./src/screens/HomeScreen";
 import { ResultsScreen } from "./src/screens/ResultsScreen";
 import { HistoryScreen } from "./src/screens/HistoryScreen";
-import { ChatScreen } from "./src/screens/ChatScreen";
 import { EthicalAnalysis } from "./src/services/api";
 
 export type RootStackParamList = {
@@ -24,13 +23,12 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 // ── Simple bottom tab bar ─────────────────────────────────────────────────────
 
-type Tab = "evaluate" | "history" | "chat";
+type Tab = "evaluate" | "history";
 
 function TabBar({ active, onSwitch }: { active: Tab; onSwitch: (t: Tab) => void }) {
   const tabs: { key: Tab; label: string; icon: string }[] = [
     { key: "evaluate", label: "Evaluate", icon: "⚖️" },
     { key: "history",  label: "History",  icon: "📋" },
-    { key: "chat",     label: "Chat",     icon: "💬" },
   ];
   return (
     <View style={tabStyles.bar}>
@@ -67,8 +65,6 @@ function MainScreen({ navigation }: any) {
       <View style={{ flex: 1 }}>
         {activeTab === "evaluate" ? (
           <HomeScreen navigation={navigation} />
-        ) : activeTab === "chat" ? (
-          <ChatScreen />
         ) : (
           <HistoryScreen />
         )}
