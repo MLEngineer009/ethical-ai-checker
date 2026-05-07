@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 from sqlalchemy import (
     Column, Float, Integer, String,
-    MetaData, Table, create_engine, inspect, text,
+    MetaData, Table, create_engine, func, inspect, select, text,
 )
 
 # ── Engine setup ──────────────────────────────────────────────────────────────
@@ -301,12 +301,23 @@ def log_hitl_override(
     audit_log_id: int,
     investigator_sub: str,
     reason: str,
-) -> None:
+    google_sub: str = "",
+) -> bool:
     """
     Record a human investigator override of the firewall verdict.
     Meets EU AI Act Article 14 human oversight requirements.
+
+    Now enforces ownership: only the user who created the audit entry may
+    override it. Returns True on success, False if not found or not owned.
     """
     with _engine.begin() as conn:
+        row = conn.execute(
+            audit_log.select().where(audit_log.c.id == audit_log_id)
+        ).fetchone()
+        if not row:
+            return False
+        if row.anon_id != anon_id(google_sub):
+            return False
         conn.execute(
             audit_log.update()
             .where(audit_log.c.id == audit_log_id)
@@ -316,6 +327,7 @@ def log_hitl_override(
                 hitl_anon_id  = anon_id(investigator_sub),
             )
         )
+    return True
 
 
 def get_audit_log(google_sub: str, limit: int = 50) -> List[Dict]:
@@ -344,6 +356,16 @@ def get_audit_log(google_sub: str, limit: int = 50) -> List[Dict]:
         }
         for r in rows
     ]
+
+
+def count_evaluations(google_sub: str) -> int:
+    """Count the number of evaluations made by a user (from request_logs)."""
+    aid = anon_id(google_sub)
+    with _engine.connect() as conn:
+        result = conn.execute(
+            select(func.count()).select_from(request_logs).where(request_logs.c.anon_id == aid)
+        )
+        return result.scalar() or 0
 
 
 def log_request(

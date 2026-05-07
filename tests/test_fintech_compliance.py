@@ -175,6 +175,59 @@ class TestHITLOverride:
         r = client.post("/audit/override", json={"audit_log_id": 1, "reason": "test"})
         assert r.status_code in (401, 403)
 
+    def test_different_user_cannot_override(self, isolated_db):
+        """A user who did not create the audit entry must be rejected with 404."""
+        from backend import database
+
+        # User A creates an audit entry
+        headers_a = auth_headers(client)
+        client.post("/evaluate-decision", json={
+            "decision": "Deny loan",
+            "context": {"zip_code": "60620"},
+            "category": "finance",
+        }, headers=headers_a)
+
+        with database._engine.connect() as conn:
+            row = conn.execute(database.audit_log.select()).fetchone()
+        audit_id = row.id
+
+        # User B (a different guest) tries to override user A's entry
+        headers_b = auth_headers(client)
+        r = client.post("/audit/override", json={
+            "audit_log_id": audit_id,
+            "reason": "Attempting to override someone else's entry.",
+        }, headers=headers_b)
+        assert r.status_code == 404
+
+
+# ── Guest Evaluation Limit ────────────────────────────────────────────────────
+
+class TestGuestEvaluationLimit:
+    def test_guest_blocked_after_limit(self, isolated_db):
+        """Guest user is rejected with 429 after reaching 10 evaluations."""
+        from backend import database
+
+        # Create a single guest session to reuse across all requests
+        r = client.post("/auth/guest")
+        token = r.json()["token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        payload = {
+            "decision": "Approve loan application",
+            "context": {"credit_score": 720, "income": 80000},
+            "category": "finance",
+        }
+
+        # Perform exactly 10 evaluations (should all succeed)
+        for _ in range(10):
+            r = client.post("/evaluate-decision", json=payload, headers=headers)
+            assert r.status_code == 200, f"Expected 200 but got {r.status_code}"
+
+        # 11th evaluation must be rejected
+        r = client.post("/evaluate-decision", json=payload, headers=headers)
+        assert r.status_code == 429
+        assert "Guest accounts" in r.json()["detail"]
+
 
 # ── Proxy Variable Report Endpoint ────────────────────────────────────────────
 

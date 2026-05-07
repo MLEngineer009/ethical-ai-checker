@@ -191,6 +191,11 @@ async def evaluate_decision(
     if not request.context:
         raise HTTPException(status_code=400, detail="Context cannot be empty")
 
+    GUEST_EVAL_LIMIT = 10
+    if user.get("is_guest"):
+        if database.count_evaluations(user["sub"]) >= GUEST_EVAL_LIMIT:
+            raise HTTPException(status_code=429, detail=f"Guest accounts are limited to {GUEST_EVAL_LIMIT} evaluations. Sign in with Google for unlimited access.")
+
     category = request.category if request.category in VALID_CATEGORIES else "other"
     analysis = _run_evaluation(request.decision, request.context, category, request.block_threshold)
 
@@ -250,11 +255,14 @@ async def hitl_override(request: HITLOverrideRequest, user: dict = Depends(get_c
     """
     if not request.reason or not request.reason.strip():
         raise HTTPException(status_code=400, detail="Override reason cannot be empty")
-    database.log_hitl_override(
+    success = database.log_hitl_override(
         audit_log_id=request.audit_log_id,
         investigator_sub=user["sub"],
         reason=request.reason,
+        google_sub=user["sub"],
     )
+    if not success:
+        raise HTTPException(404, "Audit log entry not found or access denied")
     logger.info("HITL override recorded — audit_log_id=%d", request.audit_log_id)
     return {"recorded": True, "audit_log_id": request.audit_log_id}
 
