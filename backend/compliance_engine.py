@@ -68,6 +68,20 @@ RISK_TIER_LABELS = {
 }
 
 
+def _evidence_status(declared: bool, notes: str, date: str) -> tuple:
+    has_notes = bool((notes or "").strip())
+    has_date  = bool((date  or "").strip())
+    if declared and (has_notes or has_date):
+        parts = []
+        if has_notes: parts.append(f"Documentation: {notes.strip()}")
+        if has_date:  parts.append(f"Date: {date}")
+        return "pass", "; ".join(parts)
+    elif declared:
+        return "partial", "Declaration only — no supporting documentation attached."
+    else:
+        return "fail", "Not declared and no documentation provided."
+
+
 def _check_prohibited(text: str, patterns: list) -> list:
     import re
     hits = []
@@ -81,14 +95,18 @@ def _check_prohibited(text: str, patterns: list) -> list:
 # ── Article checkers ──────────────────────────────────────────────────────────
 
 def _check_art4(system: Dict, stats: Dict) -> Dict:
-    passed = bool(system.get("art4_literacy_training"))
+    status, evidence = _evidence_status(
+        declared=bool(system.get("art4_literacy_training")),
+        notes=system.get("art4_literacy_training_evidence_notes", ""),
+        date=system.get("art4_literacy_training_evidence_date", ""),
+    )
     return {
         "title": "Article 4 — AI Literacy",
         "description": "Regulation (EU) 2024/1689, Art. 4 (applies from 2 February 2025). Providers and deployers must ensure staff have AI literacy appropriate to their role, technical knowledge, and the context of use.",
         "requirement": "Declare that AI literacy training has been provided to all staff operating or overseeing this system.",
         "legal_citation": "Regulation (EU) 2024/1689, Art. 4; Recital 20",
-        "status": "pass" if passed else "fail",
-        "evidence": "AI literacy training confirmed by operator." if passed else "No literacy training declaration recorded.",
+        "status": status,
+        "evidence": evidence,
     }
 
 
@@ -277,33 +295,47 @@ def _check_art15(system: Dict, stats: Dict) -> Dict:
 
 
 def _check_art17(system: Dict, stats: Dict) -> Dict:
-    passed = bool(system.get("art17_qms_documented"))
+    status, evidence = _evidence_status(
+        declared=bool(system.get("art17_qms_documented")),
+        notes=system.get("art17_qms_documented_evidence_notes", ""),
+        date=system.get("art17_qms_documented_evidence_date", ""),
+    )
     return {
         "title": "Article 17 — Quality Management System",
         "description": "Regulation (EU) 2024/1689, Art. 17. Providers of high-risk AI systems must put in place a quality management system covering design, development, testing, and post-market monitoring.",
         "requirement": "Quality management system documented and in place.",
         "legal_citation": "Regulation (EU) 2024/1689, Art. 17",
-        "status": "pass" if passed else "fail",
-        "evidence": "Quality management system confirmed." if passed else "No quality management system declaration recorded.",
+        "status": status,
+        "evidence": evidence,
     }
 
 
 def _check_art25(system: Dict, stats: Dict) -> Dict:
-    instructions = bool(system.get("art25_instructions_provided"))
-    monitoring   = bool(system.get("art25_monitoring_active"))
-    passed  = instructions and monitoring
-    partial = instructions or monitoring
-    parts = [
-        f"Instructions for use provided to deployers: {'yes' if instructions else 'no'}",
-        f"Post-deployment monitoring active: {'yes' if monitoring else 'no'}",
-    ]
+    instr_status, instr_ev = _evidence_status(
+        declared=bool(system.get("art25_instructions_provided")),
+        notes=system.get("art25_instructions_provided_evidence_notes", ""),
+        date=system.get("art25_instructions_provided_evidence_date", ""),
+    )
+    mon_status, mon_ev = _evidence_status(
+        declared=bool(system.get("art25_monitoring_active")),
+        notes=system.get("art25_monitoring_active_evidence_notes", ""),
+        date=system.get("art25_monitoring_active_evidence_date", ""),
+    )
+    status_rank = {"pass": 2, "partial": 1, "fail": 0}
+    combined = min(instr_status, mon_status, key=lambda s: status_rank[s])
+    if instr_status == "pass" and mon_status == "pass":
+        combined = "pass"
+    elif instr_status == "fail" and mon_status == "fail":
+        combined = "fail"
+    else:
+        combined = "partial"
     return {
         "title": "Article 25 — Obligations of Deployers",
         "description": "Regulation (EU) 2024/1689, Art. 25. Deployers must use AI systems in accordance with instructions for use, implement appropriate human oversight measures, and monitor performance.",
         "requirement": "Instructions for use provided to all deployers; post-deployment monitoring active.",
         "legal_citation": "Regulation (EU) 2024/1689, Art. 25",
-        "status": "pass" if passed else ("partial" if partial else "fail"),
-        "evidence": "; ".join(parts),
+        "status": combined,
+        "evidence": f"Instructions: {instr_ev}; Monitoring: {mon_ev}",
     }
 
 
@@ -312,32 +344,45 @@ def _check_art27(system: Dict, stats: Dict) -> Dict:
     # are bodies governed by public law or private bodies providing public
     # services — not all deployers. This checker applies it to all high-risk
     # systems, which may be overbroad for private-sector deployers.
-    passed = bool(system.get("art27_fria_conducted"))
+    status, evidence = _evidence_status(
+        declared=bool(system.get("art27_fria_conducted")),
+        notes=system.get("art27_fria_conducted_evidence_notes", ""),
+        date=system.get("art27_fria_conducted_evidence_date", ""),
+    )
     return {
         "title": "Article 27 — Fundamental Rights Impact Assessment (FRIA)",
         "description": "Regulation (EU) 2024/1689, Art. 27. Deployers that are public bodies or private bodies providing public services must conduct a FRIA before deploying high-risk AI systems.",
         "requirement": "Fundamental Rights Impact Assessment completed and documented.",
         "legal_citation": "Regulation (EU) 2024/1689, Art. 27",
-        "status": "pass" if passed else "fail",
-        "evidence": "FRIA completed and documented." if passed else "No FRIA declaration recorded.",
+        "status": status,
+        "evidence": evidence,
     }
 
 
 def _check_art30(system: Dict, stats: Dict) -> Dict:
     registered = bool(system.get("art30_eu_db_registered"))
     reg_number = (system.get("art30_registration_number") or "").strip()
-    passed  = registered and bool(reg_number)
-    partial = registered
-    parts = [f"Registered in EU AI database: {'yes' if registered else 'no'}"]
-    if reg_number:
-        parts.append(f"Registration number: {reg_number}")
+    ev_status, ev_text = _evidence_status(
+        declared=registered,
+        notes=system.get("art30_eu_db_registered_evidence_notes", ""),
+        date=system.get("art30_eu_db_registered_evidence_date", ""),
+    )
+    if registered and reg_number:
+        status = "pass"
+        evidence = f"Registration number: {reg_number}; {ev_text}"
+    elif registered:
+        status = "partial"
+        evidence = f"Registered but no registration number provided; {ev_text}"
+    else:
+        status = "fail"
+        evidence = ev_text
     return {
         "title": "Article 30 — Registration in EU AI Database",
         "description": "Regulation (EU) 2024/1689, Art. 30. Providers of high-risk AI systems must register in the EU AI public database (managed by the EU AI Office) before placing on the EU market.",
         "requirement": "System registered in official EU AI database with valid registration number.",
         "legal_citation": "Regulation (EU) 2024/1689, Art. 30; Art. 71",
-        "status": "pass" if passed else ("partial" if partial else "fail"),
-        "evidence": "; ".join(parts),
+        "status": status,
+        "evidence": evidence,
     }
 
 
@@ -348,21 +393,31 @@ def _check_art33(system: Dict, stats: Dict) -> Dict:
     # categories. This checker treats both as equally valid, which may be
     # overbroad for biometric or law-enforcement systems.
     conformity = (system.get("art33_conformity_type") or "").strip()
-    passed  = conformity in ("self-assessment", "third-party")
-    partial = conformity == "pending"
+    ev_status, ev_text = _evidence_status(
+        declared=conformity in ("self-assessment", "third-party"),
+        notes=system.get("art33_conformity_type_evidence_notes", ""),
+        date=system.get("art33_conformity_type_evidence_date", ""),
+    )
     label_map = {
         "self-assessment": "Self-assessment conformity assessment completed (Annex VI)",
         "third-party":     "Third-party notified body conformity assessment completed (Annex VII)",
         "pending":         "Conformity assessment in progress",
         "":                "No conformity assessment declared",
     }
+    base_label = label_map.get(conformity, f"Assessment type declared: {conformity}")
+    if conformity == "pending":
+        status  = "partial"
+        evidence = base_label
+    else:
+        status  = ev_status
+        evidence = f"{base_label}; {ev_text}" if ev_text else base_label
     return {
         "title": "Article 33 — Conformity Assessment",
         "description": "Regulation (EU) 2024/1689, Art. 33. High-risk AI systems must undergo a conformity assessment before being placed on the market. Most categories use self-assessment (Annex VI); biometric and law-enforcement systems require third-party notified body assessment (Annex VII).",
         "requirement": "Conformity assessment completed (self-assessment or third-party notified body).",
         "legal_citation": "Regulation (EU) 2024/1689, Art. 33; Annex VI; Annex VII",
-        "status": "pass" if passed else ("partial" if partial else "fail"),
-        "evidence": label_map.get(conformity, f"Assessment type declared: {conformity}"),
+        "status": status,
+        "evidence": evidence,
     }
 
 

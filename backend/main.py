@@ -312,6 +312,21 @@ class AISystemRequest(BaseModel):
     art30_eu_db_registered: bool = False
     art30_registration_number: str = ""
     art33_conformity_type: str = ""         # self-assessment|third-party|pending
+    # Evidence notes + dates (enables pass vs partial distinction)
+    art4_literacy_training_evidence_notes: str = ""
+    art4_literacy_training_evidence_date: str = ""
+    art17_qms_documented_evidence_notes: str = ""
+    art17_qms_documented_evidence_date: str = ""
+    art25_instructions_provided_evidence_notes: str = ""
+    art25_instructions_provided_evidence_date: str = ""
+    art25_monitoring_active_evidence_notes: str = ""
+    art25_monitoring_active_evidence_date: str = ""
+    art27_fria_conducted_evidence_notes: str = ""
+    art27_fria_conducted_evidence_date: str = ""
+    art30_eu_db_registered_evidence_notes: str = ""
+    art30_eu_db_registered_evidence_date: str = ""
+    art33_conformity_type_evidence_notes: str = ""
+    art33_conformity_type_evidence_date: str = ""
 
 
 VALID_RISK_TIERS = {"minimal", "limited", "high", "unacceptable"}
@@ -360,6 +375,20 @@ async def register_ai_system(request: AISystemRequest, user: dict = Depends(get_
         art30_eu_db_registered=request.art30_eu_db_registered,
         art30_registration_number=request.art30_registration_number.strip(),
         art33_conformity_type=request.art33_conformity_type.strip(),
+        art4_literacy_training_evidence_notes=request.art4_literacy_training_evidence_notes.strip(),
+        art4_literacy_training_evidence_date=request.art4_literacy_training_evidence_date.strip(),
+        art17_qms_documented_evidence_notes=request.art17_qms_documented_evidence_notes.strip(),
+        art17_qms_documented_evidence_date=request.art17_qms_documented_evidence_date.strip(),
+        art25_instructions_provided_evidence_notes=request.art25_instructions_provided_evidence_notes.strip(),
+        art25_instructions_provided_evidence_date=request.art25_instructions_provided_evidence_date.strip(),
+        art25_monitoring_active_evidence_notes=request.art25_monitoring_active_evidence_notes.strip(),
+        art25_monitoring_active_evidence_date=request.art25_monitoring_active_evidence_date.strip(),
+        art27_fria_conducted_evidence_notes=request.art27_fria_conducted_evidence_notes.strip(),
+        art27_fria_conducted_evidence_date=request.art27_fria_conducted_evidence_date.strip(),
+        art30_eu_db_registered_evidence_notes=request.art30_eu_db_registered_evidence_notes.strip(),
+        art30_eu_db_registered_evidence_date=request.art30_eu_db_registered_evidence_date.strip(),
+        art33_conformity_type_evidence_notes=request.art33_conformity_type_evidence_notes.strip(),
+        art33_conformity_type_evidence_date=request.art33_conformity_type_evidence_date.strip(),
     )
 
 
