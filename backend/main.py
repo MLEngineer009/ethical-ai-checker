@@ -265,6 +265,21 @@ async def get_audit_log(user: dict = Depends(get_current_user), limit: int = 50)
     return database.get_audit_log(google_sub=user["sub"], limit=limit)
 
 
+class ProxyVariableReportRequest(BaseModel):
+    context: Dict[str, Any]
+
+
+@app.post("/proxy-variable-report", dependencies=[Depends(get_current_user)])
+async def proxy_variable_report(request: ProxyVariableReportRequest):
+    """
+    Returns a structured proxy variable audit report for a given context.
+    Lists each detected field, its value, the risk it represents, and the
+    applicable ECOA / Regulation B citation.
+    """
+    from .risk_detector import get_proxy_variable_report
+    return get_proxy_variable_report(request.context)
+
+
 # ── EU AI Act — AI System Registration & Compliance ──────────────────────────
 
 class AISystemRequest(BaseModel):
@@ -298,6 +313,7 @@ VALID_CONFORMITY_TYPES = {"self-assessment", "third-party", "pending", ""}
 @app.post("/ai-systems", dependencies=[Depends(get_current_user)])
 async def register_ai_system(request: AISystemRequest, user: dict = Depends(get_current_user)):
     """Register an AI system for EU AI Act data lineage tracking."""
+    from .compliance_engine import ANNEX_III_CATEGORIES
     if not request.system_name.strip():
         raise HTTPException(status_code=400, detail="system_name is required")
     if not request.company_name.strip():
@@ -306,6 +322,11 @@ async def register_ai_system(request: AISystemRequest, user: dict = Depends(get_
         raise HTTPException(status_code=400, detail=f"risk_tier must be one of {VALID_RISK_TIERS}")
     if request.art33_conformity_type not in VALID_CONFORMITY_TYPES:
         raise HTTPException(status_code=400, detail=f"art33_conformity_type must be one of {VALID_CONFORMITY_TYPES}")
+    if request.art6_annex_category.strip() and request.art6_annex_category.strip() not in ANNEX_III_CATEGORIES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"art6_annex_category must be one of the official Annex III categories: {ANNEX_III_CATEGORIES}",
+        )
     logger.info(
         "AI system registration — name=%r company=%r risk_tier=%s",
         request.system_name, request.company_name, request.risk_tier,

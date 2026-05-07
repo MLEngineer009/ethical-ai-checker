@@ -7,7 +7,7 @@ Two-page certificate:
 
 This is a compliance *readiness* report, not a legal certification by a
 notified body. It documents that the system meets Pragma's implementation
-of EU AI Act Articles 9–14 as of the issue date.
+of the full 15-article EU AI Act framework as of the issue date.
 """
 
 import io
@@ -362,7 +362,7 @@ def _build_page1(canvas, compliance: Dict, certificate_id: str):
 
     canvas.setFillColor(MID_GRAY)
     canvas.setFont("Helvetica", 8.5)
-    canvas.drawCentredString(cx, y, "European Union Artificial Intelligence Act  ·  Articles 9 – 14")
+    canvas.drawCentredString(cx, y, "European Union Artificial Intelligence Act  ·  15-Article Framework")
     y -= 0.30 * inch
 
     # ── Gold divider ─────────────────────────────────────────────────────────
@@ -400,7 +400,7 @@ def _build_page1(canvas, compliance: Dict, certificate_id: str):
     canvas.setFont("Helvetica-Bold", 10.5)
     canvas.setFillColor(DARK_GRAY)
     canvas.drawCentredString(cx, y,
-        "EU Artificial Intelligence Act — Articles 9 through 14")
+        "EU Artificial Intelligence Act — Full 15-Article Compliance Framework")
     y -= 0.18 * inch
     canvas.setFillColor(MID_GRAY)
     canvas.setFont("Helvetica-Oblique", 10)
@@ -506,9 +506,9 @@ def _build_page1(canvas, compliance: Dict, certificate_id: str):
     canvas.setFillColor(MID_GRAY)
     canvas.setFont("Helvetica", 6.5)
     disclaimer = (
-        "This certificate documents compliance readiness against Pragma's implementation of EU AI Act Articles 9–14. "
-        "It is not a legal certification by a notified body. High-risk AI systems require formal conformity "
-        "assessment before EU deployment. Valid for one year from issue date."
+        "This certificate documents compliance readiness against Pragma's full 15-article EU AI Act framework "
+        "(Arts. 4, 5, 6, 9–15, 17, 25, 27, 30, 33). It is not a legal certification by a notified body. "
+        "High-risk AI systems require formal conformity assessment before EU deployment. Valid for one year from issue date."
     )
     # Simple word-wrap at ~115 chars per line
     words = disclaimer.split()
@@ -566,7 +566,7 @@ def _build_page2_story(compliance: Dict, certificate_id: str, s: Dict):
     story.append(tbl)
     story.append(Spacer(1, 0.18 * inch))
 
-    story.append(Paragraph("EU AI Act — Articles 9 through 14", s["p2_heading"]))
+    story.append(Paragraph("EU AI Act — Full 15-Article Compliance Assessment", s["p2_heading"]))
 
     articles = compliance.get("articles", {})
     for key, article in articles.items():

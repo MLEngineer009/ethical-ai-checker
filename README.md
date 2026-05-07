@@ -233,7 +233,11 @@ Updated `POST /evaluate-decision` response (now includes audit and proxy fields)
 }
 ```
 
-**`GET /proxy-variable-report`** — Returns a structured report of all proxy variables found in a given context, with field, value, risk description, and ECOA/Regulation B citation.
+**`POST /proxy-variable-report`** — Returns a structured report of all proxy variables found in a given context, with field, value, risk description, and ECOA/Regulation B citation.
+
+```json
+{ "context": { "zip_code": "60620", "last_name": "Garcia" } }
+```
 
 **Immutable Audit Trail**
 
@@ -277,35 +281,55 @@ Response includes the assigned `system_id`.
 
 **`GET /ai-systems`** — List all registered AI systems for the current user.
 
-**`GET /ai-systems/{id}/compliance`** — Compute the EU AI Act compliance checklist against the six key articles:
+**`GET /ai-systems/{id}/compliance`** — Compute the full 15-article EU AI Act compliance checklist:
 
 | Article | Check | Pass condition |
 |---------|-------|----------------|
-| Art. 9 | Risk management | 10+ evaluations with risk flags recorded |
+| Art. 4  | AI Literacy | AI literacy training declared for all staff |
+| Art. 5  | Prohibited practices | No prohibited practices in use case or purpose |
+| Art. 6  | High-risk classification | Annex III category declared (high-risk systems) |
+| Art. 9  | Risk management | 10+ evaluations with risk flags recorded |
 | Art. 10 | Data governance | `training_data_sources` declared (non-empty) |
-| Art. 11 | Technical documentation | System profile fully completed |
-| Art. 12 | Record-keeping | Audit trail active (audit log entries exist) |
+| Art. 11 | Technical documentation | All profile fields completed |
+| Art. 12 | Record-keeping | Audit trail active with at least 1 entry |
 | Art. 13 | Transparency | Regulatory refs mapped in evaluations |
 | Art. 14 | Human oversight | At least one HITL override recorded |
+| Art. 15 | Accuracy & robustness | Accuracy metric and robustness testing declared |
+| Art. 17 | Quality management | QMS documented |
+| Art. 25 | Deployer obligations | Instructions provided; monitoring active |
+| Art. 27 | FRIA | Fundamental Rights Impact Assessment completed |
+| Art. 30 | EU AI database | System registered with valid registration number |
+| Art. 33 | Conformity assessment | Self-assessment or third-party assessment completed |
+
+> **Note:** Art. 5 failure overrides the verdict to `prohibited` regardless of score — a prohibited system cannot receive a certificate.
 
 Response:
 ```json
 {
   "system_id": 7,
   "articles": {
-    "art_9_risk_management":      { "status": "pass",    "evidence": "14 risk-flagged evaluations" },
-    "art_10_data_governance":     { "status": "pass",    "evidence": "2 training sources declared" },
-    "art_11_technical_docs":      { "status": "pass",    "evidence": "All profile fields present" },
-    "art_12_record_keeping":      { "status": "pass",    "evidence": "Audit trail active" },
-    "art_13_transparency":        { "status": "partial", "evidence": "Regulatory refs present in 8/14 evaluations" },
-    "art_14_human_oversight":     { "status": "fail",    "evidence": "No HITL overrides recorded" }
+    "art_4":  { "status": "pass",    "evidence": "AI literacy training confirmed by operator." },
+    "art_5":  { "status": "pass",    "evidence": "No prohibited practices detected." },
+    "art_6":  { "status": "pass",    "evidence": "High-risk classification confirmed. Annex III category: A.4 — Employment..." },
+    "art_9":  { "status": "pass",    "evidence": "14 evaluations logged; risk flags detected: true" },
+    "art_10": { "status": "pass",    "evidence": "2 training data source(s) declared" },
+    "art_11": { "status": "pass",    "evidence": "6/6 fields completed" },
+    "art_12": { "status": "pass",    "evidence": "14 audit log entries; proxy variables caught: 3" },
+    "art_13": { "status": "partial", "evidence": "Regulatory references mapped: false; evaluations run: 14" },
+    "art_14": { "status": "fail",    "evidence": "0 human override(s) recorded in audit trail" },
+    "art_15": { "status": "pass",    "evidence": "Accuracy metric declared: F1=0.94; Robustness testing: confirmed" },
+    "art_17": { "status": "pass",    "evidence": "Quality management system confirmed." },
+    "art_25": { "status": "pass",    "evidence": "Instructions for use provided: yes; monitoring active: yes" },
+    "art_27": { "status": "pass",    "evidence": "FRIA completed and documented." },
+    "art_30": { "status": "pass",    "evidence": "Registered in EU AI database: yes; Registration number: EU-2024-001" },
+    "art_33": { "status": "pass",    "evidence": "Self-assessment conformity assessment completed (Annex VI)" }
   },
-  "overall_score": 0.75,
+  "overall_score": 0.87,
   "verdict": "partial"
 }
 ```
 
-Verdicts: `ready` (score ≥ 0.9), `partial` (0.5–0.9), `not_ready` (< 0.5).
+Verdicts: `ready` (score ≥ 0.9), `partial` (0.6–0.9), `not_ready` (< 0.6), `prohibited` (Art. 5 fail).
 
 **`POST /ai-systems/{id}/certificate`** — Generate a PDF compliance readiness certificate.
 
