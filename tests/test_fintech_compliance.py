@@ -174,3 +174,48 @@ class TestHITLOverride:
     def test_override_requires_auth(self):
         r = client.post("/audit/override", json={"audit_log_id": 1, "reason": "test"})
         assert r.status_code in (401, 403)
+
+
+# ── Proxy Variable Report Endpoint ────────────────────────────────────────────
+
+class TestProxyVariableReportEndpoint:
+    def test_returns_detected_proxies(self, isolated_db):
+        headers = auth_headers(client)
+        r = client.post("/proxy-variable-report",
+                        json={"context": {"zip_code": "60620", "credit_score": 720}},
+                        headers=headers)
+        assert r.status_code == 200
+        data = r.json()
+        assert "proxy_variables_detected" in data
+        assert "count" in data
+        assert data["count"] == 1
+        assert data["proxy_variables_detected"][0]["field"] == "zip_code"
+        assert "ECOA" in data["proxy_variables_detected"][0]["regulation"]
+
+    def test_returns_empty_for_safe_context(self, isolated_db):
+        headers = auth_headers(client)
+        r = client.post("/proxy-variable-report",
+                        json={"context": {"income": 80000, "credit_score": 740}},
+                        headers=headers)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["count"] == 0
+        assert data["proxy_variables_detected"] == []
+
+    def test_detects_multiple_proxy_fields(self, isolated_db):
+        headers = auth_headers(client)
+        r = client.post("/proxy-variable-report",
+                        json={"context": {"zip_code": "60620", "last_name": "Garcia", "ip_country": "MX"}},
+                        headers=headers)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["count"] == 3
+        fields = [p["field"] for p in data["proxy_variables_detected"]]
+        assert "zip_code" in fields
+        assert "last_name" in fields
+        assert "ip_country" in fields
+
+    def test_requires_auth(self):
+        r = client.post("/proxy-variable-report",
+                        json={"context": {"zip_code": "60620"}})
+        assert r.status_code in (401, 403)

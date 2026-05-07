@@ -116,7 +116,7 @@ class TestComplianceChecklist:
         reg = client.post("/ai-systems", json=SYSTEM_PAYLOAD, headers=headers).json()
         r = client.get(f"/ai-systems/{reg['system_id']}/compliance", headers=headers)
         data = r.json()
-        assert data["verdict"] in ("ready", "partial", "not_ready")
+        assert data["verdict"] in ("ready", "partial", "not_ready", "prohibited")
 
     def test_compliance_404_for_wrong_user(self, isolated_db):
         h1 = auth_headers(client)
@@ -245,6 +245,25 @@ class TestComplianceChecklist:
                  "has_regulatory_refs": False, "has_risk_flags": False, "categories": []}
         result = compute_compliance(system, stats)
         assert result["articles"]["art_6"]["status"] == "partial"
+
+    def test_art6_rejects_invalid_annex_category(self, isolated_db):
+        headers = auth_headers(client)
+        bad = {**SYSTEM_PAYLOAD, "art6_annex_category": "Not a real Annex III category"}
+        r = client.post("/ai-systems", json=bad, headers=headers)
+        assert r.status_code == 400
+
+    def test_art6_accepts_valid_annex_category(self, isolated_db):
+        headers = auth_headers(client)
+        valid = {**SYSTEM_PAYLOAD,
+                 "art6_annex_category": "A.4 — Employment, workforce management, and access to self-employment"}
+        r = client.post("/ai-systems", json=valid, headers=headers)
+        assert r.status_code == 200
+
+    def test_art6_accepts_empty_annex_category(self, isolated_db):
+        headers = auth_headers(client)
+        payload = {**SYSTEM_PAYLOAD, "art6_annex_category": ""}
+        r = client.post("/ai-systems", json=payload, headers=headers)
+        assert r.status_code == 200
 
     # ── Art. 15 ───────────────────────────────────────────────────────────────
 
