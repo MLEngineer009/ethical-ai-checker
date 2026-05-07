@@ -736,8 +736,46 @@
     @media (max-width: 768px) {
       .sidebar { display: none; }
       .main-content { margin-left: 0; }
-      .content-body { padding: 16px; }
+      .content-body { padding: 16px 16px 80px; }  /* bottom padding clears the mobile nav */
       .context-row { grid-template-columns: 1fr; }
+      .mobile-nav { display: flex; }
+    }
+
+    /* ── Mobile bottom navigation ── */
+    .mobile-nav {
+      display: none;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--sidebar-bg);
+      border-top: 1px solid var(--sidebar-border);
+      z-index: 200;
+      padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+    .mobile-nav-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      padding: 9px 4px 8px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      color: rgba(255,255,255,0.4);
+      transition: color 0.15s;
+      min-width: 0;
+    }
+    .mobile-nav-btn.active { color: #a78bfa; }
+    .mobile-nav-btn .mnav-icon { font-size: 18px; line-height: 1; }
+    .mobile-nav-btn .mnav-label { font-size: 10px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 56px; }
+    .mobile-nav-indicator {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: #a78bfa;
+      transition: transform 0.2s ease;
     }
   </style>
 </head>
@@ -929,6 +967,34 @@
         <button class="btn-logout" id="btnLogout">Sign out</button>
       </div>
     </aside>
+
+    <!-- ── Mobile bottom navigation ── -->
+    <nav class="mobile-nav" id="mobileNav">
+      <button class="mobile-nav-btn active" onclick="switchTab('evaluate')" data-tab="evaluate">
+        <span class="mnav-icon">🛡️</span>
+        <span class="mnav-label">Screen</span>
+      </button>
+      <button class="mobile-nav-btn" onclick="switchTab('history')" data-tab="history">
+        <span class="mnav-icon">📋</span>
+        <span class="mnav-label">History</span>
+      </button>
+      <button class="mobile-nav-btn" onclick="switchTab('batch')" data-tab="batch">
+        <span class="mnav-icon">📂</span>
+        <span class="mnav-label">Batch</span>
+      </button>
+      <button class="mobile-nav-btn" onclick="switchTab('audit')" data-tab="audit">
+        <span class="mnav-icon">🔐</span>
+        <span class="mnav-label">Audit</span>
+      </button>
+      <button class="mobile-nav-btn" onclick="switchTab('compliance')" data-tab="compliance">
+        <span class="mnav-icon">🏛️</span>
+        <span class="mnav-label">EU AI Act</span>
+      </button>
+      <button class="mobile-nav-btn" onclick="switchTab('settings')" data-tab="settings">
+        <span class="mnav-icon">⚙️</span>
+        <span class="mnav-label">Settings</span>
+      </button>
+    </nav>
 
     <!-- Main content -->
     <main class="main-content">
@@ -2132,9 +2198,13 @@
         const names = ['evaluate','history','batch','audit','compliance','settings'];
         t.classList.toggle('active', names[i] === name);
       });
+      document.querySelectorAll('.mobile-nav-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.tab === name);
+      });
       document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
       document.getElementById(`tab-${name}`).classList.add('active');
       document.getElementById('pageTitle').textContent = PAGE_TITLES[name] || name;
+      window.scrollTo(0, 0);
       if (name === 'history') loadHistory();
       if (name === 'audit') loadAuditLog();
       if (name === 'compliance') loadComplianceTab();
