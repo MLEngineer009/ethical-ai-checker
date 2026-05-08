@@ -195,6 +195,19 @@ compliance_certificates = Table(
     Column("proxy_vars_caught",   Integer, nullable=False, server_default="0"),
 )
 
+subscriptions = Table(
+    "subscriptions", _meta,
+    Column("id",                      Integer, primary_key=True, autoincrement=True),
+    Column("anon_id",                 String,  nullable=False, unique=True),
+    Column("plan",                    String,  nullable=False, server_default="free"),  # free|growth|enterprise
+    Column("status",                  String,  nullable=False, server_default="active"),  # active|past_due|canceled
+    Column("stripe_customer_id",      String,  nullable=True),
+    Column("stripe_subscription_id",  String,  nullable=True),
+    Column("current_period_end",      String,  nullable=True),  # ISO timestamp
+    Column("created_at",              String,  nullable=False),
+    Column("updated_at",              String,  nullable=False),
+)
+
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
@@ -396,6 +409,99 @@ def count_evaluations(google_sub: str) -> int:
             select(func.count()).select_from(request_logs).where(request_logs.c.anon_id == aid)
         )
         return result.scalar() or 0
+
+
+def count_evaluations_this_month(google_sub: str) -> int:
+    """Count evaluations made by a user in the current calendar month."""
+    aid = anon_id(google_sub)
+    month_prefix = datetime.now(timezone.utc).strftime("%Y-%m")
+    with _engine.connect() as conn:
+        result = conn.execute(
+            select(func.count()).select_from(request_logs).where(
+                request_logs.c.anon_id == aid,
+                request_logs.c.timestamp.like(f"{month_prefix}%"),
+            )
+        )
+        return result.scalar() or 0
+
+
+# ── Subscription / billing ─────────────────────────────────────────────────────
+
+PLAN_LIMITS = {
+    "free":       100,
+    "growth":     2000,
+    "enterprise": None,   # unlimited
+}
+
+
+def get_subscription(google_sub: str) -> Dict[str, Any]:
+    """Return the user's current subscription. Creates a free record if none exists."""
+    aid = anon_id(google_sub)
+    now = datetime.now(timezone.utc).isoformat()
+    with _engine.begin() as conn:
+        row = conn.execute(
+            subscriptions.select().where(subscriptions.c.anon_id == aid)
+        ).fetchone()
+        if not row:
+            conn.execute(subscriptions.insert().values(
+                anon_id=aid, plan="free", status="active", created_at=now, updated_at=now,
+            ))
+            return {"plan": "free", "status": "active", "stripe_customer_id": None,
+                    "stripe_subscription_id": None, "current_period_end": None,
+                    "evals_this_month": 0, "eval_limit": PLAN_LIMITS["free"]}
+    evals = count_evaluations_this_month(google_sub)
+    limit = PLAN_LIMITS.get(row.plan, 100)
+    return {
+        "plan":                   row.plan,
+        "status":                 row.status,
+        "stripe_customer_id":     row.stripe_customer_id,
+        "stripe_subscription_id": row.stripe_subscription_id,
+        "current_period_end":     row.current_period_end,
+        "evals_this_month":       evals,
+        "eval_limit":             limit,
+    }
+
+
+def upsert_subscription(
+    anon_id_val: str,
+    plan: str,
+    status: str,
+    stripe_customer_id: str,
+    stripe_subscription_id: str,
+    current_period_end: str,
+) -> None:
+    """Create or update subscription record — called from Stripe webhook."""
+    now = datetime.now(timezone.utc).isoformat()
+    with _engine.begin() as conn:
+        existing = conn.execute(
+            subscriptions.select().where(subscriptions.c.anon_id == anon_id_val)
+        ).fetchone()
+        if existing:
+            conn.execute(
+                subscriptions.update()
+                .where(subscriptions.c.anon_id == anon_id_val)
+                .values(plan=plan, status=status, stripe_customer_id=stripe_customer_id,
+                        stripe_subscription_id=stripe_subscription_id,
+                        current_period_end=current_period_end, updated_at=now)
+            )
+        else:
+            conn.execute(subscriptions.insert().values(
+                anon_id=anon_id_val, plan=plan, status=status,
+                stripe_customer_id=stripe_customer_id,
+                stripe_subscription_id=stripe_subscription_id,
+                current_period_end=current_period_end,
+                created_at=now, updated_at=now,
+            ))
+    logger.info("Subscription upserted — anon_id=%s plan=%s status=%s", anon_id_val[:8], plan, status)
+
+
+def get_anon_id_by_stripe_customer(stripe_customer_id: str) -> str | None:
+    """Look up anon_id from a Stripe customer ID — used in webhook handlers."""
+    with _engine.connect() as conn:
+        row = conn.execute(
+            subscriptions.select().where(subscriptions.c.stripe_customer_id == stripe_customer_id)
+        ).fetchone()
+    return row.anon_id if row else None
 
 
 def log_request(

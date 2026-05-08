@@ -14,7 +14,7 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 from pydantic import BaseModel
 import uvicorn
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -195,6 +195,21 @@ async def evaluate_decision(
     if user.get("is_guest"):
         if database.count_evaluations(user["sub"]) >= GUEST_EVAL_LIMIT:
             raise HTTPException(status_code=429, detail=f"Guest accounts are limited to {GUEST_EVAL_LIMIT} evaluations. Sign in with Google for unlimited access.")
+    else:
+        sub = database.get_subscription(user["sub"])
+        limit = sub.get("eval_limit")
+        if limit is not None and sub["evals_this_month"] >= limit:
+            plan = sub["plan"]
+            if plan == "free":
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Free plan limit of {limit} evaluations/month reached. Upgrade to Growth for 2,000 evaluations/month.",
+                )
+            else:
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Monthly evaluation limit of {limit} reached for your {plan} plan.",
+                )
 
     category = request.category if request.category in VALID_CATEGORIES else "other"
     analysis = _run_evaluation(request.decision, request.context, category, request.block_threshold)
@@ -743,6 +758,164 @@ async def org_history(org_id: int, user: dict = Depends(get_current_user)):
     if rows is None:
         raise HTTPException(status_code=403, detail="Not a member of this organization")
     return {"org_id": org_id, "history": rows}
+
+
+# ── Billing / Stripe ──────────────────────────────────────────────────────────
+
+import stripe as _stripe
+
+_stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "")
+_STRIPE_WEBHOOK_SECRET  = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+_STRIPE_GROWTH_PRICE_ID = os.getenv("STRIPE_GROWTH_PRICE_ID", "")
+
+# Map Stripe price IDs → plan names (extend when more tiers are added)
+_PRICE_TO_PLAN: Dict[str, str] = {}
+if _STRIPE_GROWTH_PRICE_ID:
+    _PRICE_TO_PLAN[_STRIPE_GROWTH_PRICE_ID] = "growth"
+
+
+@app.get("/billing/subscription", dependencies=[Depends(get_current_user)])
+async def get_subscription(user: dict = Depends(get_current_user)):
+    """Return current plan, usage this month, and eval limit."""
+    return database.get_subscription(user["sub"])
+
+
+class CheckoutRequest(BaseModel):
+    price_id: str
+    success_url: str
+    cancel_url: str
+
+
+@app.post("/billing/create-checkout-session", dependencies=[Depends(get_current_user)])
+async def create_checkout_session(req: CheckoutRequest, user: dict = Depends(get_current_user)):
+    """Create a Stripe Checkout session for a paid plan upgrade."""
+    if not _stripe.api_key:
+        raise HTTPException(status_code=503, detail="Billing not configured")
+    if req.price_id not in _PRICE_TO_PLAN:
+        raise HTTPException(status_code=400, detail="Invalid price_id")
+
+    sub = database.get_subscription(user["sub"])
+    customer_id = sub.get("stripe_customer_id")
+
+    session_params: Dict[str, Any] = {
+        "mode": "subscription",
+        "line_items": [{"price": req.price_id, "quantity": 1}],
+        "success_url": req.success_url,
+        "cancel_url":  req.cancel_url,
+        "metadata":    {"anon_id": database.anon_id(user["sub"])},
+        "subscription_data": {"metadata": {"anon_id": database.anon_id(user["sub"])}},
+    }
+    if customer_id:
+        session_params["customer"] = customer_id
+    elif user.get("email"):
+        session_params["customer_email"] = user["email"]
+
+    session = _stripe.checkout.Session.create(**session_params)
+    logger.info("Stripe Checkout session created — user=%s price=%s", user["sub"][:8], req.price_id)
+    return {"checkout_url": session.url}
+
+
+@app.post("/billing/portal", dependencies=[Depends(get_current_user)])
+async def billing_portal(user: dict = Depends(get_current_user)):
+    """Create a Stripe Customer Portal session for plan management/cancellation."""
+    if not _stripe.api_key:
+        raise HTTPException(status_code=503, detail="Billing not configured")
+    sub = database.get_subscription(user["sub"])
+    customer_id = sub.get("stripe_customer_id")
+    if not customer_id:
+        raise HTTPException(status_code=400, detail="No active subscription found")
+    origin = os.getenv("APP_URL", "https://virtuous-fulfillment-production-05d3.up.railway.app")
+    portal = _stripe.billing_portal.Session.create(
+        customer=customer_id,
+        return_url=f"{origin}/",
+    )
+    logger.info("Stripe portal session created — user=%s", user["sub"][:8])
+    return {"portal_url": portal.url}
+
+
+@app.post("/billing/webhook")
+async def stripe_webhook(request: Request):
+    """
+    Stripe webhook — verifies signature then updates subscription records.
+    Must be registered in Stripe dashboard pointing to /billing/webhook.
+    No auth — Stripe calls this directly.
+    """
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature", "")
+
+    if not _STRIPE_WEBHOOK_SECRET:
+        raise HTTPException(status_code=503, detail="Webhook secret not configured")
+
+    try:
+        event = _stripe.Webhook.construct_event(payload, sig_header, _STRIPE_WEBHOOK_SECRET)
+    except _stripe.error.SignatureVerificationError:
+        logger.warning("Stripe webhook signature verification failed")
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
+    _handle_stripe_event(event)
+    return {"received": True}
+
+
+def _handle_stripe_event(event: Dict) -> None:
+    """Process a verified Stripe event and update the subscriptions table."""
+    etype = event["type"]
+    data  = event["data"]["object"]
+
+    if etype == "checkout.session.completed":
+        anon_id_val   = data.get("metadata", {}).get("anon_id")
+        customer_id   = data.get("customer")
+        subscription_id = data.get("subscription")
+        if not anon_id_val:
+            logger.warning("checkout.session.completed missing anon_id metadata")
+            return
+        # Retrieve full subscription to get price and period
+        if subscription_id:
+            stripe_sub = _stripe.Subscription.retrieve(subscription_id)
+            price_id   = stripe_sub["items"]["data"][0]["price"]["id"]
+            plan       = _PRICE_TO_PLAN.get(price_id, "growth")
+            period_end = datetime.fromtimestamp(
+                stripe_sub["current_period_end"], tz=timezone.utc
+            ).isoformat()
+            database.upsert_subscription(
+                anon_id_val=anon_id_val, plan=plan, status="active",
+                stripe_customer_id=customer_id,
+                stripe_subscription_id=subscription_id,
+                current_period_end=period_end,
+            )
+            logger.info("Checkout completed — anon_id=%s plan=%s", anon_id_val[:8], plan)
+
+    elif etype in ("customer.subscription.updated", "customer.subscription.created"):
+        customer_id     = data.get("customer")
+        subscription_id = data.get("id")
+        price_id        = data["items"]["data"][0]["price"]["id"]
+        plan            = _PRICE_TO_PLAN.get(price_id, "growth")
+        status          = data.get("status", "active")
+        period_end      = datetime.fromtimestamp(
+            data["current_period_end"], tz=timezone.utc
+        ).isoformat()
+        anon_id_val = database.get_anon_id_by_stripe_customer(customer_id)
+        if anon_id_val:
+            database.upsert_subscription(
+                anon_id_val=anon_id_val, plan=plan, status=status,
+                stripe_customer_id=customer_id,
+                stripe_subscription_id=subscription_id,
+                current_period_end=period_end,
+            )
+
+    elif etype == "customer.subscription.deleted":
+        customer_id = data.get("customer")
+        anon_id_val = database.get_anon_id_by_stripe_customer(customer_id)
+        if anon_id_val:
+            database.upsert_subscription(
+                anon_id_val=anon_id_val, plan="free", status="canceled",
+                stripe_customer_id=customer_id,
+                stripe_subscription_id=data.get("id"),
+                current_period_end=None,
+            )
+            logger.info("Subscription canceled — anon_id=%s downgraded to free", anon_id_val[:8])
+
+    else:
+        logger.debug("Unhandled Stripe event type: %s", etype)
 
 
 # ── API key endpoints ──────────────────────────────────────────────────────────

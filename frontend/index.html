@@ -1515,6 +1515,27 @@
         <!-- ── Settings tab ── -->
         <div class="tab-pane" id="tab-settings">
 
+          <!-- Plan & Billing -->
+          <div class="card settings-section" id="billingCard">
+            <div class="settings-h">💳 Plan &amp; Billing</div>
+            <div id="planInfo" style="margin-bottom:14px;">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                <span id="planBadge" style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:3px 10px;border-radius:20px;background:rgba(99,102,241,0.15);color:var(--accent2);border:1px solid rgba(99,102,241,0.25);">Free</span>
+                <span id="planUsage" style="font-size:13px;color:var(--text-muted);"></span>
+              </div>
+              <div id="usageBar" style="height:4px;border-radius:2px;background:rgba(255,255,255,0.08);margin-bottom:14px;">
+                <div id="usageBarFill" style="height:4px;border-radius:2px;background:var(--accent);width:0%;transition:width 0.4s;"></div>
+              </div>
+              <div id="upgradeSection" style="display:none;">
+                <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px;">Upgrade to <strong style="color:var(--text);">Growth</strong> — 2,000 evaluations/month, unlimited AI system registrations, PDF compliance certificates.</p>
+                <button class="btn-primary" onclick="startCheckout()" style="width:100%;justify-content:center;">Upgrade to Growth — $299/mo</button>
+              </div>
+              <div id="portalSection" style="display:none;">
+                <button class="btn-sm" onclick="openBillingPortal()" style="width:100%;">Manage Subscription</button>
+              </div>
+            </div>
+          </div>
+
           <!-- Orgs -->
           <div class="card settings-section">
             <div class="settings-h">🏢 Organizations</div>
@@ -2467,7 +2488,7 @@
       if (name === 'history') loadHistory();
       if (name === 'audit') loadAuditLog();
       if (name === 'compliance') loadComplianceTab();
-      if (name === 'settings') { loadOrgs(); loadAPIKeys(); }
+      if (name === 'settings') { loadOrgs(); loadAPIKeys(); loadBilling(); }
     }
 
     // ── History ────────────────────────────────────────────────────────────
@@ -2673,6 +2694,87 @@
         await fetch(`${API}/api-keys/${keyId}`, { method:'DELETE', headers: authHeaders() });
         loadAPIKeys();
       } catch (_) {}
+    }
+
+    // ── Billing ────────────────────────────────────────────────────────────────
+
+    const STRIPE_GROWTH_PRICE_ID = window._STRIPE_GROWTH_PRICE_ID || '';
+
+    async function loadBilling() {
+      try {
+        const res  = await fetch(`${API}/billing/subscription`, { headers: authHeaders() });
+        if (!res.ok) return;
+        const sub  = await res.json();
+        const plan = sub.plan || 'free';
+        const used = sub.evals_this_month || 0;
+        const lim  = sub.eval_limit;
+
+        const badge = document.getElementById('planBadge');
+        badge.textContent = plan.charAt(0).toUpperCase() + plan.slice(1);
+        if (plan === 'growth') {
+          badge.style.background = 'rgba(34,197,94,0.15)';
+          badge.style.color      = '#4ade80';
+          badge.style.border     = '1px solid rgba(34,197,94,0.25)';
+        } else if (plan === 'enterprise') {
+          badge.style.background = 'rgba(251,191,36,0.15)';
+          badge.style.color      = '#fbbf24';
+          badge.style.border     = '1px solid rgba(251,191,36,0.25)';
+        }
+
+        const usageEl = document.getElementById('planUsage');
+        if (lim !== null) {
+          usageEl.textContent = `${used.toLocaleString()} / ${lim.toLocaleString()} evaluations this month`;
+          const pct = Math.min(100, Math.round((used / lim) * 100));
+          const fill = document.getElementById('usageBarFill');
+          fill.style.width = pct + '%';
+          fill.style.background = pct >= 90 ? 'var(--red)' : pct >= 70 ? 'var(--yellow)' : 'var(--accent)';
+        } else {
+          usageEl.textContent = `${used.toLocaleString()} evaluations this month (unlimited)`;
+          document.getElementById('usageBarFill').style.width = '100%';
+        }
+
+        document.getElementById('upgradeSection').style.display = plan === 'free' ? 'block' : 'none';
+        document.getElementById('portalSection').style.display  = plan !== 'free' ? 'block' : 'none';
+      } catch (_) {}
+    }
+
+    async function startCheckout() {
+      const priceId = STRIPE_GROWTH_PRICE_ID;
+      if (!priceId) { alert('Billing not configured — contact support.'); return; }
+      const origin = window.location.origin;
+      try {
+        const res  = await fetch(`${API}/billing/create-checkout-session`, {
+          method: 'POST', headers: authHeaders(),
+          body: JSON.stringify({
+            price_id:    priceId,
+            success_url: `${origin}/?upgrade=success`,
+            cancel_url:  `${origin}/`,
+          }),
+        });
+        const data = await res.json();
+        if (data.checkout_url) window.location.href = data.checkout_url;
+        else alert(data.detail || 'Could not start checkout.');
+      } catch (e) { alert('Checkout error: ' + e.message); }
+    }
+
+    async function openBillingPortal() {
+      try {
+        const res  = await fetch(`${API}/billing/portal`, { method:'POST', headers: authHeaders() });
+        const data = await res.json();
+        if (data.portal_url) window.location.href = data.portal_url;
+        else alert(data.detail || 'Could not open billing portal.');
+      } catch (e) { alert('Portal error: ' + e.message); }
+    }
+
+    // Show upgrade success banner
+    if (new URLSearchParams(window.location.search).get('upgrade') === 'success') {
+      setTimeout(() => {
+        const b = document.createElement('div');
+        b.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#22c55e;color:#fff;padding:12px 24px;border-radius:8px;font-weight:600;z-index:9999;';
+        b.textContent = '🎉 Welcome to Growth! Your plan is now active.';
+        document.body.appendChild(b);
+        setTimeout(() => b.remove(), 5000);
+      }, 500);
     }
   </script>
 </body>
