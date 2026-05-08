@@ -14,7 +14,7 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 from pydantic import BaseModel
 import uvicorn
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -52,11 +52,20 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+_ALLOWED_ORIGINS = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://localhost:3000",
+]
+_extra = os.getenv("ALLOWED_ORIGINS", "")  # comma-separated, set in Railway
+if _extra:
+    _ALLOWED_ORIGINS.extend(o.strip() for o in _extra.split(",") if o.strip())
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 orchestrator = LLMOrchestrator()
@@ -98,6 +107,10 @@ class DecisionRequest(BaseModel):
     context: Dict[str, Any]
     category: str = "other"
     block_threshold: float = 0.8   # confidence above this + 2+ flags → block
+
+    @property
+    def decision_trimmed(self) -> str:
+        return self.decision[:4000]
 
 
 class EthicalAnalysis(BaseModel):
@@ -188,8 +201,32 @@ async def evaluate_decision(
     """Evaluate a decision using ethical reasoning frameworks."""
     if not request.decision or not request.decision.strip():
         raise HTTPException(status_code=400, detail="Decision cannot be empty")
+    if len(request.decision) > 4000:
+        raise HTTPException(status_code=400, detail="Decision text exceeds 4,000 character limit")
     if not request.context:
         raise HTTPException(status_code=400, detail="Context cannot be empty")
+    if len(str(request.context)) > 8000:
+        raise HTTPException(status_code=400, detail="Context exceeds size limit")
+
+    GUEST_EVAL_LIMIT = 10
+    if user.get("is_guest"):
+        if database.count_evaluations(user["sub"]) >= GUEST_EVAL_LIMIT:
+            raise HTTPException(status_code=429, detail=f"Guest accounts are limited to {GUEST_EVAL_LIMIT} evaluations. Sign in with Google for unlimited access.")
+    else:
+        sub = database.get_subscription(user["sub"])
+        limit = sub.get("eval_limit")
+        if limit is not None and sub["evals_this_month"] >= limit:
+            plan = sub["plan"]
+            if plan == "free":
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Free plan limit of {limit} evaluations/month reached. Upgrade to Growth for 2,000 evaluations/month.",
+                )
+            else:
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Monthly evaluation limit of {limit} reached for your {plan} plan.",
+                )
 
     category = request.category if request.category in VALID_CATEGORIES else "other"
     analysis = _run_evaluation(request.decision, request.context, category, request.block_threshold)
@@ -250,11 +287,16 @@ async def hitl_override(request: HITLOverrideRequest, user: dict = Depends(get_c
     """
     if not request.reason or not request.reason.strip():
         raise HTTPException(status_code=400, detail="Override reason cannot be empty")
-    database.log_hitl_override(
+    if len(request.reason) > 1000:
+        raise HTTPException(status_code=400, detail="Override reason exceeds 1,000 character limit")
+    success = database.log_hitl_override(
         audit_log_id=request.audit_log_id,
         investigator_sub=user["sub"],
         reason=request.reason,
+        google_sub=user["sub"],
     )
+    if not success:
+        raise HTTPException(404, "Audit log entry not found or access denied")
     logger.info("HITL override recorded — audit_log_id=%d", request.audit_log_id)
     return {"recorded": True, "audit_log_id": request.audit_log_id}
 
@@ -304,6 +346,21 @@ class AISystemRequest(BaseModel):
     art30_eu_db_registered: bool = False
     art30_registration_number: str = ""
     art33_conformity_type: str = ""         # self-assessment|third-party|pending
+    # Evidence notes + dates (enables pass vs partial distinction)
+    art4_literacy_training_evidence_notes: str = ""
+    art4_literacy_training_evidence_date: str = ""
+    art17_qms_documented_evidence_notes: str = ""
+    art17_qms_documented_evidence_date: str = ""
+    art25_instructions_provided_evidence_notes: str = ""
+    art25_instructions_provided_evidence_date: str = ""
+    art25_monitoring_active_evidence_notes: str = ""
+    art25_monitoring_active_evidence_date: str = ""
+    art27_fria_conducted_evidence_notes: str = ""
+    art27_fria_conducted_evidence_date: str = ""
+    art30_eu_db_registered_evidence_notes: str = ""
+    art30_eu_db_registered_evidence_date: str = ""
+    art33_conformity_type_evidence_notes: str = ""
+    art33_conformity_type_evidence_date: str = ""
 
 
 VALID_RISK_TIERS = {"minimal", "limited", "high", "unacceptable"}
@@ -352,6 +409,20 @@ async def register_ai_system(request: AISystemRequest, user: dict = Depends(get_
         art30_eu_db_registered=request.art30_eu_db_registered,
         art30_registration_number=request.art30_registration_number.strip(),
         art33_conformity_type=request.art33_conformity_type.strip(),
+        art4_literacy_training_evidence_notes=request.art4_literacy_training_evidence_notes.strip(),
+        art4_literacy_training_evidence_date=request.art4_literacy_training_evidence_date.strip(),
+        art17_qms_documented_evidence_notes=request.art17_qms_documented_evidence_notes.strip(),
+        art17_qms_documented_evidence_date=request.art17_qms_documented_evidence_date.strip(),
+        art25_instructions_provided_evidence_notes=request.art25_instructions_provided_evidence_notes.strip(),
+        art25_instructions_provided_evidence_date=request.art25_instructions_provided_evidence_date.strip(),
+        art25_monitoring_active_evidence_notes=request.art25_monitoring_active_evidence_notes.strip(),
+        art25_monitoring_active_evidence_date=request.art25_monitoring_active_evidence_date.strip(),
+        art27_fria_conducted_evidence_notes=request.art27_fria_conducted_evidence_notes.strip(),
+        art27_fria_conducted_evidence_date=request.art27_fria_conducted_evidence_date.strip(),
+        art30_eu_db_registered_evidence_notes=request.art30_eu_db_registered_evidence_notes.strip(),
+        art30_eu_db_registered_evidence_date=request.art30_eu_db_registered_evidence_date.strip(),
+        art33_conformity_type_evidence_notes=request.art33_conformity_type_evidence_notes.strip(),
+        art33_conformity_type_evidence_date=request.art33_conformity_type_evidence_date.strip(),
     )
 
 
@@ -553,6 +624,13 @@ async def evaluate_batch(
     Example CSV header:
         decision,category,role,experience_years
     """
+    # Enforce plan limits before processing — batch counts against the monthly quota
+    if not user.get("is_guest"):
+        sub = database.get_subscription(user["sub"])
+        limit = sub.get("eval_limit")
+        if limit is not None and sub["evals_this_month"] >= limit:
+            raise HTTPException(status_code=429, detail=f"Monthly evaluation limit of {limit} reached.")
+
     content = await file.read()
     try:
         text = content.decode("utf-8-sig")   # handle BOM
@@ -706,6 +784,164 @@ async def org_history(org_id: int, user: dict = Depends(get_current_user)):
     if rows is None:
         raise HTTPException(status_code=403, detail="Not a member of this organization")
     return {"org_id": org_id, "history": rows}
+
+
+# ── Billing / Stripe ──────────────────────────────────────────────────────────
+
+import stripe as _stripe
+
+_stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "")
+_STRIPE_WEBHOOK_SECRET  = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+_STRIPE_GROWTH_PRICE_ID = os.getenv("STRIPE_GROWTH_PRICE_ID", "")
+
+# Map Stripe price IDs → plan names (extend when more tiers are added)
+_PRICE_TO_PLAN: Dict[str, str] = {}
+if _STRIPE_GROWTH_PRICE_ID:
+    _PRICE_TO_PLAN[_STRIPE_GROWTH_PRICE_ID] = "growth"
+
+
+@app.get("/billing/subscription", dependencies=[Depends(get_current_user)])
+async def get_subscription(user: dict = Depends(get_current_user)):
+    """Return current plan, usage this month, and eval limit."""
+    return database.get_subscription(user["sub"])
+
+
+class CheckoutRequest(BaseModel):
+    price_id: str
+    success_url: str
+    cancel_url: str
+
+
+@app.post("/billing/create-checkout-session", dependencies=[Depends(get_current_user)])
+async def create_checkout_session(req: CheckoutRequest, user: dict = Depends(get_current_user)):
+    """Create a Stripe Checkout session for a paid plan upgrade."""
+    if not _stripe.api_key:
+        raise HTTPException(status_code=503, detail="Billing not configured")
+    if req.price_id not in _PRICE_TO_PLAN:
+        raise HTTPException(status_code=400, detail="Invalid price_id")
+
+    sub = database.get_subscription(user["sub"])
+    customer_id = sub.get("stripe_customer_id")
+
+    session_params: Dict[str, Any] = {
+        "mode": "subscription",
+        "line_items": [{"price": req.price_id, "quantity": 1}],
+        "success_url": req.success_url,
+        "cancel_url":  req.cancel_url,
+        "metadata":    {"anon_id": database.anon_id(user["sub"])},
+        "subscription_data": {"metadata": {"anon_id": database.anon_id(user["sub"])}},
+    }
+    if customer_id:
+        session_params["customer"] = customer_id
+    elif user.get("email"):
+        session_params["customer_email"] = user["email"]
+
+    session = _stripe.checkout.Session.create(**session_params)
+    logger.info("Stripe Checkout session created — user=%s price=%s", user["sub"][:8], req.price_id)
+    return {"checkout_url": session.url}
+
+
+@app.post("/billing/portal", dependencies=[Depends(get_current_user)])
+async def billing_portal(user: dict = Depends(get_current_user)):
+    """Create a Stripe Customer Portal session for plan management/cancellation."""
+    if not _stripe.api_key:
+        raise HTTPException(status_code=503, detail="Billing not configured")
+    sub = database.get_subscription(user["sub"])
+    customer_id = sub.get("stripe_customer_id")
+    if not customer_id:
+        raise HTTPException(status_code=400, detail="No active subscription found")
+    origin = os.getenv("APP_URL", "https://virtuous-fulfillment-production-05d3.up.railway.app")
+    portal = _stripe.billing_portal.Session.create(
+        customer=customer_id,
+        return_url=f"{origin}/",
+    )
+    logger.info("Stripe portal session created — user=%s", user["sub"][:8])
+    return {"portal_url": portal.url}
+
+
+@app.post("/billing/webhook")
+async def stripe_webhook(request: Request):
+    """
+    Stripe webhook — verifies signature then updates subscription records.
+    Must be registered in Stripe dashboard pointing to /billing/webhook.
+    No auth — Stripe calls this directly.
+    """
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature", "")
+
+    if not _STRIPE_WEBHOOK_SECRET:
+        raise HTTPException(status_code=503, detail="Webhook secret not configured")
+
+    try:
+        event = _stripe.Webhook.construct_event(payload, sig_header, _STRIPE_WEBHOOK_SECRET)
+    except _stripe.error.SignatureVerificationError:
+        logger.warning("Stripe webhook signature verification failed")
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
+    _handle_stripe_event(event)
+    return {"received": True}
+
+
+def _handle_stripe_event(event: Dict) -> None:
+    """Process a verified Stripe event and update the subscriptions table."""
+    etype = event["type"]
+    data  = event["data"]["object"]
+
+    if etype == "checkout.session.completed":
+        anon_id_val   = data.get("metadata", {}).get("anon_id")
+        customer_id   = data.get("customer")
+        subscription_id = data.get("subscription")
+        if not anon_id_val:
+            logger.warning("checkout.session.completed missing anon_id metadata")
+            return
+        # Retrieve full subscription to get price and period
+        if subscription_id:
+            stripe_sub = _stripe.Subscription.retrieve(subscription_id)
+            price_id   = stripe_sub["items"]["data"][0]["price"]["id"]
+            plan       = _PRICE_TO_PLAN.get(price_id, "growth")
+            period_end = datetime.fromtimestamp(
+                stripe_sub["current_period_end"], tz=timezone.utc
+            ).isoformat()
+            database.upsert_subscription(
+                anon_id_val=anon_id_val, plan=plan, status="active",
+                stripe_customer_id=customer_id,
+                stripe_subscription_id=subscription_id,
+                current_period_end=period_end,
+            )
+            logger.info("Checkout completed — anon_id=%s plan=%s", anon_id_val[:8], plan)
+
+    elif etype in ("customer.subscription.updated", "customer.subscription.created"):
+        customer_id     = data.get("customer")
+        subscription_id = data.get("id")
+        price_id        = data["items"]["data"][0]["price"]["id"]
+        plan            = _PRICE_TO_PLAN.get(price_id, "growth")
+        status          = data.get("status", "active")
+        period_end      = datetime.fromtimestamp(
+            data["current_period_end"], tz=timezone.utc
+        ).isoformat()
+        anon_id_val = database.get_anon_id_by_stripe_customer(customer_id)
+        if anon_id_val:
+            database.upsert_subscription(
+                anon_id_val=anon_id_val, plan=plan, status=status,
+                stripe_customer_id=customer_id,
+                stripe_subscription_id=subscription_id,
+                current_period_end=period_end,
+            )
+
+    elif etype == "customer.subscription.deleted":
+        customer_id = data.get("customer")
+        anon_id_val = database.get_anon_id_by_stripe_customer(customer_id)
+        if anon_id_val:
+            database.upsert_subscription(
+                anon_id_val=anon_id_val, plan="free", status="canceled",
+                stripe_customer_id=customer_id,
+                stripe_subscription_id=data.get("id"),
+                current_period_end=None,
+            )
+            logger.info("Subscription canceled — anon_id=%s downgraded to free", anon_id_val[:8])
+
+    else:
+        logger.debug("Unhandled Stripe event type: %s", etype)
 
 
 # ── API key endpoints ──────────────────────────────────────────────────────────

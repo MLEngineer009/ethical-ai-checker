@@ -174,8 +174,18 @@ class TestComplianceChecklist:
 
     # ── Art. 4 ────────────────────────────────────────────────────────────────
 
-    def test_art4_passes_with_literacy_training(self):
+    def test_art4_partial_with_declaration_only(self):
         system = {**SYSTEM_PAYLOAD, "system_id": 1, "art4_literacy_training": True}
+        stats = {"total": 0, "hitl_overrides": 0, "proxy_vars_caught": 0,
+                 "has_regulatory_refs": False, "has_risk_flags": False, "categories": []}
+        result = compute_compliance(system, stats)
+        assert result["articles"]["art_4"]["status"] == "partial"
+
+    def test_art4_passes_with_evidence(self):
+        system = {**SYSTEM_PAYLOAD, "system_id": 1,
+                  "art4_literacy_training": True,
+                  "art4_literacy_training_evidence_notes": "All staff completed AI literacy course Q1 2026",
+                  "art4_literacy_training_evidence_date": "2026-03-31"}
         stats = {"total": 0, "hitl_overrides": 0, "proxy_vars_caught": 0,
                  "has_regulatory_refs": False, "has_risk_flags": False, "categories": []}
         result = compute_compliance(system, stats)
@@ -293,8 +303,18 @@ class TestComplianceChecklist:
 
     # ── Art. 17 ───────────────────────────────────────────────────────────────
 
-    def test_art17_passes_with_qms(self):
+    def test_art17_partial_with_declaration_only(self):
         system = {**SYSTEM_PAYLOAD, "system_id": 1, "art17_qms_documented": True}
+        stats = {"total": 0, "hitl_overrides": 0, "proxy_vars_caught": 0,
+                 "has_regulatory_refs": False, "has_risk_flags": False, "categories": []}
+        result = compute_compliance(system, stats)
+        assert result["articles"]["art_17"]["status"] == "partial"
+
+    def test_art17_passes_with_evidence(self):
+        system = {**SYSTEM_PAYLOAD, "system_id": 1,
+                  "art17_qms_documented": True,
+                  "art17_qms_documented_evidence_notes": "ISO 9001:2015 QMS certification issued",
+                  "art17_qms_documented_evidence_date": "2026-01-15"}
         stats = {"total": 0, "hitl_overrides": 0, "proxy_vars_caught": 0,
                  "has_regulatory_refs": False, "has_risk_flags": False, "categories": []}
         result = compute_compliance(system, stats)
@@ -302,8 +322,18 @@ class TestComplianceChecklist:
 
     # ── Art. 27 ───────────────────────────────────────────────────────────────
 
-    def test_art27_passes_with_fria(self):
+    def test_art27_partial_with_declaration_only(self):
         system = {**SYSTEM_PAYLOAD, "system_id": 1, "art27_fria_conducted": True}
+        stats = {"total": 0, "hitl_overrides": 0, "proxy_vars_caught": 0,
+                 "has_regulatory_refs": False, "has_risk_flags": False, "categories": []}
+        result = compute_compliance(system, stats)
+        assert result["articles"]["art_27"]["status"] == "partial"
+
+    def test_art27_passes_with_evidence(self):
+        system = {**SYSTEM_PAYLOAD, "system_id": 1,
+                  "art27_fria_conducted": True,
+                  "art27_fria_conducted_evidence_notes": "FRIA report ref. FR-2026-042 on file",
+                  "art27_fria_conducted_evidence_date": "2026-02-28"}
         stats = {"total": 0, "hitl_overrides": 0, "proxy_vars_caught": 0,
                  "has_regulatory_refs": False, "has_risk_flags": False, "categories": []}
         result = compute_compliance(system, stats)
@@ -329,8 +359,18 @@ class TestComplianceChecklist:
 
     # ── Art. 33 ───────────────────────────────────────────────────────────────
 
-    def test_art33_passes_with_conformity_type(self):
+    def test_art33_partial_with_declaration_only(self):
         system = {**SYSTEM_PAYLOAD, "system_id": 1, "art33_conformity_type": "third-party"}
+        stats = {"total": 0, "hitl_overrides": 0, "proxy_vars_caught": 0,
+                 "has_regulatory_refs": False, "has_risk_flags": False, "categories": []}
+        result = compute_compliance(system, stats)
+        assert result["articles"]["art_33"]["status"] == "partial"
+
+    def test_art33_passes_with_evidence(self):
+        system = {**SYSTEM_PAYLOAD, "system_id": 1,
+                  "art33_conformity_type": "third-party",
+                  "art33_conformity_type_evidence_notes": "Certificate of conformity issued by TÜV SÜD, cert #CE-2026-7891",
+                  "art33_conformity_type_evidence_date": "2026-04-01"}
         stats = {"total": 0, "hitl_overrides": 0, "proxy_vars_caught": 0,
                  "has_regulatory_refs": False, "has_risk_flags": False, "categories": []}
         result = compute_compliance(system, stats)

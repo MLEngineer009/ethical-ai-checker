@@ -100,7 +100,7 @@ class TestGetRegulatoryRefs:
     def test_jurisdiction_values_are_known(self):
         all_flags = ["bias", "discrimination", "fairness", "transparency", "harm"]
         refs = get_regulatory_refs(all_flags, "hiring")
-        valid_jurisdictions = {"US", "EU", "US (California)"}
+        valid_jurisdictions = {"US", "EU", "EU / EEA", "US (California)", "US (New York City)", "US (Federal)"}
         for ref in refs:
             assert ref["jurisdiction"] in valid_jurisdictions
 

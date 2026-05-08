@@ -13,6 +13,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 from sqlalchemy import (
     Column, Float, Integer, String,
-    MetaData, Table, create_engine, inspect, text,
+    MetaData, Table, create_engine, func, inspect, select, text,
 )
 
 # ── Engine setup ──────────────────────────────────────────────────────────────
@@ -161,6 +162,21 @@ ai_systems = Table(
     Column("art30_eu_db_registered",    Integer, nullable=False, server_default="0"),  # bool
     Column("art30_registration_number", String,  nullable=False, server_default=""),
     Column("art33_conformity_type",     String,  nullable=False, server_default=""),   # self-assessment|third-party|pending
+    # Evidence notes + dates for the 7 boolean-only article declarations
+    Column("art4_literacy_training_evidence_notes",      String, nullable=False, server_default=""),
+    Column("art4_literacy_training_evidence_date",       String, nullable=False, server_default=""),
+    Column("art17_qms_documented_evidence_notes",        String, nullable=False, server_default=""),
+    Column("art17_qms_documented_evidence_date",         String, nullable=False, server_default=""),
+    Column("art25_instructions_provided_evidence_notes", String, nullable=False, server_default=""),
+    Column("art25_instructions_provided_evidence_date",  String, nullable=False, server_default=""),
+    Column("art25_monitoring_active_evidence_notes",     String, nullable=False, server_default=""),
+    Column("art25_monitoring_active_evidence_date",      String, nullable=False, server_default=""),
+    Column("art27_fria_conducted_evidence_notes",        String, nullable=False, server_default=""),
+    Column("art27_fria_conducted_evidence_date",         String, nullable=False, server_default=""),
+    Column("art30_eu_db_registered_evidence_notes",      String, nullable=False, server_default=""),
+    Column("art30_eu_db_registered_evidence_date",       String, nullable=False, server_default=""),
+    Column("art33_conformity_type_evidence_notes",       String, nullable=False, server_default=""),
+    Column("art33_conformity_type_evidence_date",        String, nullable=False, server_default=""),
     Column("created_at",               String,  nullable=False),
     Column("updated_at",               String,  nullable=False),
 )
@@ -178,6 +194,19 @@ compliance_certificates = Table(
     Column("total_evaluations",   Integer, nullable=False, server_default="0"),
     Column("hitl_overrides",      Integer, nullable=False, server_default="0"),
     Column("proxy_vars_caught",   Integer, nullable=False, server_default="0"),
+)
+
+subscriptions = Table(
+    "subscriptions", _meta,
+    Column("id",                      Integer, primary_key=True, autoincrement=True),
+    Column("anon_id",                 String,  nullable=False, unique=True),
+    Column("plan",                    String,  nullable=False, server_default="free"),  # free|growth|enterprise
+    Column("status",                  String,  nullable=False, server_default="active"),  # active|past_due|canceled
+    Column("stripe_customer_id",      String,  nullable=True),
+    Column("stripe_subscription_id",  String,  nullable=True),
+    Column("current_period_end",      String,  nullable=True),  # ISO timestamp
+    Column("created_at",              String,  nullable=False),
+    Column("updated_at",              String,  nullable=False),
 )
 
 
@@ -210,10 +239,29 @@ def init_db() -> None:
             ("art30_eu_db_registered",     "INTEGER DEFAULT 0"),
             ("art30_registration_number",  "VARCHAR DEFAULT ''"),
             ("art33_conformity_type",      "VARCHAR DEFAULT ''"),
+            # Evidence columns (v2 — pass/partial/fail distinction)
+            ("art4_literacy_training_evidence_notes",      "VARCHAR DEFAULT ''"),
+            ("art4_literacy_training_evidence_date",       "VARCHAR DEFAULT ''"),
+            ("art17_qms_documented_evidence_notes",        "VARCHAR DEFAULT ''"),
+            ("art17_qms_documented_evidence_date",         "VARCHAR DEFAULT ''"),
+            ("art25_instructions_provided_evidence_notes", "VARCHAR DEFAULT ''"),
+            ("art25_instructions_provided_evidence_date",  "VARCHAR DEFAULT ''"),
+            ("art25_monitoring_active_evidence_notes",     "VARCHAR DEFAULT ''"),
+            ("art25_monitoring_active_evidence_date",      "VARCHAR DEFAULT ''"),
+            ("art27_fria_conducted_evidence_notes",        "VARCHAR DEFAULT ''"),
+            ("art27_fria_conducted_evidence_date",         "VARCHAR DEFAULT ''"),
+            ("art30_eu_db_registered_evidence_notes",      "VARCHAR DEFAULT ''"),
+            ("art30_eu_db_registered_evidence_date",       "VARCHAR DEFAULT ''"),
+            ("art33_conformity_type_evidence_notes",       "VARCHAR DEFAULT ''"),
+            ("art33_conformity_type_evidence_date",        "VARCHAR DEFAULT ''"),
         ]
+        _SAFE_COL = re.compile(r'^[a-z_][a-z0-9_]*$')
         with _engine.begin() as conn:
             for col_name, col_def in new_cols:
                 if col_name not in ai_cols:
+                    if not _SAFE_COL.match(col_name):
+                        logger.error("Migration aborted — unsafe column name: %r", col_name)
+                        continue
                     logger.info("Migration: adding ai_systems.%s column", col_name)
                     conn.execute(text(f"ALTER TABLE ai_systems ADD COLUMN {col_name} {col_def}"))
     logger.info("Database schema up to date")
@@ -301,12 +349,23 @@ def log_hitl_override(
     audit_log_id: int,
     investigator_sub: str,
     reason: str,
-) -> None:
+    google_sub: str = "",
+) -> bool:
     """
     Record a human investigator override of the firewall verdict.
     Meets EU AI Act Article 14 human oversight requirements.
+
+    Now enforces ownership: only the user who created the audit entry may
+    override it. Returns True on success, False if not found or not owned.
     """
     with _engine.begin() as conn:
+        row = conn.execute(
+            audit_log.select().where(audit_log.c.id == audit_log_id)
+        ).fetchone()
+        if not row:
+            return False
+        if row.anon_id != anon_id(google_sub):
+            return False
         conn.execute(
             audit_log.update()
             .where(audit_log.c.id == audit_log_id)
@@ -316,6 +375,7 @@ def log_hitl_override(
                 hitl_anon_id  = anon_id(investigator_sub),
             )
         )
+    return True
 
 
 def get_audit_log(google_sub: str, limit: int = 50) -> List[Dict]:
@@ -344,6 +404,109 @@ def get_audit_log(google_sub: str, limit: int = 50) -> List[Dict]:
         }
         for r in rows
     ]
+
+
+def count_evaluations(google_sub: str) -> int:
+    """Count the number of evaluations made by a user (from request_logs)."""
+    aid = anon_id(google_sub)
+    with _engine.connect() as conn:
+        result = conn.execute(
+            select(func.count()).select_from(request_logs).where(request_logs.c.anon_id == aid)
+        )
+        return result.scalar() or 0
+
+
+def count_evaluations_this_month(google_sub: str) -> int:
+    """Count evaluations made by a user in the current calendar month."""
+    aid = anon_id(google_sub)
+    month_prefix = datetime.now(timezone.utc).strftime("%Y-%m")
+    with _engine.connect() as conn:
+        result = conn.execute(
+            select(func.count()).select_from(request_logs).where(
+                request_logs.c.anon_id == aid,
+                request_logs.c.timestamp.like(f"{month_prefix}%"),
+            )
+        )
+        return result.scalar() or 0
+
+
+# ── Subscription / billing ─────────────────────────────────────────────────────
+
+PLAN_LIMITS = {
+    "free":       100,
+    "growth":     2000,
+    "enterprise": None,   # unlimited
+}
+
+
+def get_subscription(google_sub: str) -> Dict[str, Any]:
+    """Return the user's current subscription. Creates a free record if none exists."""
+    aid = anon_id(google_sub)
+    now = datetime.now(timezone.utc).isoformat()
+    with _engine.begin() as conn:
+        row = conn.execute(
+            subscriptions.select().where(subscriptions.c.anon_id == aid)
+        ).fetchone()
+        if not row:
+            conn.execute(subscriptions.insert().values(
+                anon_id=aid, plan="free", status="active", created_at=now, updated_at=now,
+            ))
+            return {"plan": "free", "status": "active", "stripe_customer_id": None,
+                    "stripe_subscription_id": None, "current_period_end": None,
+                    "evals_this_month": 0, "eval_limit": PLAN_LIMITS["free"]}
+    evals = count_evaluations_this_month(google_sub)
+    limit = PLAN_LIMITS.get(row.plan, 100)
+    return {
+        "plan":                   row.plan,
+        "status":                 row.status,
+        "stripe_customer_id":     row.stripe_customer_id,
+        "stripe_subscription_id": row.stripe_subscription_id,
+        "current_period_end":     row.current_period_end,
+        "evals_this_month":       evals,
+        "eval_limit":             limit,
+    }
+
+
+def upsert_subscription(
+    anon_id_val: str,
+    plan: str,
+    status: str,
+    stripe_customer_id: str,
+    stripe_subscription_id: str,
+    current_period_end: str,
+) -> None:
+    """Create or update subscription record — called from Stripe webhook."""
+    now = datetime.now(timezone.utc).isoformat()
+    with _engine.begin() as conn:
+        existing = conn.execute(
+            subscriptions.select().where(subscriptions.c.anon_id == anon_id_val)
+        ).fetchone()
+        if existing:
+            conn.execute(
+                subscriptions.update()
+                .where(subscriptions.c.anon_id == anon_id_val)
+                .values(plan=plan, status=status, stripe_customer_id=stripe_customer_id,
+                        stripe_subscription_id=stripe_subscription_id,
+                        current_period_end=current_period_end, updated_at=now)
+            )
+        else:
+            conn.execute(subscriptions.insert().values(
+                anon_id=anon_id_val, plan=plan, status=status,
+                stripe_customer_id=stripe_customer_id,
+                stripe_subscription_id=stripe_subscription_id,
+                current_period_end=current_period_end,
+                created_at=now, updated_at=now,
+            ))
+    logger.info("Subscription upserted — anon_id=%s plan=%s status=%s", anon_id_val[:8], plan, status)
+
+
+def get_anon_id_by_stripe_customer(stripe_customer_id: str) -> str | None:
+    """Look up anon_id from a Stripe customer ID — used in webhook handlers."""
+    with _engine.connect() as conn:
+        row = conn.execute(
+            subscriptions.select().where(subscriptions.c.stripe_customer_id == stripe_customer_id)
+        ).fetchone()
+    return row.anon_id if row else None
 
 
 def log_request(
@@ -683,6 +846,21 @@ def create_ai_system(
     art30_eu_db_registered: bool = False,
     art30_registration_number: str = "",
     art33_conformity_type: str = "",
+    # Evidence notes + dates
+    art4_literacy_training_evidence_notes: str = "",
+    art4_literacy_training_evidence_date: str = "",
+    art17_qms_documented_evidence_notes: str = "",
+    art17_qms_documented_evidence_date: str = "",
+    art25_instructions_provided_evidence_notes: str = "",
+    art25_instructions_provided_evidence_date: str = "",
+    art25_monitoring_active_evidence_notes: str = "",
+    art25_monitoring_active_evidence_date: str = "",
+    art27_fria_conducted_evidence_notes: str = "",
+    art27_fria_conducted_evidence_date: str = "",
+    art30_eu_db_registered_evidence_notes: str = "",
+    art30_eu_db_registered_evidence_date: str = "",
+    art33_conformity_type_evidence_notes: str = "",
+    art33_conformity_type_evidence_date: str = "",
 ) -> Dict[str, Any]:
     aid = anon_id(google_sub)
     now = datetime.now(timezone.utc).isoformat()
@@ -708,6 +886,20 @@ def create_ai_system(
             art30_eu_db_registered=int(art30_eu_db_registered),
             art30_registration_number=art30_registration_number,
             art33_conformity_type=art33_conformity_type,
+            art4_literacy_training_evidence_notes=art4_literacy_training_evidence_notes,
+            art4_literacy_training_evidence_date=art4_literacy_training_evidence_date,
+            art17_qms_documented_evidence_notes=art17_qms_documented_evidence_notes,
+            art17_qms_documented_evidence_date=art17_qms_documented_evidence_date,
+            art25_instructions_provided_evidence_notes=art25_instructions_provided_evidence_notes,
+            art25_instructions_provided_evidence_date=art25_instructions_provided_evidence_date,
+            art25_monitoring_active_evidence_notes=art25_monitoring_active_evidence_notes,
+            art25_monitoring_active_evidence_date=art25_monitoring_active_evidence_date,
+            art27_fria_conducted_evidence_notes=art27_fria_conducted_evidence_notes,
+            art27_fria_conducted_evidence_date=art27_fria_conducted_evidence_date,
+            art30_eu_db_registered_evidence_notes=art30_eu_db_registered_evidence_notes,
+            art30_eu_db_registered_evidence_date=art30_eu_db_registered_evidence_date,
+            art33_conformity_type_evidence_notes=art33_conformity_type_evidence_notes,
+            art33_conformity_type_evidence_date=art33_conformity_type_evidence_date,
             created_at=now,
             updated_at=now,
         ))
@@ -772,6 +964,20 @@ def get_ai_system(system_id: int, google_sub: str) -> Dict | None:
         "art30_eu_db_registered":     bool(getattr(row, "art30_eu_db_registered", 0)),
         "art30_registration_number":  getattr(row, "art30_registration_number", "") or "",
         "art33_conformity_type":      getattr(row, "art33_conformity_type", "") or "",
+        "art4_literacy_training_evidence_notes":      getattr(row, "art4_literacy_training_evidence_notes", "") or "",
+        "art4_literacy_training_evidence_date":       getattr(row, "art4_literacy_training_evidence_date", "") or "",
+        "art17_qms_documented_evidence_notes":        getattr(row, "art17_qms_documented_evidence_notes", "") or "",
+        "art17_qms_documented_evidence_date":         getattr(row, "art17_qms_documented_evidence_date", "") or "",
+        "art25_instructions_provided_evidence_notes": getattr(row, "art25_instructions_provided_evidence_notes", "") or "",
+        "art25_instructions_provided_evidence_date":  getattr(row, "art25_instructions_provided_evidence_date", "") or "",
+        "art25_monitoring_active_evidence_notes":     getattr(row, "art25_monitoring_active_evidence_notes", "") or "",
+        "art25_monitoring_active_evidence_date":      getattr(row, "art25_monitoring_active_evidence_date", "") or "",
+        "art27_fria_conducted_evidence_notes":        getattr(row, "art27_fria_conducted_evidence_notes", "") or "",
+        "art27_fria_conducted_evidence_date":         getattr(row, "art27_fria_conducted_evidence_date", "") or "",
+        "art30_eu_db_registered_evidence_notes":      getattr(row, "art30_eu_db_registered_evidence_notes", "") or "",
+        "art30_eu_db_registered_evidence_date":       getattr(row, "art30_eu_db_registered_evidence_date", "") or "",
+        "art33_conformity_type_evidence_notes":       getattr(row, "art33_conformity_type_evidence_notes", "") or "",
+        "art33_conformity_type_evidence_date":        getattr(row, "art33_conformity_type_evidence_date", "") or "",
         "created_at":           row.created_at,
     }
 
