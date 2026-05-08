@@ -454,6 +454,15 @@
     .btn-download:active { transform: translateY(1px); }
     .btn-download:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 
+    .btn-demo {
+      background: transparent;
+      border: 1px solid rgba(99,102,241,0.4);
+      color: var(--accent2);
+      box-shadow: none;
+    }
+    .btn-demo:hover { background: rgba(99,102,241,0.1); border-color: rgba(99,102,241,0.7); }
+    .btn-demo:active { transform: translateY(1px); }
+
     .btn-ghost {
       background: transparent; border: 1px solid var(--card-border);
       color: var(--text-muted); padding: 9px 16px;
@@ -736,9 +745,70 @@
     @media (max-width: 768px) {
       .sidebar { display: none; }
       .main-content { margin-left: 0; }
-      .content-body { padding: 16px; }
+      .content-body { padding: 16px 16px 80px; }  /* bottom padding clears the mobile nav */
       .context-row { grid-template-columns: 1fr; }
+      .mobile-nav { display: flex; }
     }
+
+    /* ── Mobile bottom navigation ── */
+    .mobile-nav {
+      display: none;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--sidebar-bg);
+      border-top: 1px solid var(--sidebar-border);
+      z-index: 200;
+      padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+    .mobile-nav-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      padding: 9px 4px 8px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      color: rgba(255,255,255,0.4);
+      transition: color 0.15s;
+      min-width: 0;
+    }
+    .mobile-nav-btn.active { color: #a78bfa; }
+    .mobile-nav-btn .mnav-icon { font-size: 18px; line-height: 1; }
+    .mobile-nav-btn .mnav-label { font-size: 10px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 56px; }
+    .mobile-nav-indicator {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: #a78bfa;
+      transition: transform 0.2s ease;
+    }
+    /* ── Assessment Wizard ─────────────────────────────────── */
+    .wiz-field-label { font-size:11px;font-weight:600;color:var(--text-subtle);margin-bottom:4px;letter-spacing:.3px; }
+    .wiz-input { width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;color:var(--text-primary);font-size:13px;padding:9px 12px;box-sizing:border-box; }
+    .wiz-input:focus { outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(118,75,162,.15); }
+    .wiz-section-label { font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-subtle);margin:18px 0 10px;padding-top:14px;border-top:1px solid var(--card-border); }
+    .wiz-article-block { margin-bottom:14px;padding:12px;background:var(--input-bg);border-radius:8px;border:1px solid var(--card-border); }
+    .wiz-article-title { font-size:11px;font-weight:700;color:var(--accent2);margin-bottom:6px; }
+    .wiz-checkbox-row { display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:var(--text-muted); }
+    .wiz-checkbox-row input[type=checkbox] { margin-top:2px;accent-color:var(--accent);flex-shrink:0; }
+    .wiz-evidence-box { margin-top:8px;padding:10px 12px;background:var(--amber-bg,#fefce8);border-left:3px solid #f59e0b;border-radius:0 6px 6px 0;font-size:12px; }
+    .wiz-evidence-hint { color:#92400e;font-weight:600;margin-bottom:6px;font-size:11px; }
+    .wiz-evidence-row { display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:6px; }
+    .wiz-step-hint { font-size:12px;color:var(--text-muted);background:var(--input-bg);border-radius:8px;padding:10px 14px;margin-bottom:16px;border-left:3px solid var(--accent);line-height:1.5; }
+    .wiz-review-row { display:grid;grid-template-columns:1fr auto;align-items:center;padding:7px 10px;border-bottom:1px solid var(--card-border);font-size:12px; }
+    .wiz-review-row:last-child { border-bottom:none; }
+    .wiz-badge { display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px; }
+    .wiz-badge-pass { background:#d1fae5;color:#065f46; }
+    .wiz-badge-partial { background:#fef3c7;color:#92400e; }
+    .wiz-badge-fail { background:#fee2e2;color:#991b1b; }
+    .wiz-step-dot { width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;transition:all .2s; }
+    .wiz-step-dot.active { background:var(--accent);color:#fff; }
+    .wiz-step-dot.done { background:#d1fae5;color:#065f46; }
+    .wiz-step-dot.todo { background:var(--card-border);color:var(--text-muted); }
   </style>
 </head>
 <body>
@@ -929,6 +999,34 @@
         <button class="btn-logout" id="btnLogout">Sign out</button>
       </div>
     </aside>
+
+    <!-- ── Mobile bottom navigation ── -->
+    <nav class="mobile-nav" id="mobileNav">
+      <button class="mobile-nav-btn active" onclick="switchTab('evaluate')" data-tab="evaluate">
+        <span class="mnav-icon">🛡️</span>
+        <span class="mnav-label">Screen</span>
+      </button>
+      <button class="mobile-nav-btn" onclick="switchTab('history')" data-tab="history">
+        <span class="mnav-icon">📋</span>
+        <span class="mnav-label">History</span>
+      </button>
+      <button class="mobile-nav-btn" onclick="switchTab('batch')" data-tab="batch">
+        <span class="mnav-icon">📂</span>
+        <span class="mnav-label">Batch</span>
+      </button>
+      <button class="mobile-nav-btn" onclick="switchTab('audit')" data-tab="audit">
+        <span class="mnav-icon">🔐</span>
+        <span class="mnav-label">Audit</span>
+      </button>
+      <button class="mobile-nav-btn" onclick="switchTab('compliance')" data-tab="compliance">
+        <span class="mnav-icon">🏛️</span>
+        <span class="mnav-label">EU AI Act</span>
+      </button>
+      <button class="mobile-nav-btn" onclick="switchTab('settings')" data-tab="settings">
+        <span class="mnav-icon">⚙️</span>
+        <span class="mnav-label">Settings</span>
+      </button>
+    </nav>
 
     <!-- Main content -->
     <main class="main-content">
@@ -1175,143 +1273,244 @@
 
             <div id="registeredSystemsList" style="margin-bottom:16px;"></div>
 
-            <details id="registerFormDetails" style="margin-bottom:0;">
-              <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--accent2);user-select:none;margin-bottom:12px;">+ Register a new AI system</summary>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;" id="registerFormGrid">
-                <div>
-                  <div class="card-title" style="font-size:11px;margin-bottom:4px;">System Name *</div>
-                  <input type="text" id="sysName" placeholder="e.g. Loan Approval Engine" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;color:var(--text-primary);font-size:13px;padding:9px 12px;box-sizing:border-box;">
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <button class="btn btn-primary" onclick="startWizard()" id="startWizardBtn" style="font-size:13px;padding:8px 18px;width:auto;">+ Register a New AI System</button>
+              <button class="btn btn-demo" onclick="loadDemoSystem()" id="demoWizardBtn" style="font-size:13px;padding:8px 18px;width:auto;">▶ Try Demo — LoanSight AI</button>
+            </div>
+            <div id="demoBanner" style="display:none;margin-top:10px;padding:9px 14px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:8px;font-size:12px;color:var(--accent2);display:none;">
+              <b>Demo Mode</b> — LoanSight AI by Veridian Finance SA (fictional system). Click through the steps to see a real EU AI Act assessment with PASS, PARTIAL, and FAIL results.
+              <button onclick="document.getElementById('demoBanner').style.display='none'" style="background:none;border:none;color:var(--accent2);cursor:pointer;font-size:12px;padding:0;margin-left:10px;opacity:0.7;">✕</button>
+            </div>
+
+            <!-- ── 5-Step Assessment Wizard ── -->
+            <div id="regWizard" style="display:none;margin-top:18px;">
+
+              <!-- Progress bar -->
+              <div style="margin-bottom:20px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                  <div id="wizDot1" class="wiz-step-dot active" title="Step 1">1</div>
+                  <div style="flex:1;height:2px;background:var(--card-border);margin:0 4px;" id="wizLine1"></div>
+                  <div id="wizDot2" class="wiz-step-dot todo" title="Step 2">2</div>
+                  <div style="flex:1;height:2px;background:var(--card-border);margin:0 4px;" id="wizLine2"></div>
+                  <div id="wizDot3" class="wiz-step-dot todo" title="Step 3">3</div>
+                  <div style="flex:1;height:2px;background:var(--card-border);margin:0 4px;" id="wizLine3"></div>
+                  <div id="wizDot4" class="wiz-step-dot todo" title="Step 4">4</div>
+                  <div style="flex:1;height:2px;background:var(--card-border);margin:0 4px;" id="wizLine4"></div>
+                  <div id="wizDot5" class="wiz-step-dot todo" title="Step 5">5</div>
                 </div>
-                <div>
-                  <div class="card-title" style="font-size:11px;margin-bottom:4px;">Company Name *</div>
-                  <input type="text" id="sysCompany" placeholder="e.g. Acme Financial Inc." style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;color:var(--text-primary);font-size:13px;padding:9px 12px;box-sizing:border-box;">
-                </div>
-                <div>
-                  <div class="card-title" style="font-size:11px;margin-bottom:4px;">EU AI Act Risk Tier *</div>
-                  <select id="sysRiskTier" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;color:var(--text-primary);font-size:13px;padding:9px 12px;box-sizing:border-box;">
-                    <option value="minimal">Minimal Risk</option>
-                    <option value="limited">Limited Risk</option>
-                    <option value="high" selected>High Risk</option>
-                    <option value="unacceptable">Unacceptable Risk (prohibited)</option>
-                  </select>
-                </div>
-                <div>
-                  <div class="card-title" style="font-size:11px;margin-bottom:4px;">Model Version</div>
-                  <input type="text" id="sysModelVersion" placeholder="e.g. v2.1.0" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;color:var(--text-primary);font-size:13px;padding:9px 12px;box-sizing:border-box;">
-                </div>
-                <div>
-                  <div class="card-title" style="font-size:11px;margin-bottom:4px;">Use Case *</div>
-                  <input type="text" id="sysUseCase" placeholder="e.g. Credit scoring for personal loans" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;color:var(--text-primary);font-size:13px;padding:9px 12px;box-sizing:border-box;">
-                </div>
-                <div>
-                  <div class="card-title" style="font-size:11px;margin-bottom:4px;">Geographic Scope</div>
-                  <input type="text" id="sysGeoScope" placeholder="e.g. EU, USA, Global" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;color:var(--text-primary);font-size:13px;padding:9px 12px;box-sizing:border-box;">
-                </div>
-                <div style="grid-column:1/-1;">
-                  <div class="card-title" style="font-size:11px;margin-bottom:4px;">Intended Purpose</div>
-                  <input type="text" id="sysIntendedPurpose" placeholder="e.g. Automate initial loan eligibility screening for consumer applicants" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;color:var(--text-primary);font-size:13px;padding:9px 12px;box-sizing:border-box;">
-                </div>
-                <div style="grid-column:1/-1;">
-                  <div class="card-title" style="font-size:11px;margin-bottom:4px;">Training Data Sources <span style="color:var(--text-muted);font-weight:400;">(one per line — Art. 10)</span></div>
-                  <textarea id="sysDataSources" rows="3" placeholder="Equifax credit bureau data&#10;Internal loan history 2015–2023&#10;HMDA public dataset" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;color:var(--text-primary);font-size:13px;padding:9px 12px;box-sizing:border-box;resize:vertical;font-family:inherit;"></textarea>
+                <div id="wizStepTitle" style="font-size:12px;color:var(--text-muted);text-align:center;"></div>
+              </div>
+
+              <!-- ── Step 1: System Profile ── -->
+              <div id="wizStep1">
+                <div class="wiz-step-hint">Basic identity — name, owner, and purpose of the AI system you are registering for EU AI Act assessment.</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                  <div>
+                    <div class="wiz-field-label">System Name *</div>
+                    <input type="text" id="sysName" class="wiz-input" placeholder="e.g. Loan Approval Engine">
+                  </div>
+                  <div>
+                    <div class="wiz-field-label">Company / Organisation *</div>
+                    <input type="text" id="sysCompany" class="wiz-input" placeholder="e.g. Acme Financial Inc.">
+                  </div>
+                  <div>
+                    <div class="wiz-field-label">Use Case *</div>
+                    <input type="text" id="sysUseCase" class="wiz-input" placeholder="e.g. Credit scoring for personal loans">
+                  </div>
+                  <div>
+                    <div class="wiz-field-label">Model Version</div>
+                    <input type="text" id="sysModelVersion" class="wiz-input" placeholder="e.g. v2.1.0">
+                  </div>
+                  <div>
+                    <div class="wiz-field-label">Geographic Scope</div>
+                    <input type="text" id="sysGeoScope" class="wiz-input" placeholder="e.g. EU, Germany, Global">
+                  </div>
+                  <div></div>
+                  <div style="grid-column:1/-1;">
+                    <div class="wiz-field-label">Intended Purpose <span style="color:var(--text-muted);font-weight:400;">(Art. 11 technical documentation)</span></div>
+                    <input type="text" id="sysIntendedPurpose" class="wiz-input" placeholder="e.g. Automate initial loan eligibility screening for consumer applicants">
+                  </div>
                 </div>
               </div>
 
-              <!-- ── Declarative Article Declarations ── -->
-              <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--card-border);">
-                <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-subtle);margin-bottom:14px;">Compliance Declarations — Arts. 4, 6, 15, 17, 25, 27, 30, 33</div>
+              <!-- ── Step 2: Risk Classification ── -->
+              <div id="wizStep2" style="display:none;">
+                <div class="wiz-step-hint"><b>Art. 6</b> determines which EU AI Act obligations apply. Minimal/limited risk systems have lighter requirements. High-risk systems face the full 15-article framework including mandatory conformity assessment. Unacceptable risk systems are prohibited.</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                  <div>
+                    <div class="wiz-field-label">EU AI Act Risk Tier *</div>
+                    <select id="sysRiskTier" class="wiz-input">
+                      <option value="minimal">Minimal Risk — General-purpose, low impact</option>
+                      <option value="limited">Limited Risk — Chatbots, deepfakes (transparency obligations)</option>
+                      <option value="high" selected>High Risk — Annex III systems (full framework applies)</option>
+                      <option value="unacceptable">Unacceptable Risk — Prohibited under Art. 5</option>
+                    </select>
+                  </div>
+                  <div>
+                    <div class="wiz-field-label">Annex III Category <span style="color:var(--text-muted);font-weight:400;">(Art. 6 — required for high-risk)</span></div>
+                    <select id="sysArt6Annex" class="wiz-input">
+                      <option value="">— Not applicable / not yet classified</option>
+                      <option value="A.1 — Biometric identification and categorisation">A.1 — Biometric identification and categorisation</option>
+                      <option value="A.2 — Critical infrastructure management">A.2 — Critical infrastructure management</option>
+                      <option value="A.3 — Education and vocational training">A.3 — Education and vocational training</option>
+                      <option value="A.4 — Employment, workforce management, and access to self-employment">A.4 — Employment / workforce management</option>
+                      <option value="A.5 — Access to and enjoyment of essential private services and public services and benefits">A.5 — Access to essential services and public benefits</option>
+                      <option value="A.6 — Law enforcement">A.6 — Law enforcement</option>
+                      <option value="A.7 — Migration, asylum, and border control management">A.7 — Migration, asylum, and border control</option>
+                      <option value="A.8 — Administration of justice and democratic processes">A.8 — Administration of justice and democratic processes</option>
+                    </select>
+                  </div>
+                </div>
+                <div id="wizUnacceptableWarning" style="display:none;margin-top:14px;padding:12px 16px;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;font-size:13px;color:#991b1b;font-weight:600;">
+                  ⚠ Unacceptable Risk systems are <u>prohibited</u> under EU AI Act Art. 5. They cannot be deployed in the EU. Registering this system will generate a PROHIBITED verdict on the compliance certificate.
+                </div>
+              </div>
+
+              <!-- ── Step 3: Data & Technical Performance ── -->
+              <div id="wizStep3" style="display:none;">
+                <div class="wiz-step-hint"><b>Art. 10</b> requires data governance: document your training data sources. <b>Art. 15</b> requires accuracy metrics and robustness testing to be documented before deployment.</div>
+                <div>
+                  <div class="wiz-field-label">Training Data Sources <span style="color:var(--text-muted);font-weight:400;">(one per line — Art. 10)</span></div>
+                  <textarea id="sysDataSources" rows="4" class="wiz-input" style="resize:vertical;font-family:inherit;" placeholder="Equifax credit bureau data&#10;Internal loan history 2015–2023&#10;HMDA public dataset"></textarea>
+                </div>
+                <div class="wiz-section-label">Article 15 — Accuracy, Robustness &amp; Cybersecurity</div>
+                <div>
+                  <div class="wiz-field-label">Accuracy Metric <span style="color:var(--text-muted);font-weight:400;">(required for a passing score)</span></div>
+                  <input type="text" id="sysArt15Accuracy" class="wiz-input" style="margin-bottom:10px;" placeholder="e.g. F1=0.94, AUC=0.91, precision=0.92">
+                </div>
+                <label class="wiz-checkbox-row">
+                  <input type="checkbox" id="sysArt15Robustness">
+                  Adversarial robustness and edge-case testing has been conducted and results documented
+                </label>
+              </div>
+
+              <!-- ── Step 4: Governance Controls ── -->
+              <div id="wizStep4" style="display:none;">
+                <div class="wiz-step-hint">For each control below: <b>checking the box alone → PARTIAL</b> (declaration only). <b>Adding a description and date → PASS</b> (evidenced). Partial controls appear with a warning badge on the compliance certificate.</div>
 
                 <!-- Art. 4 -->
-                <div style="margin-bottom:12px;">
-                  <div style="font-size:11px;font-weight:600;color:var(--accent2);margin-bottom:6px;">Article 4 — AI Literacy</div>
-                  <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:var(--text-muted);">
-                    <input type="checkbox" id="sysArt4Literacy" style="margin-top:2px;accent-color:var(--accent);">
+                <div class="wiz-article-block">
+                  <div class="wiz-article-title">Article 4 — AI Literacy <span style="font-weight:400;color:var(--text-muted);">(applies from 2 Feb 2025)</span></div>
+                  <label class="wiz-checkbox-row">
+                    <input type="checkbox" id="sysArt4Literacy">
                     AI literacy training has been provided to all staff who operate or oversee this system
                   </label>
-                </div>
-
-                <!-- Art. 6 -->
-                <div style="margin-bottom:12px;">
-                  <div style="font-size:11px;font-weight:600;color:var(--accent2);margin-bottom:6px;">Article 6 — Annex III Classification</div>
-                  <select id="sysArt6Annex" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;color:var(--text-primary);font-size:13px;padding:9px 12px;box-sizing:border-box;">
-                    <option value="">— Not applicable / not yet classified</option>
-                    <option value="A.1 — Biometric identification and categorisation">A.1 — Biometric identification and categorisation</option>
-                    <option value="A.2 — Critical infrastructure management">A.2 — Critical infrastructure management</option>
-                    <option value="A.3 — Education and vocational training">A.3 — Education and vocational training</option>
-                    <option value="A.4 — Employment, workforce management, and access to self-employment">A.4 — Employment / workforce management</option>
-                    <option value="A.5 — Access to essential private services and public benefits">A.5 — Access to essential services and public benefits</option>
-                    <option value="A.6 — Law enforcement">A.6 — Law enforcement</option>
-                    <option value="A.7 — Migration, asylum, and border control management">A.7 — Migration, asylum, and border control</option>
-                    <option value="A.8 — Administration of justice and democratic processes">A.8 — Administration of justice and democratic processes</option>
-                  </select>
-                </div>
-
-                <!-- Art. 15 -->
-                <div style="margin-bottom:12px;">
-                  <div style="font-size:11px;font-weight:600;color:var(--accent2);margin-bottom:6px;">Article 15 — Accuracy, Robustness & Cybersecurity</div>
-                  <input type="text" id="sysArt15Accuracy" placeholder="Accuracy metric — e.g. F1=0.94, AUC=0.91, precision=0.92" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;color:var(--text-primary);font-size:13px;padding:9px 12px;box-sizing:border-box;margin-bottom:6px;">
-                  <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:var(--text-muted);">
-                    <input type="checkbox" id="sysArt15Robustness" style="margin-top:2px;accent-color:var(--accent);">
-                    Adversarial and edge-case robustness testing has been conducted
-                  </label>
+                  <div class="wiz-evidence-box">
+                    <div class="wiz-evidence-hint">📎 Add evidence to score PASS (not just PARTIAL)</div>
+                    <input type="text" id="sysArt4EvidenceNotes" class="wiz-input" style="margin-bottom:6px;" placeholder="e.g. All staff completed AI literacy course Q1 2026 — ref. training-log-001">
+                    <div class="wiz-evidence-row">
+                      <input type="text" id="sysArt4EvidenceDate" class="wiz-input" type="date" placeholder="Evidence date (YYYY-MM-DD)">
+                    </div>
+                  </div>
                 </div>
 
                 <!-- Art. 17 -->
-                <div style="margin-bottom:12px;">
-                  <div style="font-size:11px;font-weight:600;color:var(--accent2);margin-bottom:6px;">Article 17 — Quality Management System</div>
-                  <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:var(--text-muted);">
-                    <input type="checkbox" id="sysArt17QMS" style="margin-top:2px;accent-color:var(--accent);">
-                    A documented quality management system covering development, testing, and monitoring is in place
+                <div class="wiz-article-block">
+                  <div class="wiz-article-title">Article 17 — Quality Management System</div>
+                  <label class="wiz-checkbox-row">
+                    <input type="checkbox" id="sysArt17QMS">
+                    A documented QMS covering development, testing, and monitoring is in place
                   </label>
+                  <div class="wiz-evidence-box">
+                    <div class="wiz-evidence-hint">📎 Add evidence to score PASS</div>
+                    <input type="text" id="sysArt17EvidenceNotes" class="wiz-input" style="margin-bottom:6px;" placeholder="e.g. ISO 9001:2015 certification, cert #QMS-2026-042">
+                    <input type="text" id="sysArt17EvidenceDate" class="wiz-input" placeholder="Evidence date (YYYY-MM-DD)">
+                  </div>
                 </div>
 
                 <!-- Art. 25 -->
-                <div style="margin-bottom:12px;">
-                  <div style="font-size:11px;font-weight:600;color:var(--accent2);margin-bottom:6px;">Article 25 — Deployer Obligations</div>
-                  <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:var(--text-muted);margin-bottom:6px;">
-                    <input type="checkbox" id="sysArt25Instructions" style="margin-top:2px;accent-color:var(--accent);">
-                    Instructions for use have been provided to all deployers of this system
+                <div class="wiz-article-block">
+                  <div class="wiz-article-title">Article 25 — Deployer Obligations</div>
+                  <label class="wiz-checkbox-row" style="margin-bottom:8px;">
+                    <input type="checkbox" id="sysArt25Instructions">
+                    Instructions for use provided to all deployers
                   </label>
-                  <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:var(--text-muted);">
-                    <input type="checkbox" id="sysArt25Monitoring" style="margin-top:2px;accent-color:var(--accent);">
-                    Post-deployment monitoring is active and reviewed regularly
+                  <div class="wiz-evidence-box" style="margin-bottom:10px;">
+                    <div class="wiz-evidence-hint">📎 Evidence for instructions (PASS vs PARTIAL)</div>
+                    <input type="text" id="sysArt25InstrNotes" class="wiz-input" style="margin-bottom:6px;" placeholder="e.g. Deployer handbook v3 distributed — doc ref IFU-2026-07">
+                    <input type="text" id="sysArt25InstrDate" class="wiz-input" placeholder="Evidence date (YYYY-MM-DD)">
+                  </div>
+                  <label class="wiz-checkbox-row">
+                    <input type="checkbox" id="sysArt25Monitoring">
+                    Post-deployment monitoring active and reviewed regularly
                   </label>
+                  <div class="wiz-evidence-box">
+                    <div class="wiz-evidence-hint">📎 Evidence for monitoring (PASS vs PARTIAL)</div>
+                    <input type="text" id="sysArt25MonNotes" class="wiz-input" style="margin-bottom:6px;" placeholder="e.g. Monthly performance dashboard + anomaly alerts active since 2026-01">
+                    <input type="text" id="sysArt25MonDate" class="wiz-input" placeholder="Evidence date (YYYY-MM-DD)">
+                  </div>
                 </div>
 
                 <!-- Art. 27 -->
-                <div style="margin-bottom:12px;">
-                  <div style="font-size:11px;font-weight:600;color:var(--accent2);margin-bottom:6px;">Article 27 — Fundamental Rights Impact Assessment (FRIA)</div>
-                  <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:var(--text-muted);">
-                    <input type="checkbox" id="sysArt27FRIA" style="margin-top:2px;accent-color:var(--accent);">
-                    A Fundamental Rights Impact Assessment has been completed and documented before deployment
+                <div class="wiz-article-block">
+                  <div class="wiz-article-title">Article 27 — Fundamental Rights Impact Assessment (FRIA)</div>
+                  <label class="wiz-checkbox-row">
+                    <input type="checkbox" id="sysArt27FRIA">
+                    FRIA completed and documented prior to deployment
                   </label>
+                  <div class="wiz-evidence-box">
+                    <div class="wiz-evidence-hint">📎 Add evidence to score PASS</div>
+                    <input type="text" id="sysArt27EvidenceNotes" class="wiz-input" style="margin-bottom:6px;" placeholder="e.g. FRIA report ref. FR-2026-042 on file, reviewed by DPO">
+                    <input type="text" id="sysArt27EvidenceDate" class="wiz-input" placeholder="Evidence date (YYYY-MM-DD)">
+                  </div>
                 </div>
+              </div>
+
+              <!-- ── Step 5: Registration & Review ── -->
+              <div id="wizStep5" style="display:none;">
+                <div class="wiz-step-hint"><b>Art. 30</b> requires registration in the EU AI public database before EU market placement. <b>Art. 33</b> requires a conformity assessment. Then review your answers and submit.</div>
 
                 <!-- Art. 30 -->
-                <div style="margin-bottom:12px;">
-                  <div style="font-size:11px;font-weight:600;color:var(--accent2);margin-bottom:6px;">Article 30 — EU AI Database Registration</div>
-                  <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:var(--text-muted);margin-bottom:6px;">
-                    <input type="checkbox" id="sysArt30Registered" style="margin-top:2px;accent-color:var(--accent);">
+                <div class="wiz-article-block">
+                  <div class="wiz-article-title">Article 30 — EU AI Database Registration</div>
+                  <label class="wiz-checkbox-row" style="margin-bottom:8px;">
+                    <input type="checkbox" id="sysArt30Registered">
                     System is registered in the EU AI Act public database
                   </label>
-                  <input type="text" id="sysArt30RegNumber" placeholder="EU registration number (if available)" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;color:var(--text-primary);font-size:13px;padding:9px 12px;box-sizing:border-box;">
+                  <input type="text" id="sysArt30RegNumber" class="wiz-input" style="margin-bottom:8px;" placeholder="EU registration number (self-evidencing — upgrades to PASS)">
+                  <div class="wiz-evidence-box">
+                    <div class="wiz-evidence-hint">📎 Additional evidence</div>
+                    <input type="text" id="sysArt30EvidenceNotes" class="wiz-input" style="margin-bottom:6px;" placeholder="e.g. Registration confirmed via EUID portal on 2026-03-15">
+                    <input type="text" id="sysArt30EvidenceDate" class="wiz-input" placeholder="Evidence date (YYYY-MM-DD)">
+                  </div>
                 </div>
 
                 <!-- Art. 33 -->
-                <div style="margin-bottom:4px;">
-                  <div style="font-size:11px;font-weight:600;color:var(--accent2);margin-bottom:6px;">Article 33 — Conformity Assessment</div>
-                  <select id="sysArt33Conformity" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;color:var(--text-primary);font-size:13px;padding:9px 12px;box-sizing:border-box;">
+                <div class="wiz-article-block" style="margin-bottom:18px;">
+                  <div class="wiz-article-title">Article 33 — Conformity Assessment</div>
+                  <div class="wiz-field-label" style="margin-bottom:6px;">Assessment type</div>
+                  <select id="sysArt33Conformity" class="wiz-input" style="margin-bottom:8px;">
                     <option value="">— Not yet started</option>
                     <option value="self-assessment">Self-assessment completed (Annex VI)</option>
                     <option value="third-party">Third-party notified body assessment completed</option>
                     <option value="pending">In progress / pending</option>
                   </select>
+                  <div class="wiz-evidence-box">
+                    <div class="wiz-evidence-hint">📎 Add evidence to score PASS (not just PARTIAL)</div>
+                    <input type="text" id="sysArt33EvidenceNotes" class="wiz-input" style="margin-bottom:6px;" placeholder="e.g. Certificate of conformity issued by TÜV SÜD, cert #CE-2026-7891">
+                    <input type="text" id="sysArt33EvidenceDate" class="wiz-input" placeholder="Evidence date (YYYY-MM-DD)">
+                  </div>
+                </div>
+
+                <!-- Review summary -->
+                <div style="background:var(--input-bg);border:1px solid var(--card-border);border-radius:8px;padding:14px;">
+                  <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-subtle);margin-bottom:10px;">Review Summary</div>
+                  <div id="wizReviewBody"></div>
                 </div>
               </div>
 
-              <div class="error-box" id="registerSysError" style="margin-top:8px;"></div>
-              <button class="btn btn-primary" onclick="registerAISystem()" style="margin-top:12px;" id="registerSysBtn">Register System</button>
-            </details>
+              <!-- Nav buttons -->
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:18px;padding-top:14px;border-top:1px solid var(--card-border);">
+                <div>
+                  <button onclick="hideWizard()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:12px;padding:0;">✕ Cancel</button>
+                </div>
+                <div style="display:flex;gap:8px;">
+                  <button onclick="wizardBack()" id="wizBackBtn" style="display:none;" class="btn">← Back</button>
+                  <button onclick="wizardNext()" id="wizNextBtn" class="btn btn-primary">Next →</button>
+                </div>
+              </div>
+              <div class="error-box" id="registerSysError" style="margin-top:8px;display:none;"></div>
+            </div>
           </div>
 
           <!-- Compliance Checklist -->
@@ -1331,6 +1530,27 @@
 
         <!-- ── Settings tab ── -->
         <div class="tab-pane" id="tab-settings">
+
+          <!-- Plan & Billing -->
+          <div class="card settings-section" id="billingCard">
+            <div class="settings-h">💳 Plan &amp; Billing</div>
+            <div id="planInfo" style="margin-bottom:14px;">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                <span id="planBadge" style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:3px 10px;border-radius:20px;background:rgba(99,102,241,0.15);color:var(--accent2);border:1px solid rgba(99,102,241,0.25);">Free</span>
+                <span id="planUsage" style="font-size:13px;color:var(--text-muted);"></span>
+              </div>
+              <div id="usageBar" style="height:4px;border-radius:2px;background:rgba(255,255,255,0.08);margin-bottom:14px;">
+                <div id="usageBarFill" style="height:4px;border-radius:2px;background:var(--accent);width:0%;transition:width 0.4s;"></div>
+              </div>
+              <div id="upgradeSection" style="display:none;">
+                <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px;">Upgrade to <strong style="color:var(--text);">Growth</strong> — 2,000 evaluations/month, unlimited AI system registrations, PDF compliance certificates.</p>
+                <button class="btn-primary" onclick="startCheckout()" style="width:100%;justify-content:center;">Upgrade to Growth — $299/mo</button>
+              </div>
+              <div id="portalSection" style="display:none;">
+                <button class="btn-sm" onclick="openBillingPortal()" style="width:100%;">Manage Subscription</button>
+              </div>
+            </div>
+          </div>
 
           <!-- Orgs -->
           <div class="card settings-section">
@@ -1371,6 +1591,13 @@
 
   <script>
     const API = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:8000' : 'https://virtuous-fulfillment-production-05d3.up.railway.app';
+
+    // XSS-safe escaping — always use esc() before inserting server strings into innerHTML
+    function esc(s) {
+      const d = document.createElement('div');
+      d.appendChild(document.createTextNode(String(s ?? '')));
+      return d.innerHTML;
+    }
     const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID_HERE';
 
     let lastDecision = '', lastContext = {}, lastAnalysis = {}, lastCategory = 'other';
@@ -1995,8 +2222,8 @@
         listEl.innerHTML = systems.map(s => `
           <div style="background:var(--input-bg);border:1px solid var(--input-border);border-radius:10px;padding:12px 16px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
             <div>
-              <div style="font-weight:700;color:var(--text-primary);font-size:14px;">${s.system_name}</div>
-              <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${s.company_name} · ${s.risk_tier.charAt(0).toUpperCase()+s.risk_tier.slice(1)} Risk · v${s.model_version}</div>
+              <div style="font-weight:700;color:var(--text-primary);font-size:14px;">${esc(s.system_name)}</div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${esc(s.company_name)} · ${esc(s.risk_tier.charAt(0).toUpperCase()+s.risk_tier.slice(1))} Risk · v${esc(s.model_version)}</div>
             </div>
             <button class="btn btn-primary" style="padding:6px 14px;font-size:12px;" onclick="selectSystem(${s.system_id})">View Compliance →</button>
           </div>`).join('');
@@ -2043,10 +2270,10 @@
             <div style="background:${st.bg};border:1px solid ${st.border};border-radius:10px;padding:14px 16px;margin-bottom:8px;display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start;">
               <div style="background:${st.color};color:white;font-size:11px;font-weight:700;padding:5px 10px;border-radius:6px;white-space:nowrap;">${st.icon}</div>
               <div>
-                <div style="font-weight:700;color:var(--text-primary);font-size:13px;margin-bottom:3px;">${article.title}</div>
-                <div style="font-size:12px;color:var(--text-muted);margin-bottom:5px;">${article.description}</div>
-                <div style="font-size:12px;color:var(--text-subtle);">⚡ <strong>Requirement:</strong> ${article.requirement}</div>
-                <div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-style:italic;">Evidence: ${article.evidence}</div>
+                <div style="font-weight:700;color:var(--text-primary);font-size:13px;margin-bottom:3px;">${esc(article.title)}</div>
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:5px;">${esc(article.description)}</div>
+                <div style="font-size:12px;color:var(--text-subtle);">⚡ <strong>Requirement:</strong> ${esc(article.requirement)}</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-style:italic;">Evidence: ${esc(article.evidence)}</div>
               </div>
             </div>`;
         }).join('');
@@ -2056,51 +2283,293 @@
       }
     }
 
-    async function registerAISystem() {
-      const btn = document.getElementById('registerSysBtn');
-      const errEl = document.getElementById('registerSysError');
-      errEl.style.display = 'none';
-      const sources = document.getElementById('sysDataSources').value
-        .split('\n').map(s => s.trim()).filter(Boolean);
-      const payload = {
-        system_name:                document.getElementById('sysName').value.trim(),
-        company_name:               document.getElementById('sysCompany').value.trim(),
-        risk_tier:                  document.getElementById('sysRiskTier').value,
-        use_case:                   document.getElementById('sysUseCase').value.trim(),
-        model_version:              document.getElementById('sysModelVersion').value.trim() || 'unknown',
-        training_data_sources:      sources,
-        intended_purpose:           document.getElementById('sysIntendedPurpose').value.trim(),
-        geographic_scope:           document.getElementById('sysGeoScope').value.trim(),
-        // Declarative article declarations
-        art4_literacy_training:     document.getElementById('sysArt4Literacy').checked,
-        art6_annex_category:        document.getElementById('sysArt6Annex').value,
-        art15_accuracy_metric:      document.getElementById('sysArt15Accuracy').value.trim(),
-        art15_robustness_tested:    document.getElementById('sysArt15Robustness').checked,
-        art17_qms_documented:       document.getElementById('sysArt17QMS').checked,
-        art25_instructions_provided:document.getElementById('sysArt25Instructions').checked,
-        art25_monitoring_active:    document.getElementById('sysArt25Monitoring').checked,
-        art27_fria_conducted:       document.getElementById('sysArt27FRIA').checked,
-        art30_eu_db_registered:     document.getElementById('sysArt30Registered').checked,
-        art30_registration_number:  document.getElementById('sysArt30RegNumber').value.trim(),
-        art33_conformity_type:      document.getElementById('sysArt33Conformity').value,
-      };
-      if (!payload.system_name || !payload.company_name || !payload.use_case) {
-        errEl.textContent = 'System name, company name, and use case are required.';
-        errEl.style.display = 'block'; return;
+    // ── Assessment Wizard ──────────────────────────────────────────────────────
+
+    const _DEMO_SYSTEM = {
+      // Step 1 — System Profile
+      sysName:             'LoanSight AI',
+      sysCompany:          'Veridian Finance SA',
+      sysUseCase:          'Automated creditworthiness scoring for retail loan applications',
+      sysModelVersion:     'v2.3.1 (XGBoost ensemble)',
+      sysGeoScope:         'EU — DE, FR, NL, BE, LU',
+      sysIntendedPurpose:  'Assess creditworthiness of retail applicants seeking consumer loans €1,000–€250,000. Generates a risk score and approve / refer / decline recommendation to assist loan officers.',
+      // Step 2 — Risk Classification
+      sysRiskTier:         'high',
+      sysArt6Annex:        'A.5 — Access to and enjoyment of essential private services and public services and benefits',
+      // Step 3 — Data & Technical Performance
+      sysDataSources:      'Internal loan repayment history 2018–2023 (2.1M records)\nEurosystem credit bureau data (anonymised, GDPR-compliant)\nOpen Banking PSD2 transaction streams (24-month lookback)\nHMDA public dataset (bias testing reference only)',
+      sysArt15Accuracy:    'AUROC 0.87, Precision 0.83, Recall 0.81 — Q4 2024 holdout set (n=42,500)',
+      sysArt15Robustness:  true,
+      // Step 4 — Governance Controls
+      // Art. 4 → PASS (declaration + documentation)
+      sysArt4Literacy:          true,
+      sysArt4EvidenceNotes:     'All underwriting staff completed EU AI Act literacy course Q1 2025 — ref. training-log-VF-2025-001',
+      sysArt4EvidenceDate:      '2025-03-01',
+      // Art. 17 → PARTIAL (declaration only, no evidence docs attached)
+      sysArt17QMS:              true,
+      sysArt17EvidenceNotes:    '',
+      sysArt17EvidenceDate:     '',
+      // Art. 25 Instructions → PASS
+      sysArt25Instructions:     true,
+      sysArt25InstrNotes:       'Deployer handbook v4.1 distributed to all EU branch managers — doc ref IFU-VF-2025-07',
+      sysArt25InstrDate:        '2025-07-15',
+      // Art. 25 Monitoring → PASS
+      sysArt25Monitoring:       true,
+      sysArt25MonNotes:         'Monthly AUROC dashboard + automated drift alerts active since Jan 2025 — ref. MON-VF-2025-001',
+      sysArt25MonDate:          '2025-01-20',
+      // Art. 27 FRIA → FAIL (critical gap: mandatory for high-risk Annex III systems)
+      sysArt27FRIA:             false,
+      sysArt27EvidenceNotes:    '',
+      sysArt27EvidenceDate:     '',
+      // Step 5 — Registration & Review
+      // Art. 30 → PARTIAL (declared but no EU database registration number)
+      sysArt30Registered:       true,
+      sysArt30RegNumber:        '',
+      sysArt30EvidenceNotes:    '',
+      sysArt30EvidenceDate:     '',
+      // Art. 33 → PARTIAL (self-assessment declared but no certificate docs)
+      sysArt33Conformity:       'self-assessment',
+      sysArt33EvidenceNotes:    '',
+      sysArt33EvidenceDate:     '',
+    };
+
+    function loadDemoSystem() {
+      startWizard();
+      document.getElementById('demoBanner').style.display = '';
+
+      const D = _DEMO_SYSTEM;
+      const set  = (id, v) => { const el = document.getElementById(id); if (el) el.value   = v; };
+      const chk  = (id, v) => { const el = document.getElementById(id); if (el) el.checked = v; };
+
+      // Step 1
+      set('sysName', D.sysName);
+      set('sysCompany', D.sysCompany);
+      set('sysUseCase', D.sysUseCase);
+      set('sysModelVersion', D.sysModelVersion);
+      set('sysGeoScope', D.sysGeoScope);
+      set('sysIntendedPurpose', D.sysIntendedPurpose);
+      // Step 2
+      set('sysRiskTier', D.sysRiskTier);
+      set('sysArt6Annex', D.sysArt6Annex);
+      // Step 3
+      set('sysDataSources', D.sysDataSources);
+      set('sysArt15Accuracy', D.sysArt15Accuracy);
+      chk('sysArt15Robustness', D.sysArt15Robustness);
+      // Step 4
+      chk('sysArt4Literacy', D.sysArt4Literacy);
+      set('sysArt4EvidenceNotes', D.sysArt4EvidenceNotes);
+      set('sysArt4EvidenceDate', D.sysArt4EvidenceDate);
+      chk('sysArt17QMS', D.sysArt17QMS);
+      set('sysArt17EvidenceNotes', D.sysArt17EvidenceNotes);
+      set('sysArt17EvidenceDate', D.sysArt17EvidenceDate);
+      chk('sysArt25Instructions', D.sysArt25Instructions);
+      set('sysArt25InstrNotes', D.sysArt25InstrNotes);
+      set('sysArt25InstrDate', D.sysArt25InstrDate);
+      chk('sysArt25Monitoring', D.sysArt25Monitoring);
+      set('sysArt25MonNotes', D.sysArt25MonNotes);
+      set('sysArt25MonDate', D.sysArt25MonDate);
+      chk('sysArt27FRIA', D.sysArt27FRIA);
+      set('sysArt27EvidenceNotes', D.sysArt27EvidenceNotes);
+      set('sysArt27EvidenceDate', D.sysArt27EvidenceDate);
+      // Step 5
+      chk('sysArt30Registered', D.sysArt30Registered);
+      set('sysArt30RegNumber', D.sysArt30RegNumber);
+      set('sysArt30EvidenceNotes', D.sysArt30EvidenceNotes);
+      set('sysArt30EvidenceDate', D.sysArt30EvidenceDate);
+      set('sysArt33Conformity', D.sysArt33Conformity);
+      set('sysArt33EvidenceNotes', D.sysArt33EvidenceNotes);
+      set('sysArt33EvidenceDate', D.sysArt33EvidenceDate);
+    }
+
+    let _wizStep = 1;
+    const _WIZ_TITLES = [
+      '', // 0 unused
+      'Step 1 of 5 — System Profile',
+      'Step 2 of 5 — Risk Classification',
+      'Step 3 of 5 — Data & Technical Performance',
+      'Step 4 of 5 — Governance Controls',
+      'Step 5 of 5 — Registration & Review',
+    ];
+
+    function startWizard() {
+      _wizStep = 1;
+      document.getElementById('startWizardBtn').style.display = 'none';
+      document.getElementById('demoWizardBtn').style.display = 'none';
+      document.getElementById('regWizard').style.display = 'block';
+      _wizRender();
+    }
+
+    function hideWizard() {
+      document.getElementById('regWizard').style.display = 'none';
+      document.getElementById('startWizardBtn').style.display = '';
+      document.getElementById('demoWizardBtn').style.display = '';
+      document.getElementById('demoBanner').style.display = 'none';
+      document.getElementById('registerSysError').style.display = 'none';
+    }
+
+    function _wizRender() {
+      for (let i = 1; i <= 5; i++) {
+        document.getElementById('wizStep' + i).style.display = (i === _wizStep) ? '' : 'none';
+        const dot = document.getElementById('wizDot' + i);
+        dot.className = 'wiz-step-dot ' + (i < _wizStep ? 'done' : i === _wizStep ? 'active' : 'todo');
+        dot.textContent = i < _wizStep ? '✓' : i;
+        if (i < 5) {
+          const line = document.getElementById('wizLine' + i);
+          if (line) line.style.background = i < _wizStep ? 'var(--accent)' : 'var(--card-border)';
+        }
       }
-      btn.disabled = true; btn.textContent = 'Registering…';
+      document.getElementById('wizStepTitle').textContent = _WIZ_TITLES[_wizStep];
+      document.getElementById('wizBackBtn').style.display = _wizStep > 1 ? '' : 'none';
+      const nextBtn = document.getElementById('wizNextBtn');
+      nextBtn.textContent = _wizStep === 5 ? 'Submit Registration' : 'Next →';
+
+      if (_wizStep === 2) {
+        document.getElementById('sysRiskTier').onchange = () => {
+          document.getElementById('wizUnacceptableWarning').style.display =
+            document.getElementById('sysRiskTier').value === 'unacceptable' ? '' : 'none';
+        };
+      }
+      if (_wizStep === 5) _wizRenderReview();
+    }
+
+    function _wizValidate() {
+      const err = document.getElementById('registerSysError');
+      err.style.display = 'none';
+      if (_wizStep === 1) {
+        const name = document.getElementById('sysName').value.trim();
+        const co   = document.getElementById('sysCompany').value.trim();
+        const uc   = document.getElementById('sysUseCase').value.trim();
+        if (!name || !co || !uc) {
+          err.textContent = 'System name, company name, and use case are required.';
+          err.style.display = 'block'; return false;
+        }
+      }
+      return true;
+    }
+
+    function wizardNext() {
+      if (!_wizValidate()) return;
+      if (_wizStep === 5) { registerAISystem(); return; }
+      _wizStep++;
+      _wizRender();
+    }
+
+    function wizardBack() {
+      if (_wizStep > 1) { _wizStep--; _wizRender(); }
+    }
+
+    function _wizEvidenceBadge(declared, notes, date) {
+      const hasNotes = (notes || '').trim().length > 0;
+      const hasDate  = (date  || '').trim().length > 0;
+      if (declared && (hasNotes || hasDate)) return '<span class="wiz-badge wiz-badge-pass">PASS</span>';
+      if (declared) return '<span class="wiz-badge wiz-badge-partial">PARTIAL</span>';
+      return '<span class="wiz-badge wiz-badge-fail">FAIL</span>';
+    }
+
+    function _wizRenderReview() {
+      const g = id => document.getElementById(id);
+      const rows = [
+        { label: 'System',        value: `${g('sysName').value.trim() || '—'} · ${g('sysCompany').value.trim() || '—'}` },
+        { label: 'Use Case',      value: g('sysUseCase').value.trim() || '—' },
+        { label: 'Risk Tier',     value: g('sysRiskTier').options[g('sysRiskTier').selectedIndex]?.text || '—' },
+        { label: 'Annex III',     value: g('sysArt6Annex').value || '— not classified' },
+        { label: 'Accuracy (Art. 15)', value: g('sysArt15Accuracy').value.trim() || '— not provided' },
+        { label: 'Robustness (Art. 15)', value: g('sysArt15Robustness').checked ? 'Tested' : 'Not tested' },
+        {
+          label: 'Art. 4 — AI Literacy',
+          badge: _wizEvidenceBadge(g('sysArt4Literacy').checked, g('sysArt4EvidenceNotes').value, g('sysArt4EvidenceDate').value),
+        },
+        {
+          label: 'Art. 17 — QMS',
+          badge: _wizEvidenceBadge(g('sysArt17QMS').checked, g('sysArt17EvidenceNotes').value, g('sysArt17EvidenceDate').value),
+        },
+        {
+          label: 'Art. 25 — Instructions',
+          badge: _wizEvidenceBadge(g('sysArt25Instructions').checked, g('sysArt25InstrNotes').value, g('sysArt25InstrDate').value),
+        },
+        {
+          label: 'Art. 25 — Monitoring',
+          badge: _wizEvidenceBadge(g('sysArt25Monitoring').checked, g('sysArt25MonNotes').value, g('sysArt25MonDate').value),
+        },
+        {
+          label: 'Art. 27 — FRIA',
+          badge: _wizEvidenceBadge(g('sysArt27FRIA').checked, g('sysArt27EvidenceNotes').value, g('sysArt27EvidenceDate').value),
+        },
+        {
+          label: 'Art. 30 — EU DB',
+          badge: _wizEvidenceBadge(g('sysArt30Registered').checked, g('sysArt30EvidenceNotes').value, g('sysArt30EvidenceDate').value),
+        },
+        {
+          label: 'Art. 33 — Conformity',
+          badge: _wizEvidenceBadge(
+            ['self-assessment','third-party'].includes(g('sysArt33Conformity').value),
+            g('sysArt33EvidenceNotes').value, g('sysArt33EvidenceDate').value
+          ),
+        },
+      ];
+      document.getElementById('wizReviewBody').innerHTML = rows.map(r =>
+        `<div class="wiz-review-row">
+          <span style="color:var(--text-muted)">${esc(r.label)}</span>
+          ${r.badge ? r.badge : `<span style="font-weight:600;color:var(--text-primary);text-align:right;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.value)}</span>`}
+        </div>`
+      ).join('');
+    }
+
+    async function registerAISystem() {
+      const nextBtn = document.getElementById('wizNextBtn');
+      const errEl   = document.getElementById('registerSysError');
+      errEl.style.display = 'none';
+      const g = id => document.getElementById(id);
+      const sources = g('sysDataSources').value.split('\n').map(s => s.trim()).filter(Boolean);
+      const payload = {
+        system_name:                              g('sysName').value.trim(),
+        company_name:                             g('sysCompany').value.trim(),
+        risk_tier:                                g('sysRiskTier').value,
+        use_case:                                 g('sysUseCase').value.trim(),
+        model_version:                            g('sysModelVersion').value.trim() || 'unknown',
+        training_data_sources:                    sources,
+        intended_purpose:                         g('sysIntendedPurpose').value.trim(),
+        geographic_scope:                         g('sysGeoScope').value.trim(),
+        art4_literacy_training:                   g('sysArt4Literacy').checked,
+        art6_annex_category:                      g('sysArt6Annex').value,
+        art15_accuracy_metric:                    g('sysArt15Accuracy').value.trim(),
+        art15_robustness_tested:                  g('sysArt15Robustness').checked,
+        art17_qms_documented:                     g('sysArt17QMS').checked,
+        art25_instructions_provided:              g('sysArt25Instructions').checked,
+        art25_monitoring_active:                  g('sysArt25Monitoring').checked,
+        art27_fria_conducted:                     g('sysArt27FRIA').checked,
+        art30_eu_db_registered:                   g('sysArt30Registered').checked,
+        art30_registration_number:                g('sysArt30RegNumber').value.trim(),
+        art33_conformity_type:                    g('sysArt33Conformity').value,
+        // Evidence fields (declaration + docs = PASS; declaration only = PARTIAL)
+        art4_literacy_training_evidence_notes:    g('sysArt4EvidenceNotes').value.trim(),
+        art4_literacy_training_evidence_date:     g('sysArt4EvidenceDate').value.trim(),
+        art17_qms_documented_evidence_notes:      g('sysArt17EvidenceNotes').value.trim(),
+        art17_qms_documented_evidence_date:       g('sysArt17EvidenceDate').value.trim(),
+        art25_instructions_provided_evidence_notes: g('sysArt25InstrNotes').value.trim(),
+        art25_instructions_provided_evidence_date:  g('sysArt25InstrDate').value.trim(),
+        art25_monitoring_active_evidence_notes:   g('sysArt25MonNotes').value.trim(),
+        art25_monitoring_active_evidence_date:    g('sysArt25MonDate').value.trim(),
+        art27_fria_conducted_evidence_notes:      g('sysArt27EvidenceNotes').value.trim(),
+        art27_fria_conducted_evidence_date:       g('sysArt27EvidenceDate').value.trim(),
+        art30_eu_db_registered_evidence_notes:    g('sysArt30EvidenceNotes').value.trim(),
+        art30_eu_db_registered_evidence_date:     g('sysArt30EvidenceDate').value.trim(),
+        art33_conformity_type_evidence_notes:     g('sysArt33EvidenceNotes').value.trim(),
+        art33_conformity_type_evidence_date:      g('sysArt33EvidenceDate').value.trim(),
+      };
+      nextBtn.disabled = true; nextBtn.textContent = 'Registering…';
       try {
         const res = await fetch(`${API}/ai-systems`, {
           method: 'POST', headers: authHeaders(),
           body: JSON.stringify(payload),
         });
         if (!res.ok) { const d = await res.json(); throw new Error(d.detail || 'Registration failed'); }
-        document.getElementById('registerFormDetails').removeAttribute('open');
+        hideWizard();
         await loadComplianceTab();
       } catch(e) {
         errEl.textContent = e.message; errEl.style.display = 'block';
       } finally {
-        btn.disabled = false; btn.textContent = 'Register System';
+        nextBtn.disabled = false; nextBtn.textContent = 'Submit Registration';
       }
     }
 
@@ -2132,13 +2601,17 @@
         const names = ['evaluate','history','batch','audit','compliance','settings'];
         t.classList.toggle('active', names[i] === name);
       });
+      document.querySelectorAll('.mobile-nav-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.tab === name);
+      });
       document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
       document.getElementById(`tab-${name}`).classList.add('active');
       document.getElementById('pageTitle').textContent = PAGE_TITLES[name] || name;
+      window.scrollTo(0, 0);
       if (name === 'history') loadHistory();
       if (name === 'audit') loadAuditLog();
       if (name === 'compliance') loadComplianceTab();
-      if (name === 'settings') { loadOrgs(); loadAPIKeys(); }
+      if (name === 'settings') { loadOrgs(); loadAPIKeys(); loadBilling(); }
     }
 
     // ── History ────────────────────────────────────────────────────────────
@@ -2155,12 +2628,12 @@
         el.innerHTML = '';
         data.history.forEach(h => {
           const flags = h.risk_categories && h.risk_categories.length
-            ? h.risk_categories.map(f => `<span class="history-flag">${f}</span>`).join('')
+            ? h.risk_categories.map(f => `<span class="history-flag">${esc(f)}</span>`).join('')
             : '<span style="color:var(--green);font-size:12px;">✅ No risks</span>';
           el.insertAdjacentHTML('beforeend', `
             <div class="history-item">
               <div class="history-top">
-                <span class="history-cat">${h.category}</span>
+                <span class="history-cat">${esc(h.category)}</span>
                 <span class="history-ts">${new Date(h.timestamp).toLocaleString()}</span>
               </div>
               <div class="history-meta">
@@ -2202,7 +2675,7 @@
         const removed = d.flags_removed.length ? d.flags_removed.map(f=>`<span class="risk-chip">${f}</span>`).join(' ') : '<em>none</em>';
         el.innerHTML = `
           <div class="cf-diff">
-            <div class="cf-diff-title">Impact of changing "${key}" → "${value}"</div>
+            <div class="cf-diff-title">Impact of changing "${esc(key)}" → "${esc(value)}"</div>
             <div class="cf-added">Risks added: ${added}</div>
             <div class="cf-removed" style="margin-top:5px;">Risks removed: ${removed}</div>
             <div class="cf-delta" style="margin-top:5px;color:${deltaColor};">
@@ -2313,8 +2786,8 @@
           el.insertAdjacentHTML('beforeend', `
             <div class="key-item">
               <div>
-                <div class="key-prefix">${k.key_prefix}…</div>
-                <div class="key-label">${k.label || 'Unlabelled'}</div>
+                <div class="key-prefix">${esc(k.key_prefix)}…</div>
+                <div class="key-label">${esc(k.label || 'Unlabelled')}</div>
                 <div class="key-stats">${k.calls_total} total calls · last used: ${k.last_used ? new Date(k.last_used).toLocaleDateString() : 'never'}</div>
               </div>
               <button class="btn-revoke" onclick="revokeKey(${k.key_id})">Revoke</button>
@@ -2344,6 +2817,87 @@
         await fetch(`${API}/api-keys/${keyId}`, { method:'DELETE', headers: authHeaders() });
         loadAPIKeys();
       } catch (_) {}
+    }
+
+    // ── Billing ────────────────────────────────────────────────────────────────
+
+    const STRIPE_GROWTH_PRICE_ID = window._STRIPE_GROWTH_PRICE_ID || '';
+
+    async function loadBilling() {
+      try {
+        const res  = await fetch(`${API}/billing/subscription`, { headers: authHeaders() });
+        if (!res.ok) return;
+        const sub  = await res.json();
+        const plan = sub.plan || 'free';
+        const used = sub.evals_this_month || 0;
+        const lim  = sub.eval_limit;
+
+        const badge = document.getElementById('planBadge');
+        badge.textContent = plan.charAt(0).toUpperCase() + plan.slice(1);
+        if (plan === 'growth') {
+          badge.style.background = 'rgba(34,197,94,0.15)';
+          badge.style.color      = '#4ade80';
+          badge.style.border     = '1px solid rgba(34,197,94,0.25)';
+        } else if (plan === 'enterprise') {
+          badge.style.background = 'rgba(251,191,36,0.15)';
+          badge.style.color      = '#fbbf24';
+          badge.style.border     = '1px solid rgba(251,191,36,0.25)';
+        }
+
+        const usageEl = document.getElementById('planUsage');
+        if (lim !== null) {
+          usageEl.textContent = `${used.toLocaleString()} / ${lim.toLocaleString()} evaluations this month`;
+          const pct = Math.min(100, Math.round((used / lim) * 100));
+          const fill = document.getElementById('usageBarFill');
+          fill.style.width = pct + '%';
+          fill.style.background = pct >= 90 ? 'var(--red)' : pct >= 70 ? 'var(--yellow)' : 'var(--accent)';
+        } else {
+          usageEl.textContent = `${used.toLocaleString()} evaluations this month (unlimited)`;
+          document.getElementById('usageBarFill').style.width = '100%';
+        }
+
+        document.getElementById('upgradeSection').style.display = plan === 'free' ? 'block' : 'none';
+        document.getElementById('portalSection').style.display  = plan !== 'free' ? 'block' : 'none';
+      } catch (_) {}
+    }
+
+    async function startCheckout() {
+      const priceId = STRIPE_GROWTH_PRICE_ID;
+      if (!priceId) { alert('Billing not configured — contact support.'); return; }
+      const origin = window.location.origin;
+      try {
+        const res  = await fetch(`${API}/billing/create-checkout-session`, {
+          method: 'POST', headers: authHeaders(),
+          body: JSON.stringify({
+            price_id:    priceId,
+            success_url: `${origin}/?upgrade=success`,
+            cancel_url:  `${origin}/`,
+          }),
+        });
+        const data = await res.json();
+        if (data.checkout_url) window.location.href = data.checkout_url;
+        else alert(data.detail || 'Could not start checkout.');
+      } catch (e) { alert('Checkout error: ' + e.message); }
+    }
+
+    async function openBillingPortal() {
+      try {
+        const res  = await fetch(`${API}/billing/portal`, { method:'POST', headers: authHeaders() });
+        const data = await res.json();
+        if (data.portal_url) window.location.href = data.portal_url;
+        else alert(data.detail || 'Could not open billing portal.');
+      } catch (e) { alert('Portal error: ' + e.message); }
+    }
+
+    // Show upgrade success banner
+    if (new URLSearchParams(window.location.search).get('upgrade') === 'success') {
+      setTimeout(() => {
+        const b = document.createElement('div');
+        b.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#22c55e;color:#fff;padding:12px 24px;border-radius:8px;font-weight:600;z-index:9999;';
+        b.textContent = '🎉 Welcome to Growth! Your plan is now active.';
+        document.body.appendChild(b);
+        setTimeout(() => b.remove(), 5000);
+      }, 500);
     }
   </script>
 </body>
