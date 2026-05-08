@@ -454,6 +454,15 @@
     .btn-download:active { transform: translateY(1px); }
     .btn-download:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 
+    .btn-demo {
+      background: transparent;
+      border: 1px solid rgba(99,102,241,0.4);
+      color: var(--accent2);
+      box-shadow: none;
+    }
+    .btn-demo:hover { background: rgba(99,102,241,0.1); border-color: rgba(99,102,241,0.7); }
+    .btn-demo:active { transform: translateY(1px); }
+
     .btn-ghost {
       background: transparent; border: 1px solid var(--card-border);
       color: var(--text-muted); padding: 9px 16px;
@@ -1264,7 +1273,14 @@
 
             <div id="registeredSystemsList" style="margin-bottom:16px;"></div>
 
-            <button class="btn btn-primary" onclick="startWizard()" id="startWizardBtn" style="font-size:13px;padding:8px 18px;">+ Register a New AI System</button>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <button class="btn btn-primary" onclick="startWizard()" id="startWizardBtn" style="font-size:13px;padding:8px 18px;width:auto;">+ Register a New AI System</button>
+              <button class="btn btn-demo" onclick="loadDemoSystem()" id="demoWizardBtn" style="font-size:13px;padding:8px 18px;width:auto;">▶ Try Demo — LoanSight AI</button>
+            </div>
+            <div id="demoBanner" style="display:none;margin-top:10px;padding:9px 14px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:8px;font-size:12px;color:var(--accent2);display:none;">
+              <b>Demo Mode</b> — LoanSight AI by Veridian Finance SA (fictional system). Click through the steps to see a real EU AI Act assessment with PASS, PARTIAL, and FAIL results.
+              <button onclick="document.getElementById('demoBanner').style.display='none'" style="background:none;border:none;color:var(--accent2);cursor:pointer;font-size:12px;padding:0;margin-left:10px;opacity:0.7;">✕</button>
+            </div>
 
             <!-- ── 5-Step Assessment Wizard ── -->
             <div id="regWizard" style="display:none;margin-top:18px;">
@@ -2268,6 +2284,103 @@
     }
 
     // ── Assessment Wizard ──────────────────────────────────────────────────────
+
+    const _DEMO_SYSTEM = {
+      // Step 1 — System Profile
+      sysName:             'LoanSight AI',
+      sysCompany:          'Veridian Finance SA',
+      sysUseCase:          'Automated creditworthiness scoring for retail loan applications',
+      sysModelVersion:     'v2.3.1 (XGBoost ensemble)',
+      sysGeoScope:         'EU — DE, FR, NL, BE, LU',
+      sysIntendedPurpose:  'Assess creditworthiness of retail applicants seeking consumer loans €1,000–€250,000. Generates a risk score and approve / refer / decline recommendation to assist loan officers.',
+      // Step 2 — Risk Classification
+      sysRiskTier:         'high',
+      sysArt6Annex:        'A.5 — Access to and enjoyment of essential private services and public services and benefits',
+      // Step 3 — Data & Technical Performance
+      sysDataSources:      'Internal loan repayment history 2018–2023 (2.1M records)\nEurosystem credit bureau data (anonymised, GDPR-compliant)\nOpen Banking PSD2 transaction streams (24-month lookback)\nHMDA public dataset (bias testing reference only)',
+      sysArt15Accuracy:    'AUROC 0.87, Precision 0.83, Recall 0.81 — Q4 2024 holdout set (n=42,500)',
+      sysArt15Robustness:  true,
+      // Step 4 — Governance Controls
+      // Art. 4 → PASS (declaration + documentation)
+      sysArt4Literacy:          true,
+      sysArt4EvidenceNotes:     'All underwriting staff completed EU AI Act literacy course Q1 2025 — ref. training-log-VF-2025-001',
+      sysArt4EvidenceDate:      '2025-03-01',
+      // Art. 17 → PARTIAL (declaration only, no evidence docs attached)
+      sysArt17QMS:              true,
+      sysArt17EvidenceNotes:    '',
+      sysArt17EvidenceDate:     '',
+      // Art. 25 Instructions → PASS
+      sysArt25Instructions:     true,
+      sysArt25InstrNotes:       'Deployer handbook v4.1 distributed to all EU branch managers — doc ref IFU-VF-2025-07',
+      sysArt25InstrDate:        '2025-07-15',
+      // Art. 25 Monitoring → PASS
+      sysArt25Monitoring:       true,
+      sysArt25MonNotes:         'Monthly AUROC dashboard + automated drift alerts active since Jan 2025 — ref. MON-VF-2025-001',
+      sysArt25MonDate:          '2025-01-20',
+      // Art. 27 FRIA → FAIL (critical gap: mandatory for high-risk Annex III systems)
+      sysArt27FRIA:             false,
+      sysArt27EvidenceNotes:    '',
+      sysArt27EvidenceDate:     '',
+      // Step 5 — Registration & Review
+      // Art. 30 → PARTIAL (declared but no EU database registration number)
+      sysArt30Registered:       true,
+      sysArt30RegNumber:        '',
+      sysArt30EvidenceNotes:    '',
+      sysArt30EvidenceDate:     '',
+      // Art. 33 → PARTIAL (self-assessment declared but no certificate docs)
+      sysArt33Conformity:       'self-assessment',
+      sysArt33EvidenceNotes:    '',
+      sysArt33EvidenceDate:     '',
+    };
+
+    function loadDemoSystem() {
+      startWizard();
+      document.getElementById('demoBanner').style.display = '';
+
+      const D = _DEMO_SYSTEM;
+      const set  = (id, v) => { const el = document.getElementById(id); if (el) el.value   = v; };
+      const chk  = (id, v) => { const el = document.getElementById(id); if (el) el.checked = v; };
+
+      // Step 1
+      set('sysName', D.sysName);
+      set('sysCompany', D.sysCompany);
+      set('sysUseCase', D.sysUseCase);
+      set('sysModelVersion', D.sysModelVersion);
+      set('sysGeoScope', D.sysGeoScope);
+      set('sysIntendedPurpose', D.sysIntendedPurpose);
+      // Step 2
+      set('sysRiskTier', D.sysRiskTier);
+      set('sysArt6Annex', D.sysArt6Annex);
+      // Step 3
+      set('sysDataSources', D.sysDataSources);
+      set('sysArt15Accuracy', D.sysArt15Accuracy);
+      chk('sysArt15Robustness', D.sysArt15Robustness);
+      // Step 4
+      chk('sysArt4Literacy', D.sysArt4Literacy);
+      set('sysArt4EvidenceNotes', D.sysArt4EvidenceNotes);
+      set('sysArt4EvidenceDate', D.sysArt4EvidenceDate);
+      chk('sysArt17QMS', D.sysArt17QMS);
+      set('sysArt17EvidenceNotes', D.sysArt17EvidenceNotes);
+      set('sysArt17EvidenceDate', D.sysArt17EvidenceDate);
+      chk('sysArt25Instructions', D.sysArt25Instructions);
+      set('sysArt25InstrNotes', D.sysArt25InstrNotes);
+      set('sysArt25InstrDate', D.sysArt25InstrDate);
+      chk('sysArt25Monitoring', D.sysArt25Monitoring);
+      set('sysArt25MonNotes', D.sysArt25MonNotes);
+      set('sysArt25MonDate', D.sysArt25MonDate);
+      chk('sysArt27FRIA', D.sysArt27FRIA);
+      set('sysArt27EvidenceNotes', D.sysArt27EvidenceNotes);
+      set('sysArt27EvidenceDate', D.sysArt27EvidenceDate);
+      // Step 5
+      chk('sysArt30Registered', D.sysArt30Registered);
+      set('sysArt30RegNumber', D.sysArt30RegNumber);
+      set('sysArt30EvidenceNotes', D.sysArt30EvidenceNotes);
+      set('sysArt30EvidenceDate', D.sysArt30EvidenceDate);
+      set('sysArt33Conformity', D.sysArt33Conformity);
+      set('sysArt33EvidenceNotes', D.sysArt33EvidenceNotes);
+      set('sysArt33EvidenceDate', D.sysArt33EvidenceDate);
+    }
+
     let _wizStep = 1;
     const _WIZ_TITLES = [
       '', // 0 unused
@@ -2281,6 +2394,7 @@
     function startWizard() {
       _wizStep = 1;
       document.getElementById('startWizardBtn').style.display = 'none';
+      document.getElementById('demoWizardBtn').style.display = 'none';
       document.getElementById('regWizard').style.display = 'block';
       _wizRender();
     }
@@ -2288,6 +2402,8 @@
     function hideWizard() {
       document.getElementById('regWizard').style.display = 'none';
       document.getElementById('startWizardBtn').style.display = '';
+      document.getElementById('demoWizardBtn').style.display = '';
+      document.getElementById('demoBanner').style.display = 'none';
       document.getElementById('registerSysError').style.display = 'none';
     }
 
