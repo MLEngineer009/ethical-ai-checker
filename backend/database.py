@@ -13,6 +13,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
@@ -254,9 +255,13 @@ def init_db() -> None:
             ("art33_conformity_type_evidence_notes",       "VARCHAR DEFAULT ''"),
             ("art33_conformity_type_evidence_date",        "VARCHAR DEFAULT ''"),
         ]
+        _SAFE_COL = re.compile(r'^[a-z_][a-z0-9_]*$')
         with _engine.begin() as conn:
             for col_name, col_def in new_cols:
                 if col_name not in ai_cols:
+                    if not _SAFE_COL.match(col_name):
+                        logger.error("Migration aborted — unsafe column name: %r", col_name)
+                        continue
                     logger.info("Migration: adding ai_systems.%s column", col_name)
                     conn.execute(text(f"ALTER TABLE ai_systems ADD COLUMN {col_name} {col_def}"))
     logger.info("Database schema up to date")

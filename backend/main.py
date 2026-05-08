@@ -52,11 +52,20 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+_ALLOWED_ORIGINS = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://localhost:3000",
+]
+_extra = os.getenv("ALLOWED_ORIGINS", "")  # comma-separated, set in Railway
+if _extra:
+    _ALLOWED_ORIGINS.extend(o.strip() for o in _extra.split(",") if o.strip())
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 orchestrator = LLMOrchestrator()
@@ -98,6 +107,10 @@ class DecisionRequest(BaseModel):
     context: Dict[str, Any]
     category: str = "other"
     block_threshold: float = 0.8   # confidence above this + 2+ flags → block
+
+    @property
+    def decision_trimmed(self) -> str:
+        return self.decision[:4000]
 
 
 class EthicalAnalysis(BaseModel):
@@ -188,8 +201,12 @@ async def evaluate_decision(
     """Evaluate a decision using ethical reasoning frameworks."""
     if not request.decision or not request.decision.strip():
         raise HTTPException(status_code=400, detail="Decision cannot be empty")
+    if len(request.decision) > 4000:
+        raise HTTPException(status_code=400, detail="Decision text exceeds 4,000 character limit")
     if not request.context:
         raise HTTPException(status_code=400, detail="Context cannot be empty")
+    if len(str(request.context)) > 8000:
+        raise HTTPException(status_code=400, detail="Context exceeds size limit")
 
     GUEST_EVAL_LIMIT = 10
     if user.get("is_guest"):
@@ -270,6 +287,8 @@ async def hitl_override(request: HITLOverrideRequest, user: dict = Depends(get_c
     """
     if not request.reason or not request.reason.strip():
         raise HTTPException(status_code=400, detail="Override reason cannot be empty")
+    if len(request.reason) > 1000:
+        raise HTTPException(status_code=400, detail="Override reason exceeds 1,000 character limit")
     success = database.log_hitl_override(
         audit_log_id=request.audit_log_id,
         investigator_sub=user["sub"],
@@ -605,6 +624,13 @@ async def evaluate_batch(
     Example CSV header:
         decision,category,role,experience_years
     """
+    # Enforce plan limits before processing — batch counts against the monthly quota
+    if not user.get("is_guest"):
+        sub = database.get_subscription(user["sub"])
+        limit = sub.get("eval_limit")
+        if limit is not None and sub["evals_this_month"] >= limit:
+            raise HTTPException(status_code=429, detail=f"Monthly evaluation limit of {limit} reached.")
+
     content = await file.read()
     try:
         text = content.decode("utf-8-sig")   # handle BOM

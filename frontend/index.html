@@ -1575,6 +1575,13 @@
 
   <script>
     const API = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:8000' : 'https://virtuous-fulfillment-production-05d3.up.railway.app';
+
+    // XSS-safe escaping — always use esc() before inserting server strings into innerHTML
+    function esc(s) {
+      const d = document.createElement('div');
+      d.appendChild(document.createTextNode(String(s ?? '')));
+      return d.innerHTML;
+    }
     const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID_HERE';
 
     let lastDecision = '', lastContext = {}, lastAnalysis = {}, lastCategory = 'other';
@@ -2199,8 +2206,8 @@
         listEl.innerHTML = systems.map(s => `
           <div style="background:var(--input-bg);border:1px solid var(--input-border);border-radius:10px;padding:12px 16px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
             <div>
-              <div style="font-weight:700;color:var(--text-primary);font-size:14px;">${s.system_name}</div>
-              <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${s.company_name} · ${s.risk_tier.charAt(0).toUpperCase()+s.risk_tier.slice(1)} Risk · v${s.model_version}</div>
+              <div style="font-weight:700;color:var(--text-primary);font-size:14px;">${esc(s.system_name)}</div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${esc(s.company_name)} · ${esc(s.risk_tier.charAt(0).toUpperCase()+s.risk_tier.slice(1))} Risk · v${esc(s.model_version)}</div>
             </div>
             <button class="btn btn-primary" style="padding:6px 14px;font-size:12px;" onclick="selectSystem(${s.system_id})">View Compliance →</button>
           </div>`).join('');
@@ -2247,10 +2254,10 @@
             <div style="background:${st.bg};border:1px solid ${st.border};border-radius:10px;padding:14px 16px;margin-bottom:8px;display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start;">
               <div style="background:${st.color};color:white;font-size:11px;font-weight:700;padding:5px 10px;border-radius:6px;white-space:nowrap;">${st.icon}</div>
               <div>
-                <div style="font-weight:700;color:var(--text-primary);font-size:13px;margin-bottom:3px;">${article.title}</div>
-                <div style="font-size:12px;color:var(--text-muted);margin-bottom:5px;">${article.description}</div>
-                <div style="font-size:12px;color:var(--text-subtle);">⚡ <strong>Requirement:</strong> ${article.requirement}</div>
-                <div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-style:italic;">Evidence: ${article.evidence}</div>
+                <div style="font-weight:700;color:var(--text-primary);font-size:13px;margin-bottom:3px;">${esc(article.title)}</div>
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:5px;">${esc(article.description)}</div>
+                <div style="font-size:12px;color:var(--text-subtle);">⚡ <strong>Requirement:</strong> ${esc(article.requirement)}</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-style:italic;">Evidence: ${esc(article.evidence)}</div>
               </div>
             </div>`;
         }).join('');
@@ -2386,8 +2393,8 @@
       ];
       document.getElementById('wizReviewBody').innerHTML = rows.map(r =>
         `<div class="wiz-review-row">
-          <span style="color:var(--text-muted)">${r.label}</span>
-          ${r.badge ? r.badge : `<span style="font-weight:600;color:var(--text-primary);text-align:right;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.value}</span>`}
+          <span style="color:var(--text-muted)">${esc(r.label)}</span>
+          ${r.badge ? r.badge : `<span style="font-weight:600;color:var(--text-primary);text-align:right;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.value)}</span>`}
         </div>`
       ).join('');
     }
@@ -2505,12 +2512,12 @@
         el.innerHTML = '';
         data.history.forEach(h => {
           const flags = h.risk_categories && h.risk_categories.length
-            ? h.risk_categories.map(f => `<span class="history-flag">${f}</span>`).join('')
+            ? h.risk_categories.map(f => `<span class="history-flag">${esc(f)}</span>`).join('')
             : '<span style="color:var(--green);font-size:12px;">✅ No risks</span>';
           el.insertAdjacentHTML('beforeend', `
             <div class="history-item">
               <div class="history-top">
-                <span class="history-cat">${h.category}</span>
+                <span class="history-cat">${esc(h.category)}</span>
                 <span class="history-ts">${new Date(h.timestamp).toLocaleString()}</span>
               </div>
               <div class="history-meta">
@@ -2552,7 +2559,7 @@
         const removed = d.flags_removed.length ? d.flags_removed.map(f=>`<span class="risk-chip">${f}</span>`).join(' ') : '<em>none</em>';
         el.innerHTML = `
           <div class="cf-diff">
-            <div class="cf-diff-title">Impact of changing "${key}" → "${value}"</div>
+            <div class="cf-diff-title">Impact of changing "${esc(key)}" → "${esc(value)}"</div>
             <div class="cf-added">Risks added: ${added}</div>
             <div class="cf-removed" style="margin-top:5px;">Risks removed: ${removed}</div>
             <div class="cf-delta" style="margin-top:5px;color:${deltaColor};">
@@ -2663,8 +2670,8 @@
           el.insertAdjacentHTML('beforeend', `
             <div class="key-item">
               <div>
-                <div class="key-prefix">${k.key_prefix}…</div>
-                <div class="key-label">${k.label || 'Unlabelled'}</div>
+                <div class="key-prefix">${esc(k.key_prefix)}…</div>
+                <div class="key-label">${esc(k.label || 'Unlabelled')}</div>
                 <div class="key-stats">${k.calls_total} total calls · last used: ${k.last_used ? new Date(k.last_used).toLocaleDateString() : 'never'}</div>
               </div>
               <button class="btn-revoke" onclick="revokeKey(${k.key_id})">Revoke</button>
