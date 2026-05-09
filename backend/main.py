@@ -440,7 +440,36 @@ async def get_compliance_status(system_id: int, user: dict = Depends(get_current
     if not system:
         raise HTTPException(status_code=404, detail="AI system not found")
     stats = database.get_audit_stats_for_system(google_sub=user["sub"])
-    return compute_compliance(system=system, stats=stats)
+    result = compute_compliance(system=system, stats=stats)
+    try:
+        database.save_compliance_snapshot(
+            google_sub=user["sub"],
+            system_id=system_id,
+            score=result["overall_score"],
+            verdict=result["verdict"],
+            passes=result["passes"],
+            partials=result["partials"],
+            fails=result["fails"],
+            articles=result["articles"],
+        )
+    except Exception:
+        logger.exception("Failed to save compliance snapshot — non-fatal")
+    return result
+
+
+@app.get("/ai-systems/{system_id}/history", dependencies=[Depends(get_current_user)])
+async def get_compliance_history(system_id: int, user: dict = Depends(get_current_user)):
+    """Return score history snapshots for a single AI system (for trend charts)."""
+    system = database.get_ai_system(system_id=system_id, google_sub=user["sub"])
+    if not system:
+        raise HTTPException(status_code=404, detail="AI system not found")
+    return database.get_compliance_history(google_sub=user["sub"], system_id=system_id)
+
+
+@app.get("/dashboard/summary", dependencies=[Depends(get_current_user)])
+async def get_dashboard_summary(user: dict = Depends(get_current_user)):
+    """Return compliance summary across all of the user's AI systems."""
+    return database.get_dashboard_summary(google_sub=user["sub"])
 
 
 @app.post("/ai-systems/{system_id}/certificate", dependencies=[Depends(get_current_user)])
