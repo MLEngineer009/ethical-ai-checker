@@ -27,9 +27,10 @@ def verify_google_token(credential: str) -> Optional[dict]:
             GOOGLE_CLIENT_ID,
         )
         return {
-            "sub":      info["sub"],        # stable Google user ID
-            "name":     info.get("name", "User"),
-            "picture":  info.get("picture", ""),
+            "sub":     info["sub"],          # stable Google user ID
+            "name":    info.get("name", "User"),
+            "email":   info.get("email", ""),
+            "picture": info.get("picture", ""),
         }
     except Exception:
         return None

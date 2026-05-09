@@ -156,6 +156,16 @@ async def google_auth(req: GoogleAuthRequest):
         raise HTTPException(status_code=401, detail="Invalid Google credential")
     token = auth.create_session(user_info)
     logger.info("Google auth success — user=%s", user_info.get("name", "unknown"))
+    # Upsert user profile so we can send email notifications
+    if user_info.get("email"):
+        try:
+            database.upsert_user(
+                google_sub=user_info["sub"],
+                email=user_info["email"],
+                name=user_info.get("name", "User"),
+            )
+        except Exception:
+            logger.exception("Failed to upsert user profile — non-fatal")
     return {
         "token":   token,
         "name":    user_info["name"],
@@ -1074,6 +1084,34 @@ async def chat(request: ChatRequest, user: dict = Depends(get_current_user)) -> 
         recommendation=analysis["recommendation"],
         violations=analysis.get("regulatory_refs", []),
     )
+
+
+@app.get("/notifications/unsubscribe")
+async def unsubscribe(token: str):
+    """One-click email unsubscribe — no auth required."""
+    user = database.get_user_by_unsubscribe_token(token)
+    if not user:
+        raise HTTPException(status_code=404, detail="Invalid unsubscribe token")
+    database.set_email_notifications(user["google_sub"], enabled=False)
+    logger.info("Email notifications disabled — sub=%s", user["google_sub"])
+    return Response(
+        content="<html><body style='font-family:sans-serif;text-align:center;padding:60px;background:#0a0b0f;color:#fff;'>"
+                "<h2>✓ Unsubscribed</h2>"
+                "<p style='color:rgba(255,255,255,0.6);'>You will no longer receive compliance reminder emails from Pragma.</p>"
+                "<p><a href='/' style='color:#6366f1;'>Back to app</a></p>"
+                "</body></html>",
+        media_type="text/html",
+    )
+
+
+@app.post("/notifications/preferences", dependencies=[Depends(get_current_user)])
+async def set_notification_preferences(
+    enabled: bool,
+    user: dict = Depends(get_current_user),
+):
+    """Toggle email notifications on or off for the current user."""
+    database.set_email_notifications(user["sub"], enabled=enabled)
+    return {"email_notifications": enabled}
 
 
 @app.get("/")

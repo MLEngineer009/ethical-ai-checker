@@ -209,6 +209,28 @@ subscriptions = Table(
     Column("updated_at",              String,  nullable=False),
 )
 
+users = Table(
+    "users", _meta,
+    Column("id",                    Integer, primary_key=True, autoincrement=True),
+    Column("google_sub",            String,  nullable=False, unique=True),
+    Column("email",                 String,  nullable=False),
+    Column("name",                  String,  nullable=False),
+    Column("email_notifications",   Integer, nullable=False, server_default="1"),  # 1=on, 0=off
+    Column("unsubscribe_token",     String,  nullable=True),   # one-click unsubscribe
+    Column("created_at",            String,  nullable=False),
+    Column("last_seen_at",          String,  nullable=False),
+)
+
+notification_log = Table(
+    "notification_log", _meta,
+    Column("id",                Integer, primary_key=True, autoincrement=True),
+    Column("google_sub",        String,  nullable=False),
+    Column("notification_type", String,  nullable=False),  # welcome|gap_reminder|countdown|recheck
+    Column("system_id",         Integer, nullable=True),
+    Column("email",             String,  nullable=False),
+    Column("sent_at",           String,  nullable=False),
+)
+
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
@@ -264,6 +286,13 @@ def init_db() -> None:
                         continue
                     logger.info("Migration: adding ai_systems.%s column", col_name)
                     conn.execute(text(f"ALTER TABLE ai_systems ADD COLUMN {col_name} {col_def}"))
+    # Migration: users.unsubscribe_token (added after initial users table)
+    if "users" in insp.get_table_names():
+        user_cols = {c["name"] for c in insp.get_columns("users")}
+        if "unsubscribe_token" not in user_cols:
+            with _engine.begin() as conn:
+                conn.execute(text("ALTER TABLE users ADD COLUMN unsubscribe_token VARCHAR"))
+
     logger.info("Database schema up to date")
 
 
@@ -1033,4 +1062,119 @@ def save_certificate(
             total_evaluations=total_evaluations,
             hitl_overrides=hitl_overrides,
             proxy_vars_caught=proxy_vars_caught,
+        ))
+
+
+# ── User profiles & notifications ─────────────────────────────────────────────
+
+def upsert_user(google_sub: str, email: str, name: str) -> None:
+    """Create or update user profile. Called on every login."""
+    import secrets as _secrets
+    now = datetime.now(timezone.utc).isoformat()
+    with _engine.begin() as conn:
+        existing = conn.execute(
+            users.select().where(users.c.google_sub == google_sub)
+        ).fetchone()
+        if existing:
+            conn.execute(
+                users.update()
+                .where(users.c.google_sub == google_sub)
+                .values(name=name, last_seen_at=now)
+            )
+        else:
+            conn.execute(users.insert().values(
+                google_sub=google_sub,
+                email=email,
+                name=name,
+                email_notifications=1,
+                unsubscribe_token=_secrets.token_hex(16),
+                created_at=now,
+                last_seen_at=now,
+            ))
+
+
+def get_user_by_sub(google_sub: str) -> Dict | None:
+    with _engine.connect() as conn:
+        row = conn.execute(
+            users.select().where(users.c.google_sub == google_sub)
+        ).fetchone()
+    if not row:
+        return None
+    return {
+        "google_sub":           row.google_sub,
+        "email":                row.email,
+        "name":                 row.name,
+        "email_notifications":  bool(row.email_notifications),
+        "unsubscribe_token":    row.unsubscribe_token,
+        "created_at":           row.created_at,
+        "last_seen_at":         row.last_seen_at,
+    }
+
+
+def get_user_by_unsubscribe_token(token: str) -> Dict | None:
+    with _engine.connect() as conn:
+        row = conn.execute(
+            users.select().where(users.c.unsubscribe_token == token)
+        ).fetchone()
+    if not row:
+        return None
+    return {"google_sub": row.google_sub, "email": row.email, "name": row.name}
+
+
+def set_email_notifications(google_sub: str, enabled: bool) -> None:
+    with _engine.begin() as conn:
+        conn.execute(
+            users.update()
+            .where(users.c.google_sub == google_sub)
+            .values(email_notifications=1 if enabled else 0)
+        )
+
+
+def get_all_notification_users() -> List[Dict]:
+    """Return all users with email notifications enabled and a valid email."""
+    with _engine.connect() as conn:
+        rows = conn.execute(
+            users.select()
+            .where(users.c.email_notifications == 1)
+            .where(users.c.email != "")
+        ).fetchall()
+    return [
+        {
+            "google_sub":        r.google_sub,
+            "email":             r.email,
+            "name":              r.name,
+            "unsubscribe_token": r.unsubscribe_token,
+        }
+        for r in rows
+    ]
+
+
+def was_notification_sent(google_sub: str, notification_type: str,
+                          system_id: int | None = None,
+                          within_days: int = 30) -> bool:
+    """Return True if this notification type was already sent recently."""
+    from datetime import timedelta
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=within_days)).isoformat()
+    with _engine.connect() as conn:
+        q = notification_log.select().where(
+            notification_log.c.google_sub == google_sub,
+            notification_log.c.notification_type == notification_type,
+            notification_log.c.sent_at >= cutoff,
+        )
+        if system_id is not None:
+            q = q.where(notification_log.c.system_id == system_id)
+        row = conn.execute(q).fetchone()
+    return row is not None
+
+
+def log_notification(google_sub: str, notification_type: str,
+                     email: str, system_id: int | None = None) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    with _engine.begin() as conn:
+        conn.execute(notification_log.insert().values(
+            google_sub=google_sub,
+            notification_type=notification_type,
+            system_id=system_id,
+            email=email,
+            sent_at=now,
         ))
