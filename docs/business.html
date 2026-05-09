@@ -129,6 +129,8 @@
     <a href="#revenue">Revenue</a>
     <a href="#competitive">Competitive</a>
     <a href="#roadmap">Roadmap</a>
+    <a href="auditing.html">AI Auditing AI →</a>
+    <a href="testing-guide.html">Testing Guide →</a>
     <a href="architecture.html">Architecture →</a>
   </div>
 </nav>
@@ -176,7 +178,7 @@
           <li>Batch CSV evaluation, counterfactual bias audit, PDF audit report</li>
           <li>Compliance-aware chat API for conversational AI use cases</li>
           <li><strong>Proxy Variable Guard</strong> — ECOA/Reg B proxy field detection on every evaluation</li>
-          <li><strong>EU AI Act data lineage</strong> — register AI systems, track Articles 9–14, issue compliance certificates</li>
+          <li><strong>EU AI Act data lineage</strong> — register AI systems, track all 15 articles (Arts. 4–6, 9–15, 17, 25, 27, 30, 33), issue compliance certificates</li>
         </ul>
       </div>
       <div class="card">
@@ -185,7 +187,7 @@
           <li>Proactive enforcement — blocks violations before they execute</li>
           <li><strong>Immutable audit trail</strong> — sha256-hashed inputs, firewall verdicts, proxy vars detected</li>
           <li><strong>HITL Override</strong> — human investigators record override reasons per EU AI Act Art. 14</li>
-          <li><strong>EU AI Act Compliance Certificate</strong> — PDF readiness report for Articles 9–14, valid 1 year</li>
+          <li><strong>EU AI Act Compliance Certificate</strong> — PDF readiness report for all 15 articles, SELF-ASSESSMENT ONLY watermark, valid 1 year</li>
           <li>Explainable output non-technical stakeholders can read and defend</li>
           <li>No PII stored — anonymous metadata only, GDPR-safe by design</li>
           <li>VPC-deployable — sensitive data never leaves your infrastructure</li>
@@ -293,8 +295,8 @@
   <!-- REVENUE MODEL -->
   <section id="revenue">
     <h2>Revenue Model</h2>
-    <p class="section-sub">Free for developer adoption. Enterprise contracts for the compliance budget where real revenue lives.</p>
-    <div class="card-grid cols-2">
+    <p class="section-sub">Free for developer adoption. Self-serve Growth tier for teams. Enterprise contracts for the compliance budget where real revenue lives.</p>
+    <div class="card-grid cols-3" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
       <div class="card" style="border-color: rgba(255,255,255,0.12);">
         <div style="font-size:11px; font-weight:700; letter-spacing:1px; color:var(--muted); text-transform:uppercase; margin-bottom:12px;">Free</div>
         <div style="font-size:32px; font-weight:800; margin-bottom:4px;">$0</div>
@@ -309,6 +311,21 @@
           <li style="opacity:0.4;">Team / org accounts</li>
         </ul>
       </div>
+      <div class="card" style="border-color: rgba(124,111,224,0.5); background: rgba(124,111,224,0.05);">
+        <div style="font-size:11px; font-weight:700; letter-spacing:1px; color:var(--accent); text-transform:uppercase; margin-bottom:12px;">Growth — Self-Serve</div>
+        <div style="font-size:32px; font-weight:800; margin-bottom:4px;">$299</div>
+        <div style="color:var(--muted); font-size:13px; margin-bottom:20px;">per month · Stripe Checkout</div>
+        <ul style="color:var(--muted); font-size:13px; line-height:2;">
+          <li>2,000 evaluations / month</li>
+          <li>Web &amp; mobile app access</li>
+          <li><strong style="color:var(--text);">API key access</strong> — SDK integration</li>
+          <li><strong style="color:var(--text);">EU AI Act Certificate</strong> — 15-article PDF</li>
+          <li><strong style="color:var(--text);">ECOA Proxy Variable Guard</strong></li>
+          <li><strong style="color:var(--text);">Immutable audit trail</strong> — HITL override</li>
+          <li>Org accounts + shared decision history</li>
+          <li>Manage via Stripe Customer Portal</li>
+        </ul>
+      </div>
       <div class="card" style="border-color: rgba(247,147,30,0.5); background: rgba(247,147,30,0.05);">
         <div style="font-size:11px; font-weight:700; letter-spacing:1px; color:var(--accent3); text-transform:uppercase; margin-bottom:12px;">Enterprise — Talk to us</div>
         <div style="font-size:32px; font-weight:800; margin-bottom:4px;">$10K–$100K</div>
@@ -316,8 +333,8 @@
         <ul style="color:var(--muted); font-size:13px; line-height:2;">
           <li>Unlimited evaluations + API keys</li>
           <li><strong style="color:var(--text);">Pre-execution firewall</strong> — embedded in your AI pipeline</li>
-          <li><strong style="color:var(--text);">ECOA Proxy Variable Guard</strong> — blocks zip code, last name, email domain proxies automatically</li>
-          <li><strong style="color:var(--text);">EU AI Act Certificate</strong> — Articles 9–14 compliance PDF, valid 1 year</li>
+          <li><strong style="color:var(--text);">ECOA Proxy Variable Guard</strong> — 20+ fields auto-detected</li>
+          <li><strong style="color:var(--text);">EU AI Act Certificate</strong> — 15-article compliance PDF, valid 1 year</li>
           <li><strong style="color:var(--text);">Immutable audit trail</strong> — SHA-256 hashed, regulator-ready export</li>
           <li>Custom block thresholds &amp; risk policies per team</li>
           <li>Self-hosted / VPC deployment — data never leaves your infrastructure</li>
@@ -359,8 +376,8 @@
             <td style="color:var(--red);">No</td>
           </tr>
           <tr>
-            <td><strong>EU AI Act Art. 9–14 certificate</strong></td>
-            <td style="color:var(--green);">Yes — live checklist + PDF certificate</td>
+            <td><strong>EU AI Act 15-article certificate</strong></td>
+            <td style="color:var(--green);">Yes — live checklist (Arts. 4–6, 9–15, 17, 25, 27, 30, 33) + PDF certificate</td>
             <td style="color:var(--red);">No</td>
             <td style="color:var(--red);">No</td>
             <td style="color:var(--muted);">Expensive consulting, months</td>
@@ -423,11 +440,19 @@
           <li>Provider chain: Custom Pragma model → Claude → OpenAI → heuristic mock</li>
           <li><strong style="color:var(--text);">Proxy Variable Guard</strong> — ECOA/Reg B fintech proxy field detection (zip_code, last_name, ip_country, email_domain…)</li>
           <li><strong style="color:var(--text);">Immutable Audit Trail</strong> — sha256-hashed audit log, firewall verdicts, proxy vars, per-record HITL override</li>
-          <li><strong style="color:var(--text);">EU AI Act Data Lineage</strong> — register AI systems, Articles 9–14 compliance checklist, PDF compliance certificate</li>
-          <li>SaaS web dashboard (Evaluate, History, Batch, Chat, Audit Log 🔐, Compliance 🏛️, Settings tabs)</li>
+          <li><strong style="color:var(--text);">EU AI Act 15-Article Framework</strong> — Arts. 4–6, 9–15, 17, 25, 27, 30, 33 compliance checklist with evidence-based scoring</li>
+          <li><strong style="color:var(--text);">5-Step Assessment Wizard</strong> — guided AI system registration replacing flat form (Step 1: System Info → Step 2: Risk → Step 3: Data → Step 4: Declaration → Step 5: Review)</li>
+          <li><strong style="color:var(--text);">Certificate Hardening</strong> — SELF-ASSESSMENT ONLY diagonal watermark; DECLARATION ONLY badges on articles without supporting documentation</li>
+          <li><strong style="color:var(--text);">Stripe Billing</strong> — Growth plan ($299/mo, self-serve Checkout), Customer Portal, webhook lifecycle management, plan rate limiting</li>
+          <li><strong style="color:var(--text);">Rate Limiting</strong> — Free: 100 evals/month; Growth: 2,000; Enterprise: unlimited — enforced on both single and batch evaluation</li>
+          <li><strong style="color:var(--text);">Security Hardening</strong> — XSS prevention (esc() helper), CORS explicit allowlist, input size limits, SQL injection guard, Stripe webhook signature verification</li>
+          <li>Structured logging across all backend modules (main.py, compliance_engine.py, database.py)</li>
+          <li><strong style="color:var(--text);">Demo System</strong> — "Try Demo — LoanSight AI" one-click button pre-fills wizard with a realistic EU credit-scoring system; <code>seed_demo.py</code> for CLI pre-seeding before investor demos</li>
+          <li>Mobile bottom navigation bar for web dashboard on phones (fixed nav, iOS Safari compatible)</li>
+          <li>SaaS web dashboard (Evaluate, History, Batch, Chat, Audit Log 🔐, Compliance 🏛️, Settings + Billing tabs)</li>
           <li>iOS + Android mobile app with Chat screen and firewall verdict banners</li>
           <li>Google SSO + guest sessions, org accounts, API key management</li>
-          <li>352 tests, all passing</li>
+          <li>382 tests, all passing · 87% coverage</li>
         </ul>
       </div>
       <div class="card" style="border-color:rgba(124,111,224,0.3);">
@@ -437,9 +462,7 @@
         <ul style="color:var(--muted); font-size:14px; line-height:2.2;">
           <li>First Pragma model v1 deployed on HuggingFace</li>
           <li>First pilot enterprise customer integration</li>
-          <li>Rate limiting enforcement (100 evals/month free tier)</li>
           <li>Node.js SDK — <code>Pragma(openai, { policyId: "..." })</code></li>
-          <li>Stripe billing integration</li>
           <li>SHAP/LIME explainability when custom model exposes feature weights</li>
           <li>Policy Builder UI — CEO-level no-code rule configuration</li>
           <li>VPC-deployable Docker container + Helm chart for enterprise</li>
@@ -478,7 +501,7 @@
 </div>
 
 <footer>
-  Pragma &mdash; Business Case &mdash; &copy; 2026 &nbsp;&nbsp;|&nbsp;&nbsp; <a href="architecture.html" style="color:var(--accent); text-decoration:none;">Architecture →</a>
+  Pragma &mdash; Business Case &mdash; &copy; 2026 &nbsp;&nbsp;|&nbsp;&nbsp; <a href="auditing.html" style="color:var(--accent); text-decoration:none;">AI Auditing AI →</a> &nbsp;&nbsp;|&nbsp;&nbsp; <a href="architecture.html" style="color:var(--accent); text-decoration:none;">Architecture →</a>
 </footer>
 
 </body>

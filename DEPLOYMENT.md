@@ -1,212 +1,203 @@
-# Deployment Guide - Ethical AI Decision Checker
+# Deployment Guide — Pragma AI Compliance Firewall
 
-## GCP Cloud Run Deployment
+## Railway Deployment (Primary)
 
-This guide walks through deploying the application to Google Cloud Platform using Cloud Run.
+Railway auto-deploys from GitHub on every push to `main`. No Dockerfile or build config needed — Railway detects Python via `requirements.txt` and runs `uvicorn backend.main:app`.
 
-### Prerequisites
+### Step 1: Create Project
 
-- Google Cloud Platform account with billing enabled
-- `gcloud` CLI installed and configured
-- Docker installed (for local testing)
+1. Go to [railway.app](https://railway.app) → **New Project**
+2. Choose **Deploy from GitHub repo** → select your fork
+3. Railway builds and deploys automatically
 
-### Step 1: Create GCP Project
+### Step 2: Add PostgreSQL
 
-```bash
-gcloud projects create ethical-ai-checker --set-as-default
-gcloud billing projects link ethical-ai-checker --billing-account=[BILLING_ACCOUNT_ID]
-```
-
-### Step 2: Enable Required APIs
-
-```bash
-gcloud services enable run.googleapis.com
-gcloud services enable artifactregistry.googleapis.com
-```
+In the Railway project dashboard:
+1. Click **+ New** → **Database** → **Add PostgreSQL**
+2. Railway injects `DATABASE_URL` into your service automatically
+3. The app calls `init_db()` on startup and creates all tables via `CREATE TABLE IF NOT EXISTS` + `ALTER TABLE` migrations — no manual schema setup needed
 
 ### Step 3: Set Environment Variables
 
-```bash
-export GCP_PROJECT_ID=$(gcloud config get-value project)
-export GCP_REGION=us-central1
-export OPENAI_API_KEY=your_actual_api_key_here
+In the Railway service → **Variables** tab, add:
+
+| Variable | Required | Value |
+|----------|----------|-------|
+| `ANTHROPIC_API_KEY` | Yes | `sk-ant-...` |
+| `OPENAI_API_KEY` | Yes | `sk-...` |
+| `GOOGLE_CLIENT_ID` | Yes | From Google Cloud Console |
+| `ALLOWED_ORIGINS` | Yes | `https://your-railway-url.up.railway.app` (comma-separated for multiple) |
+| `STRIPE_SECRET_KEY` | Billing | `sk_live_...` (or `sk_test_...` for testing) |
+| `STRIPE_WEBHOOK_SECRET` | Billing | `whsec_...` from Stripe Dashboard → Webhooks |
+| `STRIPE_GROWTH_PRICE_ID` | Billing | `price_...` for your Growth plan product |
+| `CUSTOM_MODEL_REPO` | Optional | HuggingFace repo name (e.g. `user/pragma-ethics-v1`) |
+| `HF_TOKEN` | Optional | HuggingFace API token |
+
+> `DATABASE_URL` is injected automatically by the PostgreSQL plugin — do not set it manually.
+
+### Step 4: Verify Deployment
+
+After Railway deploys, check the service logs for:
+```
+INFO     __main__ — Database ready
+INFO     uvicorn.access — Application startup complete
 ```
 
-### Step 4: Build and Deploy to Cloud Run
-
-**Option A: Deploy from source** (simplest)
-
+Then health-check the live URL:
 ```bash
-gcloud run deploy ethical-ai-checker \
-  --source . \
-  --platform managed \
-  --region $GCP_REGION \
-  --set-env-vars OPENAI_API_KEY=$OPENAI_API_KEY \
-  --allow-unauthenticated
+curl https://your-railway-url.up.railway.app/health-check
 ```
 
-**Option B: Build Docker image first** (for testing locally)
-
-```bash
-# Build image
-docker build -t ethical-ai-checker .
-
-# Run locally
-docker run -p 8000:8000 \
-  -e OPENAI_API_KEY=$OPENAI_API_KEY \
-  ethical-ai-checker
-
-# Push to GCP Artifact Registry
-gcloud builds submit \
-  --tag gcr.io/$GCP_PROJECT_ID/ethical-ai-checker \
-  --project=$GCP_PROJECT_ID
-
-# Deploy from registry
-gcloud run deploy ethical-ai-checker \
-  --image gcr.io/$GCP_PROJECT_ID/ethical-ai-checker \
-  --platform managed \
-  --region $GCP_REGION \
-  --set-env-vars OPENAI_API_KEY=$OPENAI_API_KEY \
-  --allow-unauthenticated
+Expected response:
+```json
+{
+  "status": "healthy",
+  "model": { "pragma": true, "claude": true, "openai": true }
+}
 ```
 
-### Step 5: Access Your Service
+---
 
-After deployment, gcloud will output a service URL. Test it:
+## Stripe Billing Setup
 
-```bash
-SERVICE_URL=$(gcloud run services describe ethical-ai-checker \
-  --platform managed \
-  --region $GCP_REGION \
-  --format 'value(status.url)')
+### Create Growth Plan Product
 
-# Health check
-curl $SERVICE_URL/health-check
+1. Go to [Stripe Dashboard](https://dashboard.stripe.com) → **Products** → **Add Product**
+2. Name: `Pragma Growth`
+3. Add a price: **$299 / month**, recurring
+4. Copy the **Price ID** (`price_...`) → set as `STRIPE_GROWTH_PRICE_ID` in Railway
 
-# Evaluate decision
-curl -X POST $SERVICE_URL/evaluate-decision \
-  -H "Content-Type: application/json" \
-  -d '{
-    "decision":"Reject candidate",
-    "context":{"gender":"female","experience":5}
-  }'
-```
+### Configure Webhook
 
-### Step 6: Enable API Authentication (Production)
+1. Stripe Dashboard → **Developers** → **Webhooks** → **Add endpoint**
+2. Endpoint URL: `https://your-railway-url.up.railway.app/billing/webhook`
+3. Select events:
+   - `checkout.session.completed`
+   - `customer.subscription.created`
+   - `customer.subscription.updated`
+   - `customer.subscription.deleted`
+4. Copy the **Signing secret** (`whsec_...`) → set as `STRIPE_WEBHOOK_SECRET` in Railway
 
-For production, enable API key authentication:
+### Test Billing Locally
 
 ```bash
-# Create service account
-gcloud iam service-accounts create ethical-ai-api-client
+# Install Stripe CLI
+brew install stripe/stripe-cli/stripe
 
-# Grant invoke permission
-gcloud run services add-iam-policy-binding ethical-ai-checker \
-  --member=serviceAccount:ethical-ai-api-client@$GCP_PROJECT_ID.iam.gserviceaccount.com \
-  --role=roles/run.invoker \
-  --region=$GCP_REGION
+# Forward webhooks to local server
+stripe listen --forward-to localhost:8000/billing/webhook
 
-# Create API key
-gcloud alpha services api-keys create \
-  --display-name="Ethical AI API Key" \
-  --api-target=run.googleapis.com
+# Trigger a test event
+stripe trigger checkout.session.completed
 ```
 
-### Step 7: Configure Auto-scaling (Optional)
+---
+
+## Local Development
 
 ```bash
-gcloud run services update ethical-ai-checker \
-  --region $GCP_REGION \
-  --concurrency 100 \
-  --memory 512Mi \
-  --cpu 1
+# 1. Clone and install
+git clone https://github.com/your-org/pragma
+cd pragma
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+
+# 2. Set env vars (copy and fill in)
+export ANTHROPIC_API_KEY=sk-ant-...
+export OPENAI_API_KEY=sk-...
+export GOOGLE_CLIENT_ID=...
+export DATABASE_URL=postgresql://postgres:password@localhost:5432/pragma
+# Stripe optional for local dev — billing endpoints degrade gracefully without keys
+
+# 3. Start local PostgreSQL (Docker)
+docker run -d --name pragma-pg \
+  -e POSTGRES_PASSWORD=password \
+  -p 5432:5432 postgres:15
+
+# 4. Run the backend
+uvicorn backend.main:app --reload
+# API at http://localhost:8000
+# Web dashboard at http://localhost:8000
 ```
 
-### Step 8: Set Up Monitoring (Optional)
+---
+
+## Running Tests
 
 ```bash
-gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=ethical-ai-checker" \
-  --limit 50 \
-  --project=$GCP_PROJECT_ID
+# All tests with coverage
+pytest
+
+# Specific suites
+pytest tests/test_api.py -v              # 78 API endpoint tests
+pytest tests/test_compliance.py -v      # 45 EU AI Act compliance tests
+pytest tests/test_regulations.py -v     # Regulatory mapping
+pytest tests/test_fintech_compliance.py -v  # Proxy variable guard + audit trail
 ```
 
-### Step 9: Update Environment Variables
+Current status: **382 tests passing, 87% coverage**
 
-To update the OpenAI API key after deployment:
+---
+
+## Web Frontend (Vercel — Optional)
+
+The backend serves `frontend/index.html` directly, so no separate frontend deployment is required. If you want to host the frontend separately on Vercel:
+
+1. [vercel.com](https://vercel.com) → **New Project** → Import GitHub repo
+2. Set **Root Directory** to `frontend/`
+3. No build command needed (static HTML)
+4. Update `PROD_URL` in `frontend/index.html` to your Railway backend URL
+
+---
+
+## Mobile App (Expo EAS)
 
 ```bash
-gcloud run services update ethical-ai-checker \
-  --set-env-vars OPENAI_API_KEY=new_key_here \
-  --region $GCP_REGION
+cd mobile
+npm install
+npm install -g eas-cli
+eas login
+
+# Development (Expo Go)
+npx expo start
+
+# Production build
+eas build --platform ios      # or --platform android
+eas submit --platform ios
 ```
 
-## Dockerfile Configuration
+Update `PROD_URL` in `mobile/src/config.ts` to your Railway URL before building for production.
 
-The application uses this deployment configuration:
+---
 
-```dockerfile
-FROM python:3.11-slim
+## Environment Variables Reference
 
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY . .
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ANTHROPIC_API_KEY` | — | Claude claude-opus-4-6 API key (primary fallback LLM) |
+| `OPENAI_API_KEY` | — | OpenAI API key (secondary fallback) |
+| `GOOGLE_CLIENT_ID` | — | Google OAuth 2.0 client ID for Sign-In |
+| `DATABASE_URL` | SQLite in-memory | PostgreSQL connection string (auto-injected by Railway) |
+| `ALLOWED_ORIGINS` | localhost only | Comma-separated CORS origin allowlist |
+| `STRIPE_SECRET_KEY` | — | Stripe secret key for billing |
+| `STRIPE_WEBHOOK_SECRET` | — | Stripe webhook signing secret |
+| `STRIPE_GROWTH_PRICE_ID` | — | Stripe price ID for Growth plan |
+| `CUSTOM_MODEL_REPO` | — | HuggingFace repo for Pragma model (activates primary provider) |
+| `HF_TOKEN` | — | HuggingFace API token |
+| `OLLAMA_MODEL` | — | Local Ollama model name (e.g. `llama3`) |
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
-
-This is specified in `app.yaml` for App Engine or generated automatically by Cloud Run.
-
-## Environment Variables
-
-**Required**:
-- `OPENAI_API_KEY`: Your OpenAI API key
-
-**Optional**:
-- `LLM_MODEL`: LLM model name (default: `gpt-4`)
-- `LLM_TEMPERATURE`: Temperature for LLM (default: `0.7`)
-- `LLM_MAX_TOKENS`: Max tokens for LLM response (default: `1500`)
-- `API_HOST`: API bind host (default: `0.0.0.0`)
-- `API_PORT`: API bind port (default: `8000`)
-- `ENVIRONMENT`: `development` or `production` (default: `development`)
+---
 
 ## Troubleshooting
 
-**Service fails to deploy:**
-```bash
-gcloud run deploy ethical-ai-checker --source . \
-  --platform managed \
-  --region $GCP_REGION \
-  --debug
-```
+**Database tables not created on first deploy:**
+Check Railway logs for `ERROR` lines during startup. The migration runs `CREATE TABLE IF NOT EXISTS` — safe to re-run. If a column migration fails, check the column name regex filter in `database.py`.
 
-**Check logs:**
-```bash
-gcloud run services describe ethical-ai-checker \
-  --region $GCP_REGION
+**CORS errors in browser:**
+Ensure `ALLOWED_ORIGINS` in Railway matches the exact origin of your frontend (including protocol and port). No trailing slashes.
 
-gcloud logging read "resource.type=cloud_run_revision" \
-  --limit 100 \
-  --format json \
-  --project=$GCP_PROJECT_ID
-```
+**Stripe webhook 400 errors:**
+Verify the `STRIPE_WEBHOOK_SECRET` matches the signing secret shown in Stripe Dashboard for that specific webhook endpoint. Test locally with `stripe listen`.
 
-**Test endpoint directly:**
-```bash
-curl -v $SERVICE_URL/health-check
-```
-
-## Cost Considerations
-
-- Cloud Run: ~$0.00001667 per vCPU-second, ~$0.0000025 per GB-second
-- Typical request: 1-2 seconds, ~256MB
-- Estimated cost: ~$0.10 per 1000 requests
-- Monthly: ~$3-5 for moderate usage
-
-## Next Steps
-
-1. Set up CI/CD with Cloud Build for automated deployments
-2. Add rate limiting with API Gateway
-3. Enable Cloud Tasks for async processing
-4. Set up monitoring alerts with Cloud Monitoring
-5. Create custom domain with Cloud Load Balancing
+**Rate limit 429 on evaluations:**
+The free plan allows 100 evaluations/month. Upgrade via `/billing/create-checkout-session` or set `STRIPE_GROWTH_PRICE_ID` and subscribe.

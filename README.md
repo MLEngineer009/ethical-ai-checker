@@ -13,9 +13,14 @@ pip install -r requirements.txt
 
 ### 2. Configure API Keys
 ```bash
-export ANTHROPIC_API_KEY=your_anthropic_key   # primary LLM
-export OPENAI_API_KEY=your_openai_key         # fallback LLM
-export GOOGLE_CLIENT_ID=your_google_client_id # for Google Sign-In
+export ANTHROPIC_API_KEY=your_anthropic_key        # primary LLM
+export OPENAI_API_KEY=your_openai_key              # fallback LLM
+export GOOGLE_CLIENT_ID=your_google_client_id      # for Google Sign-In
+export DATABASE_URL=postgresql://...               # PostgreSQL connection string
+export STRIPE_SECRET_KEY=sk_live_...              # Stripe billing (optional)
+export STRIPE_WEBHOOK_SECRET=whsec_...            # Stripe webhook signature
+export STRIPE_GROWTH_PRICE_ID=price_...           # Stripe Growth plan price ID
+export ALLOWED_ORIGINS=https://yourdomain.com     # CORS allowlist (comma-separated)
 ```
 
 ### 3. Run Backend
@@ -29,6 +34,26 @@ uvicorn backend.main:app --reload
 ```bash
 curl http://localhost:8000/health-check
 ```
+
+### 5. Demo Quick Start (optional)
+
+Pre-seed a fictional EU high-risk AI system (LoanSight AI by Veridian Finance SA) for a live demo or investor presentation — no wizard required:
+
+```bash
+python seed_demo.py
+# Seeds system_id, then visit the Compliance tab → click the system → Generate Certificate
+```
+
+The demo system produces a realistic mix of compliance verdicts:
+- Art. 4 AI Literacy → **PASS** (declaration + evidence notes + date)
+- Art. 17 QMS → **PARTIAL** (declaration only, no supporting docs)
+- Art. 25 Instructions → **PASS** (deployer handbook reference)
+- Art. 25 Monitoring → **PASS** (drift alerts with start date)
+- Art. 27 FRIA → **FAIL** (not conducted — critical gap)
+- Art. 30 EU DB Registration → **PARTIAL** (no registration number yet)
+- Art. 33 Conformity Assessment → **PARTIAL** (no certificate docs)
+
+Alternatively, click **"▶ Try Demo — LoanSight AI"** in the Compliance tab to pre-fill the wizard without running the script.
 
 ---
 
@@ -182,6 +207,23 @@ Response includes `diff.flags_added`, `diff.flags_removed`, `diff.confidence_del
 
 Categories: `hiring`, `workplace`, `finance`, `healthcare`, `policy`, `personal`, `other`
 
+### Billing
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET  | `/billing/subscription` | Current plan, eval usage, period end |
+| POST | `/billing/create-checkout-session` | Start Stripe Checkout for Growth plan ($299/mo) |
+| POST | `/billing/portal` | Open Stripe Customer Portal to manage subscription |
+| POST | `/billing/webhook` | Stripe webhook receiver (signature-verified) |
+
+Plans:
+
+| Plan | Price | Evaluations/month |
+|------|-------|-------------------|
+| Free | $0 | 100 |
+| Growth | $299/mo | 2,000 |
+| Enterprise | Contact sales | Unlimited |
+
 ### Organizations
 
 | Method | Path | Description |
@@ -285,21 +327,23 @@ Response includes the assigned `system_id`.
 
 | Article | Check | Pass condition |
 |---------|-------|----------------|
-| Art. 4  | AI Literacy | AI literacy training declared for all staff |
+| Art. 4  | AI Literacy | `art4_literacy_training: true` declared |
 | Art. 5  | Prohibited practices | No prohibited practices in use case or purpose |
-| Art. 6  | High-risk classification | Annex III category declared (high-risk systems) |
+| Art. 6  | High-risk classification | `art6_annex_category` declared (Annex III) |
 | Art. 9  | Risk management | 10+ evaluations with risk flags recorded |
 | Art. 10 | Data governance | `training_data_sources` declared (non-empty) |
 | Art. 11 | Technical documentation | All profile fields completed |
 | Art. 12 | Record-keeping | Audit trail active with at least 1 entry |
 | Art. 13 | Transparency | Regulatory refs mapped in evaluations |
 | Art. 14 | Human oversight | At least one HITL override recorded |
-| Art. 15 | Accuracy & robustness | Accuracy metric and robustness testing declared |
-| Art. 17 | Quality management | QMS documented |
-| Art. 25 | Deployer obligations | Instructions provided; monitoring active |
-| Art. 27 | FRIA | Fundamental Rights Impact Assessment completed |
-| Art. 30 | EU AI database | System registered with valid registration number |
-| Art. 33 | Conformity assessment | Self-assessment or third-party assessment completed |
+| Art. 15 | Accuracy & robustness | `art15_accuracy_metric` + `art15_robustness_tested: true` |
+| Art. 17 | Quality management | `art17_qms_documented: true` |
+| Art. 25 | Deployer obligations | `art25_instructions_provided` + `art25_monitoring_active` |
+| Art. 27 | FRIA | `art27_fria_conducted: true` |
+| Art. 30 | EU AI database | `art30_eu_db_registered` + `art30_registration_number` declared |
+| Art. 33 | Conformity assessment | `art33_conformity_type` declared |
+
+**Evidence-based scoring:** Declaration alone yields `partial`. A full `pass` requires the declaration field plus documentation notes and a dated entry in the audit trail. Articles without supporting evidence receive a **DECLARATION ONLY** badge on the certificate.
 
 > **Note:** Art. 5 failure overrides the verdict to `prohibited` regardless of score — a prohibited system cannot receive a certificate.
 
@@ -339,8 +383,10 @@ The PDF contains:
 - Certificate ID (e.g. `PRAGMA-A3F9C2`)
 - Issue date and valid-until date (1 year)
 - Company name, system name, risk tier
-- Per-article checklist with evidence
+- Per-article checklist with evidence (15 articles)
 - Overall compliance score
+- **SELF-ASSESSMENT ONLY** diagonal watermark across both pages
+- **DECLARATION ONLY** badge on any article that lacks supporting documentation
 
 The certificate record is stored in the `compliance_certificates` table and can be re-downloaded.
 
@@ -355,7 +401,7 @@ pytest tests/test_regulations.py -v   # regulatory mapping
 pytest tests/test_orgs_and_api_keys.py -v
 ```
 
-Coverage: 93.7% across 352 tests.
+Coverage: 87% across 382 tests.
 
 ---
 
@@ -363,14 +409,14 @@ Coverage: 93.7% across 352 tests.
 
 ```
 backend/
-  main.py                   # FastAPI app — all endpoints, firewall logic, chat
-  database.py               # SQLAlchemy ORM — request logs, orgs, API keys, audit log, AI systems, certificates
+  main.py                   # FastAPI app — all endpoints, firewall logic, chat, Stripe billing, rate limiting
+  database.py               # SQLAlchemy ORM — request logs, orgs, API keys, audit log, AI systems, certificates, subscriptions
   llm_orchestrator.py       # Pragma model → Claude → OpenAI fallback chain
   risk_detector.py          # Heuristic risk detection (bias, discrimination…) + proxy variable guard
   regulations.py            # Risk flag → regulatory reference mapping
   report_generator.py       # PDF audit report generation
-  compliance_engine.py      # EU AI Act per-article compliance checklist computation
-  compliance_certificate.py # PDF compliance readiness certificate generation
+  compliance_engine.py      # EU AI Act per-article compliance checklist computation (15 articles)
+  compliance_certificate.py # PDF compliance readiness certificate generation (SELF-ASSESSMENT ONLY watermark)
   questions.py              # Category-specific guided context questions
   auth.py                   # Google OAuth + guest session management
   custom_model.py           # Fine-tuned Pragma compliance model interface
@@ -378,6 +424,8 @@ backend/
 frontend/
   index.html           # Single-file SaaS dashboard (vanilla JS)
                        # Tabs: Evaluate, History, Batch, Chat, Audit Log (🔐), Compliance (🏛️), Settings
+                       # Includes: XSS-safe esc() helper, Stripe billing card, 5-step assessment wizard,
+                       # mobile bottom nav bar, "Try Demo — LoanSight AI" one-click demo button
 
 mobile/
   App.tsx              # Tab navigator (Evaluate, History, Chat)
@@ -397,13 +445,16 @@ pragma-sdk/            # Python SDK (separate package)
     types.py           # ComplianceResult, EvaluationRequest, PragmaConfig
     exceptions.py      # ComplianceError, PragmaAPIError, ConfigurationError
 
+seed_demo.py           # CLI script — seeds LoanSight AI demo system into local DB
+                       # Produces a realistic PASS/PARTIAL/FAIL compliance mix for demos
+
 tests/
   conftest.py                    # Fixtures, isolated in-memory DB
   test_api.py                    # 78 endpoint tests
   test_regulations.py            # Regulatory mapping coverage
   test_orgs_and_api_keys.py      # Org and API key lifecycle
   test_fintech_compliance.py     # 18 tests: proxy variable guard, audit trail, HITL override
-  test_compliance.py             # 20 tests: AI system registration, per-article checklist, certificate PDF
+  test_compliance.py             # 45 tests: 15-article checklist, evidence-based scoring, prohibition detection, certificate PDF
 ```
 
 ---
@@ -428,17 +479,42 @@ Scan the QR code with the Expo Go app. For physical device testing, update `mobi
 
 ---
 
-## Deployment (GCP Cloud Run)
+## Deployment (Railway)
 
-```bash
-gcloud run deploy pragma-api \
-  --source . \
-  --platform managed \
-  --region us-central1 \
-  --set-env-vars ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY,OPENAI_API_KEY=$OPENAI_API_KEY,GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID
-```
+Connect the GitHub repo to Railway and it auto-deploys on every push to `main`.
 
-The SDK can point to the deployed instance via `base_url="https://your-cloud-run-url"`.
+1. Create project at [railway.app](https://railway.app) → Deploy from GitHub
+2. Add a PostgreSQL plugin (Railway provisions the `DATABASE_URL` automatically)
+3. Set environment variables in the Railway dashboard:
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `ANTHROPIC_API_KEY` | Yes | Claude fallback LLM |
+| `OPENAI_API_KEY` | Yes | GPT-4o-mini fallback |
+| `GOOGLE_CLIENT_ID` | Yes | Google SSO verification |
+| `DATABASE_URL` | Auto | Injected by Railway PostgreSQL plugin |
+| `ALLOWED_ORIGINS` | Yes | Comma-separated allowed CORS origins (e.g. `https://yourdomain.com`) |
+| `STRIPE_SECRET_KEY` | Billing | Stripe secret key (`sk_live_...`) |
+| `STRIPE_WEBHOOK_SECRET` | Billing | Stripe webhook signing secret (`whsec_...`) |
+| `STRIPE_GROWTH_PRICE_ID` | Billing | Price ID for the Growth plan (`price_...`) |
+| `CUSTOM_MODEL_REPO` | Optional | HuggingFace repo for the Pragma model |
+| `HF_TOKEN` | Optional | HuggingFace API token |
+
+The SDK can point to the deployed instance via `base_url="https://your-railway-url"`.
+
+---
+
+## Security
+
+| Control | Implementation |
+|---------|---------------|
+| XSS prevention | `esc()` helper using `document.createTextNode()` applied to all dynamic HTML in the frontend |
+| CORS | Explicit allowlist via `ALLOWED_ORIGINS` env var — no wildcard origins |
+| Input limits | Decision text ≤ 4,000 chars; context payload ≤ 8,000 chars |
+| Batch rate limiting | Batch CSV endpoint checks monthly plan limit before processing |
+| SQL injection | Column names in migration `ALTER TABLE` validated with `re.compile(r'^[a-z_][a-z0-9_]*$')` |
+| Stripe webhooks | Signature verified with `stripe.WebhookSignature.verify_header()` before any processing |
+| Structured logging | `logging.basicConfig` with timestamp/level/name format across `main.py`, `compliance_engine.py`, `database.py` |
 
 ---
 

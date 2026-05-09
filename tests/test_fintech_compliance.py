@@ -66,13 +66,102 @@ class TestProxyVariableGuard:
         assert "proxy_variables_detected" in report
         assert "count" in report
         assert report["count"] == 1
-        assert report["proxy_variables_detected"][0]["field"] == "zip_code"
-        assert "ECOA" in report["proxy_variables_detected"][0]["regulation"]
+        entry = report["proxy_variables_detected"][0]
+        assert entry["field"] == "zip_code"
+        assert "ECOA" in entry["regulation"]
+
+    def test_proxy_report_rich_fields(self):
+        """Each detected entry must include protected_class, mechanism, severity, replace_with."""
+        report = get_proxy_variable_report({"last_name": "Garcia", "income": 80000})
+        assert report["count"] == 1
+        entry = report["proxy_variables_detected"][0]
+        assert "National Origin" in entry["protected_class"]
+        assert entry["severity"] == "high"
+        assert "mechanism" in entry
+        assert len(entry["mechanism"]) > 20
+        assert "replace_with" in entry
+        assert "all_regulations" in entry
+        assert len(entry["all_regulations"]) >= 1
+
+    def test_proxy_report_redlining_flag(self):
+        """Known historically-redlined zip triggers redlining_flag=True."""
+        report = get_proxy_variable_report({"zip_code": "60620"})
+        assert report["proxy_variables_detected"][0]["redlining_flag"] is True
+
+    def test_proxy_report_nonredlined_zip_no_flag(self):
+        """A zip with a non-redlined prefix still triggers the field but not the redlining flag."""
+        # 94025 (Menlo Park, CA) — not in the historically-redlined prefix set
+        report = get_proxy_variable_report({"zip_code": "94025"})
+        assert report["count"] == 1
+        assert report["proxy_variables_detected"][0]["redlining_flag"] is False
+
+    def test_compound_risk_detected(self):
+        """zip_code + ip_city (both Race/National Origin group) triggers compound risk."""
+        report = get_proxy_variable_report({"zip_code": "60620", "ip_city": "Chicago", "income": 75000})
+        assert len(report["compound_risks"]) >= 1
+        warning = report["compound_risks"][0]["warning"]
+        assert "Compound reconstruction risk" in warning
+        assert len(report["compound_risks"][0]["co_occurring_fields"]) >= 2
+
+    def test_no_compound_risk_single_field(self):
+        """A single proxy field must not generate compound risk."""
+        report = get_proxy_variable_report({"zip_code": "60620"})
+        assert report["compound_risks"] == []
+
+    def test_high_severity_count(self):
+        """Summary high_severity_count must match high-severity entries."""
+        report = get_proxy_variable_report({"zip_code": "60620", "last_name": "Garcia"})
+        high_entries = [e for e in report["proxy_variables_detected"] if e["severity"] == "high"]
+        assert report["high_severity_count"] == len(high_entries)
+
+    def test_first_name_detected(self):
+        """first_name is a gender/ethnicity proxy — must be flagged."""
+        flags = detect_fintech_proxy_variables({"first_name": "DeShawn"})
+        assert "bias" in flags
+        report = get_proxy_variable_report({"first_name": "DeShawn"})
+        assert report["count"] == 1
+        assert "Gender" in report["proxy_variables_detected"][0]["protected_class"] or \
+               "Ethnicity" in report["proxy_variables_detected"][0]["protected_class"]
+
+    def test_maiden_name_detected(self):
+        flags = detect_fintech_proxy_variables({"maiden_name": "Smith"})
+        assert "bias" in flags
+        report = get_proxy_variable_report({"maiden_name": "Smith"})
+        assert "Marital Status" in report["proxy_variables_detected"][0]["protected_class"]
+
+    def test_census_tract_detected(self):
+        flags = detect_fintech_proxy_variables({"census_tract": "17031840300"})
+        assert "bias" in flags
+        report = get_proxy_variable_report({"census_tract": "17031840300"})
+        assert report["count"] == 1
+        assert "HMDA" in " ".join(report["proxy_variables_detected"][0]["all_regulations"])
+
+    def test_number_of_dependents_detected(self):
+        flags = detect_fintech_proxy_variables({"number_of_dependents": 3})
+        assert "bias" in flags
+        report = get_proxy_variable_report({"number_of_dependents": 3})
+        assert "Familial Status" in report["proxy_variables_detected"][0]["protected_class"]
+
+    def test_university_detected(self):
+        flags = detect_fintech_proxy_variables({"university": "Howard University"})
+        assert "bias" in flags
+
+    def test_category_adds_hmda_for_mortgage(self):
+        """Mortgage category should append HMDA to the regulation list."""
+        report = get_proxy_variable_report({"zip_code": "60620"}, category="mortgage")
+        all_regs = " ".join(report["proxy_variables_detected"][0]["all_regulations"])
+        assert "HMDA" in all_regs
+
+    def test_summary_field_present(self):
+        report = get_proxy_variable_report({"zip_code": "60620", "last_name": "Garcia"})
+        assert isinstance(report["summary"], str)
+        assert "proxy variable" in report["summary"].lower()
 
     def test_proxy_report_empty_for_safe_context(self):
         report = get_proxy_variable_report({"income": 50000, "employment_years": 3})
         assert report["count"] == 0
         assert report["proxy_variables_detected"] == []
+        assert report["compound_risks"] == []
 
     def test_proxy_vars_integrated_in_detect_all_risks(self):
         flags = detect_all_risks("deny this loan", {"zip_code": "60620"})
@@ -242,8 +331,14 @@ class TestProxyVariableReportEndpoint:
         assert "proxy_variables_detected" in data
         assert "count" in data
         assert data["count"] == 1
-        assert data["proxy_variables_detected"][0]["field"] == "zip_code"
-        assert "ECOA" in data["proxy_variables_detected"][0]["regulation"]
+        entry = data["proxy_variables_detected"][0]
+        assert entry["field"] == "zip_code"
+        assert "ECOA" in entry["regulation"]
+        assert "protected_class" in entry
+        assert "severity" in entry
+        assert "replace_with" in entry
+        assert "compound_risks" in data
+        assert "summary" in data
 
     def test_returns_empty_for_safe_context(self, isolated_db):
         headers = auth_headers(client)

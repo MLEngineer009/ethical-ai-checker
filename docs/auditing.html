@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pragma — AI Auditing AI</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: rgba(255,255,255,0.04);
+    --border: rgba(255,255,255,0.08);
+    --accent: #7c6fe0;
+    --accent2: #4ecdc4;
+    --accent3: #f7931e;
+    --text: #e8e8f0;
+    --muted: #888;
+    --green: #4ade80;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --purple: #a78bfa;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* NAV */
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(10,10,15,0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 40px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .nav-logo { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }
+  .nav-logo span { color: var(--accent); }
+  .nav-links { display: flex; gap: 28px; }
+  .nav-links a { color: var(--muted); text-decoration: none; font-size: 14px; transition: color .2s; }
+  .nav-links a:hover { color: var(--text); }
+
+  /* HERO */
+  .hero {
+    text-align: center;
+    padding: 80px 40px 60px;
+    background: radial-gradient(ellipse 900px 450px at 50% 0%, rgba(124,111,224,0.14) 0%, transparent 70%);
+  }
+  .hero-badge {
+    display: inline-block;
+    background: rgba(124,111,224,0.15);
+    border: 1px solid rgba(124,111,224,0.3);
+    color: var(--accent);
+    font-size: 12px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+    padding: 5px 14px; border-radius: 20px; margin-bottom: 24px;
+  }
+  .hero h1 {
+    font-size: clamp(36px, 5vw, 60px);
+    font-weight: 800;
+    letter-spacing: -2px;
+    background: linear-gradient(135deg, #fff 30%, var(--accent) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 16px;
+  }
+  .hero p { color: var(--muted); font-size: 18px; max-width: 660px; margin: 0 auto 32px; line-height: 1.7; }
+  .hero-stat-row {
+    display: flex; justify-content: center; gap: 48px; flex-wrap: wrap;
+    margin-top: 40px;
+  }
+  .hero-stat { text-align: center; }
+  .hero-stat .num {
+    font-size: 36px; font-weight: 800; letter-spacing: -1px;
+    background: linear-gradient(135deg, #fff, var(--accent));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .hero-stat .label { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+  /* LAYOUT */
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 40px; }
+  section { padding: 60px 0; border-top: 1px solid var(--border); }
+  h2 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 8px; }
+  h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+  .section-sub { color: var(--muted); font-size: 15px; margin-bottom: 36px; }
+
+  /* PILLAR HEADER */
+  .pillar-header {
+    display: flex; align-items: flex-start; gap: 20px; margin-bottom: 28px;
+  }
+  .pillar-num {
+    width: 48px; height: 48px; border-radius: 14px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 800; color: var(--accent);
+    background: rgba(124,111,224,0.12);
+    border: 1px solid rgba(124,111,224,0.3);
+  }
+  .pillar-meta h2 { margin-bottom: 4px; }
+  .pillar-meta p { color: var(--muted); font-size: 15px; }
+
+  /* CARDS */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+  }
+  .card-grid { display: grid; gap: 16px; }
+  .card-grid.cols-3 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .card-grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); }
+  .card h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .card p { color: var(--muted); font-size: 14px; line-height: 1.65; }
+  .card ul { color: var(--muted); font-size: 14px; padding-left: 18px; }
+  .card ul li { margin-bottom: 6px; line-height: 1.55; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  code {
+    background: rgba(255,255,255,0.07); border-radius: 5px;
+    padding: 2px 6px; font-family: 'SF Mono', 'Menlo', monospace; font-size: 12px;
+  }
+  .code-block {
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12px;
+    padding: 20px 24px;
+    font-family: 'SF Mono', 'Menlo', monospace;
+    font-size: 13px;
+    line-height: 2;
+    color: var(--text);
+    margin-top: 16px;
+    overflow-x: auto;
+  }
+  .code-comment { color: var(--muted); }
+  .code-key { color: #7dd3fc; }
+  .code-val { color: #86efac; }
+  .code-str { color: #f9a8d4; }
+
+  /* QUOTE BLOCK */
+  .insight-box {
+    background: linear-gradient(135deg, rgba(124,111,224,0.08), rgba(78,205,196,0.05));
+    border: 1px solid rgba(124,111,224,0.25);
+    border-radius: 16px;
+    padding: 24px 28px;
+    margin: 24px 0;
+  }
+  .insight-box .label {
+    font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 10px;
+  }
+  .insight-box p { color: var(--text); font-size: 15px; line-height: 1.7; font-style: italic; }
+  .insight-box .attribution { color: var(--muted); font-size: 13px; margin-top: 10px; font-style: normal; }
+
+  /* COMPARISON ROW */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px; margin-top: 16px;
+  }
+  .compare-card {
+    border-radius: 14px; padding: 20px;
+    border: 1px solid var(--border);
+  }
+  .compare-card.bad {
+    background: rgba(248,113,113,0.06);
+    border-color: rgba(248,113,113,0.2);
+  }
+  .compare-card.good {
+    background: rgba(74,222,128,0.06);
+    border-color: rgba(74,222,128,0.2);
+  }
+  .compare-tag {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .compare-tag.bad { color: var(--red); }
+  .compare-tag.good { color: var(--green); }
+  .compare-card p { font-size: 14px; line-height: 1.6; color: var(--muted); }
+  .compare-card strong { color: var(--text); }
+  @media (max-width: 600px) { .compare-grid { grid-template-columns: 1fr; } }
+
+  /* FLOW */
+  .flow { display: flex; flex-direction: column; gap: 0; }
+  .flow-step { display: flex; gap: 20px; align-items: flex-start; }
+  .flow-left { display: flex; flex-direction: column; align-items: center; }
+  .flow-num {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: rgba(124,111,224,0.2); border: 1px solid rgba(124,111,224,0.4);
+    color: var(--accent); font-size: 13px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .flow-line {
+    width: 1px; flex: 1; min-height: 24px;
+    background: linear-gradient(to bottom, rgba(124,111,224,0.3), transparent);
+    margin: 4px 0;
+  }
+  .flow-content { padding-bottom: 28px; }
+  .flow-content h4 { font-size: 14px; font-weight: 700; margin-bottom: 4px; line-height: 32px; }
+  .flow-content p { color: var(--muted); font-size: 13px; }
+
+  /* AUDIT VS SUT DIAGRAM */
+  .ava-diagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 40px;
+    margin-bottom: 32px;
+  }
+  .ava-row {
+    display: flex; align-items: center; justify-content: center;
+    gap: 24px; flex-wrap: wrap;
+  }
+  .ava-box {
+    border-radius: 14px; padding: 18px 24px;
+    text-align: center; min-width: 160px;
+    font-size: 13px; font-weight: 600;
+    border: 1px solid transparent;
+  }
+  .ava-box.sut { background: rgba(78,205,196,0.1); border-color: rgba(78,205,196,0.4); color: #6dd9d2; }
+  .ava-box.auditor { background: rgba(124,111,224,0.15); border-color: rgba(124,111,224,0.5); color: #c4b5fd; }
+  .ava-box.output { background: rgba(74,222,128,0.08); border-color: rgba(74,222,128,0.3); color: #6ee7b7; }
+  .ava-box.human { background: rgba(251,191,36,0.1); border-color: rgba(251,191,36,0.35); color: #fde68a; }
+  .ava-box small { display: block; font-weight: 400; opacity: 0.7; font-size: 11px; margin-top: 4px; }
+  .ava-arrow { font-size: 22px; color: var(--muted); }
+  .ava-label { font-size: 11px; color: var(--muted); text-align: center; letter-spacing: 0.5px; margin: 12px 0 4px; text-transform: uppercase; }
+  .ava-divider { width: 100%; height: 1px; background: var(--border); margin: 20px 0; position: relative; }
+  .ava-divider span {
+    position: absolute; left: 50%; transform: translateX(-50%) translateY(-50%);
+    background: var(--bg); padding: 0 12px;
+    font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase;
+  }
+
+  /* BADGE */
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 5px;
+    font-size: 11px; font-weight: 600;
+  }
+  .badge.pass { background: rgba(74,222,128,0.15); color: var(--green); }
+  .badge.partial { background: rgba(251,191,36,0.15); color: var(--yellow); }
+  .badge.fail { background: rgba(248,113,113,0.15); color: var(--red); }
+  .badge.built { background: rgba(124,111,224,0.15); color: var(--accent); }
+  .badge.planned { background: rgba(255,255,255,0.08); color: var(--muted); }
+
+  /* TABLE */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left; padding: 10px 14px;
+    color: var(--muted); font-weight: 600; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border);
+  }
+  td { padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .data-table { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+
+  /* CTA */
+  .cta-banner {
+    background: linear-gradient(135deg, rgba(124,111,224,0.15), rgba(78,205,196,0.08));
+    border: 1px solid rgba(124,111,224,0.3);
+    border-radius: 20px;
+    padding: 48px;
+    text-align: center;
+    margin: 60px 0;
+  }
+  .cta-banner h2 { font-size: 28px; margin-bottom: 12px; }
+  .cta-banner p { color: var(--muted); font-size: 16px; max-width: 560px; margin: 0 auto 28px; }
+  .cta-links { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+  .cta-link {
+    padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 600;
+    text-decoration: none; transition: opacity .2s;
+  }
+  .cta-link.primary { background: var(--accent); color: #fff; }
+  .cta-link.secondary { background: rgba(255,255,255,0.07); color: var(--text); border: 1px solid var(--border); }
+  .cta-link:hover { opacity: 0.85; }
+
+  /* FOOTER */
+  footer {
+    text-align: center; padding: 40px;
+    color: var(--muted); font-size: 13px;
+    border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo"><span>Pragma</span></div>
+  <div class="nav-links">
+    <a href="#what">What It Is</a>
+    <a href="#pillar1">Actionable Insights</a>
+    <a href="#pillar2">Human-in-the-Loop</a>
+    <a href="#pillar3">Trust by Design</a>
+    <a href="#pragma">In Pragma</a>
+    <a href="testing-guide.html">Testing Guide →</a>
+    <a href="business.html">Business Case →</a>
+    <a href="architecture.html">Architecture →</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-badge">Concept Deep-Dive</div>
+  <h1>AI Auditing AI</h1>
+  <p>Using a specialized auditor model to evaluate, monitor, and hold accountable another AI system — moving beyond technical error-checking to deliver actionable transparency and defensible compliance.</p>
+  <div class="hero-stat-row">
+    <div class="hero-stat">
+      <div class="num">15</div>
+      <div class="label">EU AI Act Articles Checked</div>
+    </div>
+    <div class="hero-stat">
+      <div class="num">&lt;2s</div>
+      <div class="label">Pre-Execution Verdict</div>
+    </div>
+    <div class="hero-stat">
+      <div class="num">0</div>
+      <div class="label">PII Stored</div>
+    </div>
+    <div class="hero-stat">
+      <div class="num">7</div>
+      <div class="label">Regulations Enforced</div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- WHAT IS IT -->
+  <section id="what">
+    <h2>What "AI Auditing AI" Means</h2>
+    <p class="section-sub">The Auditor and the System Under Test are separate — one produces decisions, the other scrutinizes them.</p>
+
+    <div class="ava-diagram">
+      <div class="ava-label">System Under Test (SUT)</div>
+      <div class="ava-row">
+        <div class="ava-box sut">
+          Loan Approval Model
+          <small>GPT-4o / XGBoost / custom</small>
+        </div>
+        <div class="ava-box sut">
+          Hiring Screener
+          <small>Resume ranking algorithm</small>
+        </div>
+        <div class="ava-box sut">
+          Healthcare Triage AI
+          <small>Clinical decision engine</small>
+        </div>
+      </div>
+
+      <div class="ava-row" style="margin-top:20px;"><div class="ava-arrow">↓  Decision stream  ↓</div></div>
+
+      <div class="ava-divider"><span>Pragma Auditor Layer</span></div>
+
+      <div class="ava-row">
+        <div class="ava-box auditor">
+          Compliance Firewall
+          <small>Pre-execution screening</small>
+        </div>
+        <div class="ava-arrow">+</div>
+        <div class="ava-box auditor">
+          EU AI Act Engine
+          <small>15-article checklist</small>
+        </div>
+        <div class="ava-arrow">+</div>
+        <div class="ava-box auditor">
+          Risk Detector
+          <small>ECOA / EEOC proxy guard</small>
+        </div>
+      </div>
+
+      <div class="ava-row" style="margin-top:20px;"><div class="ava-arrow">↓  Verdict + Evidence  ↓</div></div>
+
+      <div class="ava-divider"><span>Outputs</span></div>
+
+      <div class="ava-row">
+        <div class="ava-box output">
+          block / allow / override_required
+          <small>Firewall verdict</small>
+        </div>
+        <div class="ava-box output">
+          Plain-Language Justification
+          <small>Human-readable evidence</small>
+        </div>
+        <div class="ava-box output">
+          Compliance Certificate PDF
+          <small>Regulator-ready artifact</small>
+        </div>
+        <div class="ava-box human">
+          HITL Override Queue
+          <small>Investigator review + sign-off</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-grid cols-3">
+      <div class="card">
+        <h3><span class="dot" style="background:#f87171; margin-right:6px;"></span> The Problem with Black Boxes</h3>
+        <p>Traditional AI systems produce decisions with no explanation of how — a credit denial, a rejected application, a blocked transaction — all opaque to the customer, the operator, and the regulator. When something goes wrong, there is no trail.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot" style="background:#fbbf24; margin-right:6px;"></span> Why "Post-Hoc" Is Not Enough</h3>
+        <p>Every compliance monitoring tool on the market flags problems <em>after</em> the decision has executed and the harm has occurred. The liability has already been created. A meaningful audit must act <em>before</em> the decision reaches the customer.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot" style="background:#4ade80; margin-right:6px;"></span> The Auditor Model</h3>
+        <p>A specialized auditor — trained on regulation, ethical frameworks, and proxy variable detection — runs in parallel with every SUT decision. It screens, explains, and records before the decision executes. Violations are blocked; borderline cases are escalated to humans.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- PILLAR 1 -->
+  <section id="pillar1">
+    <div class="pillar-header">
+      <div class="pillar-num">1</div>
+      <div class="pillar-meta">
+        <h2>Transforming Technical Logs into Actionable Insights</h2>
+        <p>Customers view AI as a black box. Meaningful auditing translates internal model weights into narratives a compliance officer can defend in court.</p>
+      </div>
+    </div>
+
+    <div class="compare-grid">
+      <div class="compare-card bad">
+        <div class="compare-tag bad">Without AI Auditing</div>
+        <p><strong>Output:</strong> "confidence_score: 0.91 — action: block"<br><br>No context. No cause. The customer cannot challenge it. The regulator cannot evaluate it. The compliance officer cannot explain it.</p>
+      </div>
+      <div class="compare-card good">
+        <div class="compare-tag good">With Pragma Auditor</div>
+        <p><strong>Output:</strong> "This loan application was flagged because <strong>zip_code</strong> is a known geographic proxy for race and national origin under ECOA / Regulation B — 15 U.S.C. § 1691. Replace with income, credit score, and debt-to-income ratio."</p>
+      </div>
+    </div>
+
+    <div class="card-grid cols-3" style="margin-top:24px;">
+      <div class="card">
+        <h3>Plain-Language Justifications</h3>
+        <p>Every firewall verdict includes a human-readable recommendation — not just a flag, but a specific cause, a regulatory citation, and an actionable remediation. Non-technical stakeholders can read and defend the output.</p>
+        <div style="margin-top:14px;">
+          <span class="badge built">Built</span>&nbsp;
+          <span style="font-size:12px; color:var(--muted);">kantian_analysis, recommendation, regulatory_refs</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Proxy Variable Visualization</h3>
+        <p>When a decision context includes ECOA proxy fields — zip_code, last_name, email_domain, birth_date — the auditor surfaces them explicitly with the regulation they violate and the protected class they proxy for.</p>
+        <div style="margin-top:14px;">
+          <span class="badge built">Built</span>&nbsp;
+          <span style="font-size:12px; color:var(--muted);">proxy_variables_detected[] in audit_log</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Counterfactual Bias Detection</h3>
+        <p>The counterfactual endpoint runs the same decision twice — original context vs. modified protected attribute — and diffs the results. If changing "gender: female" to "gender: male" changes the firewall outcome, that is evidence of disparate impact.</p>
+        <div style="margin-top:14px;">
+          <span class="badge built">Built</span>&nbsp;
+          <span style="font-size:12px; color:var(--muted);">POST /counterfactual · diff.flags_added / confidence_delta</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Predictive Risk Assessment</h3>
+        <p>Rather than flagging past errors in isolation, AI auditors can use historical evaluation data to forecast drift — identifying when a model's outputs are trending toward biased patterns before a compliance event occurs.</p>
+        <div style="margin-top:14px;">
+          <span class="badge planned">Q3 Roadmap</span>&nbsp;
+          <span style="font-size:12px; color:var(--muted);">Risk trend dashboard, model drift alerts</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>SHAP / LIME Explainability</h3>
+        <p>When the audited model exposes feature weights, Pragma can surface which specific input features (income level vs. zip code) contributed most to the decision — giving engineers and compliance teams a root-cause map, not just a verdict.</p>
+        <div style="margin-top:14px;">
+          <span class="badge planned">Q3 Roadmap</span>&nbsp;
+          <span style="font-size:12px; color:var(--muted);">Requires model to expose feature weights</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Structured Ethical Analysis</h3>
+        <p>Every evaluation produces a three-framework ethical analysis — Kantian (could this be universalized?), Utilitarian (does this maximize welfare?), Virtue Ethics (would a person of good character do this?) — giving stakeholders multiple lenses.</p>
+        <div style="margin-top:14px;">
+          <span class="badge built">Built</span>&nbsp;
+          <span style="font-size:12px; color:var(--muted);">kantian_analysis, utilitarian_analysis, virtue_ethics_analysis</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="insight-box">
+      <div class="label">Real Output — Pragma Auditor</div>
+      <p>"This transaction was flagged due to unusual geographic velocity compared to your last three purchases — zip_code 60620 is a geographic proxy for race under ECOA Regulation B. The decision context references a protected attribute. Recommended action: remove zip_code from the model feature set and substitute with income, credit score, and debt-to-income ratio. Regulation: ECOA / Regulation B — 15 U.S.C. § 1691."</p>
+      <div class="attribution">Generated by Pragma compliance firewall — audit_log_id 1042</div>
+    </div>
+  </section>
+
+  <!-- PILLAR 2 -->
+  <section id="pillar2">
+    <div class="pillar-header">
+      <div class="pillar-num">2</div>
+      <div class="pillar-meta">
+        <h2>Enhancing Trust Through Human-in-the-Loop (HITL)</h2>
+        <p>AI auditing AI is diminished without human oversight. Every escalation must have a clear path to intervention — and a verifiable record of who intervened and why.</p>
+      </div>
+    </div>
+
+    <div class="card-grid cols-2">
+      <div class="card">
+        <h3>How HITL Works in Pragma</h3>
+        <div class="flow" style="margin-top:20px;">
+          <div class="flow-step">
+            <div class="flow-left"><div class="flow-num">1</div><div class="flow-line"></div></div>
+            <div class="flow-content">
+              <h4>Decision Arrives at Auditor</h4>
+              <p>The SUT sends a decision to <code>POST /evaluate-decision</code>. The Pragma auditor screens it before any action is taken.</p>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-left"><div class="flow-num">2</div><div class="flow-line"></div></div>
+            <div class="flow-content">
+              <h4>Firewall Verdict Issued</h4>
+              <p><code>block</code> — halted. <code>override_required</code> — escalated for human review. <code>allow</code> — proceeds. The audit log row is written regardless of outcome.</p>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-left"><div class="flow-num">3</div><div class="flow-line"></div></div>
+            <div class="flow-content">
+              <h4>Investigator Reviews</h4>
+              <p>For <code>override_required</code> verdicts, a human investigator reviews the audit trail entry — seeing the exact input hash, the flagged risk categories, the proxy variables detected, and the regulatory citations triggered.</p>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-left"><div class="flow-num">4</div><div class="flow-line"></div></div>
+            <div class="flow-content">
+              <h4>Override Recorded</h4>
+              <p><code>POST /audit/override</code> — the investigator's authenticated identity (anon_id), decision reason, and timestamp are written to the audit log. This creates an EU AI Act Art. 14 compliant HITL record.</p>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-left"><div class="flow-num">5</div><div class="flow-line"></div></div>
+            <div class="flow-content">
+              <h4>Counted in Compliance Certificate</h4>
+              <p>Art. 14 (Human Oversight) passes only when at least one HITL override is recorded. The certificate surfaces the override count and flags systems with zero human interventions.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Why Verifiable Identity Matters</h3>
+        <p style="margin-bottom:16px;">For audits to be defensible in court or before a regulator, every human intervention must be attributable. Pragma links each override to a cryptographically stable anonymous ID — not a name or email, but a consistent identifier that allows regulators to verify the override chain without exposing personal data.</p>
+        <div class="code-block">
+          <span class="code-comment">-- Every override creates an immutable row</span><br>
+          <span class="code-comment">-- in the audit_log table</span><br>
+          audit_log_id    = <span class="code-val">1042</span><br>
+          hitl_override   = <span class="code-val">1</span><br>
+          hitl_anon_id    = <span class="code-str">"sha256(investigator_session)"</span><br>
+          hitl_reason     = <span class="code-str">"Reviewed by compliance officer —</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span class="code-str">context cleared after manual review."</span><br>
+          input_hash      = <span class="code-str">"sha256(decision+context)"</span><br>
+          firewall_action = <span class="code-str">"override_required"</span><br>
+          timestamp       = <span class="code-str">"2026-05-08T14:23:01Z"</span>
+        </div>
+        <p style="margin-top:16px;">No PII is stored at any point. The sha256 hash of the input is sufficient to prove the decision was reviewed without revealing what was decided.</p>
+
+        <div style="margin-top:20px; padding:16px; background:rgba(251,191,36,0.06); border:1px solid rgba(251,191,36,0.2); border-radius:10px;">
+          <div style="font-size:11px; font-weight:700; color:var(--yellow); letter-spacing:0.8px; text-transform:uppercase; margin-bottom:8px;">EU AI Act Art. 14 — Human Oversight</div>
+          <p style="font-size:13px; color:var(--muted); line-height:1.6;">High-risk AI systems must enable natural persons to effectively oversee the AI during its use period and to intervene, including stopping the system. Art. 14 passes in Pragma's compliance engine only when this override trail exists.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PILLAR 3 -->
+  <section id="pillar3">
+    <div class="pillar-header">
+      <div class="pillar-num">3</div>
+      <div class="pillar-meta">
+        <h2>Providing "Trust by Design" Compliance</h2>
+        <p>For business customers, the most meaningful output of an AI audit is a reduction in regulatory risk. Compliance is not a one-time snapshot — it is a continuously verified state.</p>
+      </div>
+    </div>
+
+    <div class="card-grid cols-3">
+      <div class="card">
+        <h3><span class="dot" style="background:#a78bfa; margin-right:6px;"></span> Lifecycle Monitoring</h3>
+        <p>Meaningful audits are not one-time events. Pragma monitors AI from data declaration (Art. 10) through deployment (Art. 25 monitoring active) to ongoing evaluation — every <code>POST /evaluate-decision</code> call adds evidence to the Art. 9 risk management score.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot" style="background:#4ecdc4; margin-right:6px;"></span> Evidence-Based Certificates</h3>
+        <p>Declaration alone is not enough. A full PASS requires the declaration field, supporting documentation notes, and a dated evidence entry. Articles lacking supporting docs receive a <strong>DECLARATION ONLY</strong> badge on the certificate — forcing honest scoring.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot" style="background:#4ade80; margin-right:6px;"></span> Comprehensive Data Lineage</h3>
+        <p>Art. 10 requires documenting training data sources; Art. 30 requires registration in the EU AI database. Pragma's AI system profiles capture both — with geographic scope, intended purpose, and model version — creating an auditable data provenance chain.</p>
+      </div>
+    </div>
+
+    <div style="margin-top:24px;">
+      <h3 style="margin-bottom:16px;">15-Article Compliance Framework — How Each Article Is Satisfied</h3>
+      <div class="data-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Article</th>
+              <th>Obligation</th>
+              <th>How Pragma Audits It</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Art. 4</strong></td>
+              <td>AI literacy training for all staff</td>
+              <td>Declaration + evidence notes + dated confirmation required for PASS; declaration alone yields PARTIAL</td>
+              <td><span class="badge built">Built</span></td>
+            </tr>
+            <tr>
+              <td><strong>Art. 5</strong></td>
+              <td>Prohibited practices</td>
+              <td>Automated scan of use_case and intended_purpose against 12 prohibited patterns (social scoring, real-time biometrics, emotion recognition, predictive policing…). A single match overrides the verdict to <code>prohibited</code></td>
+              <td><span class="badge built">Built</span></td>
+            </tr>
+            <tr>
+              <td><strong>Art. 6</strong></td>
+              <td>High-risk classification (Annex III)</td>
+              <td>Operator declares the Annex III category; engine validates it is non-empty and maps to a recognized category</td>
+              <td><span class="badge built">Built</span></td>
+            </tr>
+            <tr>
+              <td><strong>Art. 9</strong></td>
+              <td>Risk management system</td>
+              <td>Automated: counts evaluations with risk flags. 10+ flagged evaluations = PASS. Evidence of active risk monitoring accumulates passively</td>
+              <td><span class="badge built">Built</span></td>
+            </tr>
+            <tr>
+              <td><strong>Art. 10</strong></td>
+              <td>Data governance</td>
+              <td>Automated: verifies training_data_sources array is non-empty and contains at least one non-trivial entry</td>
+              <td><span class="badge built">Built</span></td>
+            </tr>
+            <tr>
+              <td><strong>Art. 11</strong></td>
+              <td>Technical documentation</td>
+              <td>Automated: counts profile completeness — system_name, company, risk_tier, use_case, model_version, training_data_sources. All 6 fields required</td>
+              <td><span class="badge built">Built</span></td>
+            </tr>
+            <tr>
+              <td><strong>Art. 12</strong></td>
+              <td>Record-keeping / logging</td>
+              <td>Automated: verifies at least 1 audit_log entry exists for the system; surfaces proxy variable catch count</td>
+              <td><span class="badge built">Built</span></td>
+            </tr>
+            <tr>
+              <td><strong>Art. 13</strong></td>
+              <td>Transparency to deployers</td>
+              <td>Automated: checks whether regulatory_refs were mapped in any evaluation for this system</td>
+              <td><span class="badge built">Built</span></td>
+            </tr>
+            <tr>
+              <td><strong>Art. 14</strong></td>
+              <td>Human oversight</td>
+              <td>Automated: requires at least 1 HITL override recorded in audit_log. Zero overrides = FAIL — forces operators to demonstrate actual human review has occurred</td>
+              <td><span class="badge built">Built</span></td>
+            </tr>
+            <tr>
+              <td><strong>Art. 15</strong></td>
+              <td>Accuracy and robustness</td>
+              <td>Declarative: operator supplies accuracy metric (e.g. "AUROC 0.87") and confirms robustness testing</td>
+              <td><span class="badge built">Built</span></td>
+            </tr>
+            <tr>
+              <td><strong>Art. 17</strong></td>
+              <td>Quality management system</td>
+              <td>Declarative with evidence: QMS declaration + supporting notes + date. Declaration only = PARTIAL</td>
+              <td><span class="badge built">Built</span></td>
+            </tr>
+            <tr>
+              <td><strong>Art. 25</strong></td>
+              <td>Deployer obligations</td>
+              <td>Declarative with evidence: instructions-for-use and monitoring-active each require declaration + notes + date for full PASS</td>
+              <td><span class="badge built">Built</span></td>
+            </tr>
+            <tr>
+              <td><strong>Art. 27</strong></td>
+              <td>Fundamental Rights Impact Assessment</td>
+              <td>Declarative: FRIA conducted flag. Most common FAIL in practice — operators have not yet run an FRIA before deployment</td>
+              <td><span class="badge built">Built</span></td>
+            </tr>
+            <tr>
+              <td><strong>Art. 30</strong></td>
+              <td>EU AI database registration</td>
+              <td>Declarative: registration flag + valid registration number string required. Partial credit for declaration without a number</td>
+              <td><span class="badge built">Built</span></td>
+            </tr>
+            <tr>
+              <td><strong>Art. 33</strong></td>
+              <td>Conformity assessment</td>
+              <td>Declarative with evidence: self-assessment or third-party type + supporting notes + date. Certificate carries SELF-ASSESSMENT ONLY watermark</td>
+              <td><span class="badge built">Built</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRAGMA IN PRACTICE -->
+  <section id="pragma">
+    <h2>AI Auditing AI — In Pragma</h2>
+    <p class="section-sub">How the three pillars map to shipped features and the product roadmap.</p>
+
+    <div class="card-grid cols-2">
+      <div class="card" style="border-color:rgba(74,222,128,0.3);">
+        <h3 style="color:var(--green);">Shipped — Available Now</h3>
+        <ul style="line-height:2.2; margin-top:12px;">
+          <li><strong>Pre-execution firewall</strong> — auditor runs before SUT decision executes</li>
+          <li><strong>Plain-language justifications</strong> — recommendation, regulatory_refs, 3-framework ethical analysis</li>
+          <li><strong>Proxy variable detection</strong> — 20+ ECOA fields flagged with statute citations</li>
+          <li><strong>Counterfactual bias audit</strong> — controlled protected-attribute diff test</li>
+          <li><strong>HITL override chain</strong> — investigator sign-off with anon identity, Art. 14 compliant</li>
+          <li><strong>Immutable audit trail</strong> — SHA-256 hashed, no PII, regulator-ready export</li>
+          <li><strong>15-article EU AI Act engine</strong> — automated + declarative + evidence-based scoring</li>
+          <li><strong>Compliance certificate PDF</strong> — SELF-ASSESSMENT ONLY watermark, DECLARATION ONLY badges</li>
+          <li><strong>Data lineage tracking</strong> — training sources, geographic scope, Annex III category, registration</li>
+          <li><strong>5-step assessment wizard</strong> — guided evidence collection for all declarative articles</li>
+          <li><strong>Stripe billing</strong> — Free (100 evals) / Growth ($299/mo, 2,000 evals) / Enterprise (unlimited)</li>
+          <li><strong>382 passing tests</strong>, 87% coverage</li>
+        </ul>
+      </div>
+      <div class="card" style="border-color:rgba(124,111,224,0.3);">
+        <h3 style="color:var(--accent);">Roadmap — Coming Next</h3>
+        <ul style="line-height:2.2; margin-top:12px;">
+          <li><strong>SHAP / LIME explainability</strong> — feature weight visualization when model exposes them</li>
+          <li><strong>Predictive drift alerts</strong> — forecast model bias trend before it becomes a liability</li>
+          <li><strong>Node.js SDK</strong> — <code>Pragma(openai, { policyId: "..." })</code></li>
+          <li><strong>Policy Builder UI</strong> — CEO-level no-code rule configuration</li>
+          <li><strong>VPC-deployable container</strong> — data never leaves enterprise infrastructure</li>
+          <li><strong>Pragma model v1</strong> — domain-specific ethics model on HuggingFace, phasing out Claude/OpenAI dependency</li>
+          <li><strong>Automated nightly retraining</strong> — feedback flywheel driving continuous model improvement</li>
+          <li><strong>Industry-specific risk libraries</strong> — HR, Fintech, Healthcare policy templates</li>
+          <li><strong>Regulatory change monitoring</strong> — alerts when laws the system is checked against are updated</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="cta-banner">
+      <h2>See the Auditor in Action</h2>
+      <p>Run the demo system — LoanSight AI by Veridian Finance SA — through the full compliance engine to see a realistic PASS / PARTIAL / FAIL result across all 15 articles.</p>
+      <div class="cta-links">
+        <a href="../" class="cta-link primary">Open Pragma Dashboard</a>
+        <a href="business.html" class="cta-link secondary">Business Case →</a>
+        <a href="architecture.html" class="cta-link secondary">Architecture →</a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  Pragma &mdash; AI Auditing AI &mdash; &copy; 2026 &nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="business.html" style="color:var(--accent); text-decoration:none;">Business Case →</a>
+  &nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="architecture.html" style="color:var(--accent); text-decoration:none;">Architecture →</a>
+</footer>
+
+</body>
+</html>

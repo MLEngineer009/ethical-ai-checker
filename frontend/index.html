@@ -1137,9 +1137,13 @@
 
             <!-- Proxy Variable Detection -->
             <div class="card proxy-section" id="proxySection" style="display:none;">
-              <div class="card-title">🔍 ECOA Proxy Variable Guard</div>
-              <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;">These context fields are illegal proxies for protected demographics under ECOA / Regulation B. Using them in credit or hiring decisions exposes you to CFPB enforcement.</p>
+              <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+                <div class="card-title" style="margin:0;">🔍 ECOA Proxy Variable Guard</div>
+                <span id="proxySeverityBadge" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;"></span>
+              </div>
+              <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">These context fields are illegal proxies for protected demographics under ECOA / Regulation B. Using them in credit or hiring decisions creates CFPB enforcement exposure.</p>
               <div id="proxyList"></div>
+              <div id="compoundRiskList"></div>
             </div>
 
             <!-- Recommendation -->
@@ -2034,20 +2038,83 @@
       document.getElementById('cfResults').innerHTML     = '';
 
       // Proxy variable callout
-      const proxySection = document.getElementById('proxySection');
-      const proxyList    = document.getElementById('proxyList');
+      const proxySection      = document.getElementById('proxySection');
+      const proxyList         = document.getElementById('proxyList');
+      const compoundRiskList  = document.getElementById('compoundRiskList');
       proxyList.innerHTML = '';
-      const proxies = data.proxy_variables_detected || [];
+      compoundRiskList.innerHTML = '';
+
+      const proxies       = data.proxy_variables_detected || [];
+      const compoundRisks = data.compound_risks || [];
+      const highCount     = data.high_severity_count ?? proxies.filter(p => p.severity === 'high').length;
+
       if (proxies.length) {
         proxySection.style.display = 'block';
+
+        // Severity badge in header
+        const badge = document.getElementById('proxySeverityBadge');
+        if (highCount > 0) {
+          badge.textContent = `${highCount} HIGH SEVERITY`;
+          badge.style.background = 'rgba(239,68,68,0.15)';
+          badge.style.color = '#fca5a5';
+        } else {
+          badge.textContent = `${proxies.length} MEDIUM`;
+          badge.style.background = 'rgba(251,191,36,0.15)';
+          badge.style.color = '#fde68a';
+        }
+
         proxies.forEach(p => {
+          const isHigh       = p.severity === 'high';
+          const borderColor  = isHigh ? 'rgba(239,68,68,0.3)' : 'rgba(251,191,36,0.3)';
+          const bgColor      = isHigh ? 'rgba(239,68,68,0.07)' : 'rgba(251,191,36,0.05)';
+          const fieldColor   = isHigh ? '#fca5a5' : '#fde68a';
+          const sevLabel     = isHigh ? '🔴 HIGH' : '🟡 MEDIUM';
+          const redlining    = p.redlining_flag
+            ? '<span style="font-size:10px;font-weight:700;background:rgba(239,68,68,0.2);color:#fca5a5;padding:1px 6px;border-radius:3px;margin-left:6px;">REDLINING RISK</span>'
+            : '';
+
+          const allRegs = Array.isArray(p.all_regulations) ? p.all_regulations : [p.regulation];
+          const regHtml = allRegs.map(r =>
+            `<span style="display:inline-block;font-size:10px;background:rgba(255,255,255,0.06);color:var(--text-muted);padding:1px 7px;border-radius:4px;margin:2px 3px 2px 0;">${esc(r)}</span>`
+          ).join('');
+
           proxyList.insertAdjacentHTML('beforeend', `
-            <div style="background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:10px 14px;margin-bottom:8px;">
-              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
-                <span style="font-family:monospace;color:#fca5a5;font-size:13px;font-weight:700;">${p.field}</span>
-                <span style="font-size:11px;color:var(--text-muted);background:rgba(239,68,68,0.12);padding:2px 8px;border-radius:4px;">${p.regulation}</span>
+            <div style="background:${bgColor};border:1px solid ${borderColor};border-radius:10px;padding:12px 16px;margin-bottom:10px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span style="font-family:monospace;color:${fieldColor};font-size:13px;font-weight:700;">${esc(p.field)}</span>
+                  ${redlining}
+                </div>
+                <span style="font-size:11px;font-weight:700;color:${fieldColor};">${sevLabel}</span>
               </div>
-              <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">${p.risk}</div>
+              <div style="font-size:12px;font-weight:600;color:var(--text-primary);margin-bottom:3px;">
+                Protected class: ${esc(p.protected_class || '')}
+              </div>
+              <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;line-height:1.5;">
+                ${esc(p.mechanism || p.risk || '')}
+              </div>
+              <div style="margin-bottom:8px;">${regHtml}</div>
+              ${p.replace_with ? `
+              <div style="font-size:11px;background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.2);border-radius:6px;padding:6px 10px;color:#6ee7b7;">
+                <strong>Use instead:</strong> ${esc(p.replace_with)}
+              </div>` : ''}
+            </div>`);
+        });
+
+        // Compound reconstruction risk warnings
+        compoundRisks.forEach(cr => {
+          compoundRiskList.insertAdjacentHTML('beforeend', `
+            <div style="background:rgba(167,139,250,0.07);border:1px solid rgba(167,139,250,0.3);border-radius:10px;padding:12px 16px;margin-bottom:10px;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                <span style="font-size:12px;font-weight:700;color:#c4b5fd;">⚠️ Compound Reconstruction Risk</span>
+                <span style="font-size:10px;background:rgba(167,139,250,0.2);color:#c4b5fd;padding:1px 7px;border-radius:4px;">${esc(cr.protected_class)}</span>
+              </div>
+              <div style="font-size:12px;color:var(--text-muted);line-height:1.5;">${esc(cr.warning)}</div>
+              <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
+                ${(cr.co_occurring_fields || []).map(f =>
+                  `<span style="font-family:monospace;font-size:11px;background:rgba(167,139,250,0.15);color:#c4b5fd;padding:2px 8px;border-radius:4px;">${esc(f)}</span>`
+                ).join('')}
+              </div>
             </div>`);
         });
       } else {

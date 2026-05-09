@@ -302,6 +302,7 @@
     <a href="#auth">Auth</a>
     <a href="#data">Data</a>
     <a href="#deploy">Deploy</a>
+    <a href="auditing.html">AI Auditing AI →</a>
     <a href="business.html">Business Case →</a>
   </div>
 </nav>
@@ -432,7 +433,7 @@ HF_TOKEN=hf_... python ml/evaluate.py \<br>
     <div class="card-grid cols-3">
       <div class="card">
         <h3><span class="dot purple"></span> Web Frontend</h3>
-        <p>iOS-style glassmorphism single-page app. Tabs: Evaluate (proxy var callout, HITL override panel), History, Batch, Chat, Audit Log 🔐, Compliance 🏛️ (EU AI Act checklist + certificate), Settings. Served from Railway, also deployable on Vercel.</p>
+        <p>iOS-style glassmorphism single-page app. Tabs: Evaluate (proxy var callout, HITL override panel), History, Batch, Chat, Audit Log 🔐, Compliance 🏛️ (5-step wizard, "Try Demo — LoanSight AI" button, certificate), Settings + Billing. Mobile bottom nav bar with iOS Safari fixed-position fix. Served from Railway, also deployable on Vercel.</p>
         <div class="stack-list">
           <span class="stack-pill">HTML5</span>
           <span class="stack-pill">Vanilla JS</span>
@@ -522,8 +523,31 @@ HF_TOKEN=hf_... python ml/evaluate.py \<br>
           <small>risk_detector.py</small>
         </div>
         <div class="arch-box backend">
+          Compliance Engine
+          <small>compliance_engine.py · 15 articles</small>
+        </div>
+        <div class="arch-box backend">
           Feedback Logger
           <small>/feedback endpoint</small>
+        </div>
+      </div>
+
+      <div class="arch-row"><div class="arch-arrow">↓</div></div>
+
+      <!-- Billing -->
+      <div class="arch-divider"><span>Billing — Stripe</span></div>
+      <div class="arch-row" style="gap:40px; flex-wrap:wrap;">
+        <div class="arch-box auth">
+          Stripe Checkout
+          <small>Growth $299/mo · /billing/create-checkout-session</small>
+        </div>
+        <div class="arch-box auth">
+          Customer Portal
+          <small>Subscription mgmt · /billing/portal</small>
+        </div>
+        <div class="arch-box auth">
+          Webhook Handler
+          <small>Signature-verified · /billing/webhook</small>
         </div>
       </div>
 
@@ -560,7 +584,7 @@ HF_TOKEN=hf_... python ml/evaluate.py \<br>
       <div class="arch-row">
         <div class="arch-box db">
           PostgreSQL
-          <small>request_logs · analysis_feedback</small>
+          <small>request_logs · audit_log · ai_systems · subscriptions</small>
         </div>
         <div class="arch-box db">
           In-Memory Sessions
@@ -730,13 +754,37 @@ HF_TOKEN=hf_... python ml/evaluate.py \<br>
             <td><span class="method get">GET</span></td>
             <td><code>/ai-systems/{id}/compliance</code></td>
             <td><span class="badge auth">Bearer</span></td>
-            <td>EU AI Act Articles 9–14 compliance checklist — per-article pass/partial/fail, overall score, verdict</td>
+            <td>EU AI Act 15-article compliance checklist (Arts. 4–6, 9–15, 17, 25, 27, 30, 33) — per-article pass/partial/fail with evidence-based scoring, overall score, verdict</td>
           </tr>
           <tr>
             <td><span class="method post">POST</span></td>
             <td><code>/ai-systems/{id}/certificate</code></td>
             <td><span class="badge auth">Bearer</span></td>
-            <td>Generate PDF compliance readiness certificate — certificate ID, valid 1 year, stored in compliance_certificates table</td>
+            <td>Generate PDF compliance readiness certificate — certificate ID, valid 1 year, SELF-ASSESSMENT ONLY watermark, DECLARATION ONLY badges</td>
+          </tr>
+          <tr>
+            <td><span class="method get">GET</span></td>
+            <td><code>/billing/subscription</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Current plan (free / growth / enterprise), evaluations used this month, period end date</td>
+          </tr>
+          <tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/billing/create-checkout-session</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Start Stripe Checkout for Growth plan ($299/mo) — returns <code>checkout_url</code></td>
+          </tr>
+          <tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/billing/portal</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Open Stripe Customer Portal to manage / cancel subscription — returns <code>portal_url</code></td>
+          </tr>
+          <tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/billing/webhook</code></td>
+            <td><span class="badge pub">Stripe</span></td>
+            <td>Stripe webhook receiver — signature-verified; handles checkout.session.completed, subscription created/updated/deleted</td>
           </tr>
           <tr>
             <td><span class="method get">GET</span></td>
@@ -929,7 +977,7 @@ CREATE TABLE audit_log (
   hitl_anon_id      TEXT      -- who overrode it (anon)
 );
 
--- EU AI Act data lineage — registered AI systems
+-- EU AI Act data lineage — registered AI systems (15-article compliance)
 CREATE TABLE ai_systems (
   id                      SERIAL PRIMARY KEY,
   anon_id                 TEXT,
@@ -941,6 +989,33 @@ CREATE TABLE ai_systems (
   training_data_sources   TEXT,  -- JSON array (Art. 10 data governance)
   intended_purpose        TEXT,
   geographic_scope        TEXT,
+  -- Declarative fields + evidence for Arts. 4, 6, 15, 17, 25, 27, 30, 33
+  -- Evidence scoring: declaration alone → "partial"; declaration + notes + date → "pass"
+  art4_literacy_training              BOOLEAN,
+  art4_literacy_training_evidence_notes TEXT,
+  art4_literacy_training_evidence_date  TEXT,
+  art6_annex_category                 TEXT,     -- Annex III high-risk category
+  art15_accuracy_metric               TEXT,     -- e.g. "AUROC 0.87, Precision 0.83"
+  art15_robustness_tested             BOOLEAN,
+  art17_qms_documented                BOOLEAN,
+  art17_qms_documented_evidence_notes TEXT,
+  art17_qms_documented_evidence_date  TEXT,
+  art25_instructions_provided         BOOLEAN,
+  art25_instructions_provided_evidence_notes TEXT,
+  art25_instructions_provided_evidence_date  TEXT,
+  art25_monitoring_active             BOOLEAN,
+  art25_monitoring_active_evidence_notes TEXT,
+  art25_monitoring_active_evidence_date  TEXT,
+  art27_fria_conducted                BOOLEAN,
+  art27_fria_conducted_evidence_notes TEXT,
+  art27_fria_conducted_evidence_date  TEXT,
+  art30_eu_db_registered              BOOLEAN,
+  art30_registration_number           TEXT,     -- EU AI database registration number
+  art30_eu_db_registered_evidence_notes TEXT,
+  art30_eu_db_registered_evidence_date  TEXT,
+  art33_conformity_type               TEXT,     -- self-assessment | third-party
+  art33_conformity_type_evidence_notes TEXT,
+  art33_conformity_type_evidence_date  TEXT,
   created_at              TEXT,
   updated_at              TEXT
 );
@@ -954,10 +1029,24 @@ CREATE TABLE compliance_certificates (
   issued_at           TEXT,
   valid_until         TEXT,         -- 1 year from issue
   overall_score       REAL,
-  articles_status     TEXT,         -- JSON {art_9: "pass", art_10: "fail", ...}
+  articles_status     TEXT,         -- JSON {art_4: "pass", ..., art_33: "partial"}
   total_evaluations   INTEGER,
   hitl_overrides      INTEGER,
   proxy_vars_caught   INTEGER
+  -- PDF includes SELF-ASSESSMENT ONLY watermark and DECLARATION ONLY badges
+);
+
+-- Stripe billing subscriptions
+CREATE TABLE subscriptions (
+  id                      SERIAL PRIMARY KEY,
+  anon_id                 TEXT UNIQUE NOT NULL,
+  plan                    TEXT NOT NULL DEFAULT 'free',    -- free | growth | enterprise
+  status                  TEXT NOT NULL DEFAULT 'active',
+  stripe_customer_id      TEXT,
+  stripe_subscription_id  TEXT,
+  current_period_end      TEXT,       -- ISO 8601 UTC
+  created_at              TEXT NOT NULL,
+  updated_at              TEXT NOT NULL
 );</code>
     </div>
   </section>
@@ -1024,7 +1113,7 @@ CREATE TABLE compliance_certificates (
         <h3>Deploy FastAPI</h3>
         <p>Connect GitHub repo. Railway auto-detects Python via <code>requirements.txt</code>.</p>
         <code>railway.app → New Project<br>→ Deploy from GitHub<br>→ Add PostgreSQL plugin<br>→ Set env vars → Deploy</code>
-        <p style="margin-top:12px;">Required env vars: <code>ANTHROPIC_API_KEY</code>, <code>OPENAI_API_KEY</code>, <code>GOOGLE_CLIENT_ID</code>, <code>CUSTOM_MODEL_REPO</code>, <code>HF_TOKEN</code></p>
+        <p style="margin-top:12px;">Required env vars: <code>ANTHROPIC_API_KEY</code>, <code>OPENAI_API_KEY</code>, <code>GOOGLE_CLIENT_ID</code>, <code>ALLOWED_ORIGINS</code>, <code>STRIPE_SECRET_KEY</code>, <code>STRIPE_WEBHOOK_SECRET</code>, <code>STRIPE_GROWTH_PRICE_ID</code>, <code>CUSTOM_MODEL_REPO</code>, <code>HF_TOKEN</code></p>
       </div>
       <div class="deploy-card">
         <div class="deploy-num">2</div>
@@ -1069,6 +1158,7 @@ CREATE TABLE compliance_certificates (
           <span class="stack-pill">psycopg2-binary</span>
           <span class="stack-pill">anthropic SDK</span>
           <span class="stack-pill">openai SDK</span>
+          <span class="stack-pill">stripe</span>
           <span class="stack-pill">huggingface-hub</span>
           <span class="stack-pill">google-auth</span>
           <span class="stack-pill">reportlab</span>
@@ -1124,10 +1214,42 @@ CREATE TABLE compliance_certificates (
     </div>
   </section>
 
+  <!-- SECURITY HARDENING -->
+  <section>
+    <h2>Security Hardening</h2>
+    <p class="section-sub">Controls applied across the stack as of Q2 2026.</p>
+    <div class="card-grid cols-3">
+      <div class="card">
+        <h3><span class="dot green"></span> XSS Prevention</h3>
+        <p><code>esc()</code> helper using <code>document.createTextNode()</code> applied to every dynamic HTML injection site in the frontend — system name, company, article evidence, risk flags, counterfactual keys, wizard review rows. No raw <code>innerHTML</code> from server data.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot" style="background:#fbbf24"></span> CORS Hardening</h3>
+        <p>Explicit origin allowlist via <code>ALLOWED_ORIGINS</code> env var replaces the previous <code>allow_origins=["*"]</code>. Wildcard origins allow any site to make authenticated API calls from a logged-in user's browser — the allowlist prevents this.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot orange"></span> Input Limits</h3>
+        <p>Decision text capped at 4,000 characters. Context payload capped at 8,000 characters. Both enforced at the FastAPI layer with <code>HTTP 400</code> before the LLM is called — prevents prompt injection via oversized inputs.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot" style="background:#a78bfa"></span> Batch Rate Limiting</h3>
+        <p>The <code>/evaluate-batch</code> endpoint now checks the monthly plan limit before processing any rows. Previously, free users could bypass the 100 eval/month limit by uploading a 100-row CSV in a single batch call.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot" style="background:#f87171"></span> SQL Injection Guard</h3>
+        <p>Column names in the <code>ALTER TABLE</code> migration path are validated against <code>re.compile(r'^[a-z_][a-z0-9_]*$')</code> before being interpolated into SQL. Unknown column names are logged and skipped rather than executed.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot teal"></span> Stripe Webhook Auth</h3>
+        <p>Webhook payloads are verified with <code>stripe.WebhookSignature.verify_header()</code> using the signing secret before any database writes occur. Unsigned or tampered events return HTTP 400 immediately.</p>
+      </div>
+    </div>
+  </section>
+
 </div>
 
 <footer>
-  Pragma &mdash; Technical Architecture &mdash; &copy; 2026 &nbsp;&nbsp;|&nbsp;&nbsp; <a href="business.html" style="color:var(--accent); text-decoration:none;">Business Case →</a>
+  Pragma &mdash; Technical Architecture &mdash; &copy; 2026 &nbsp;&nbsp;|&nbsp;&nbsp; <a href="auditing.html" style="color:var(--accent); text-decoration:none;">AI Auditing AI →</a> &nbsp;&nbsp;|&nbsp;&nbsp; <a href="business.html" style="color:var(--accent); text-decoration:none;">Business Case →</a>
 </footer>
 
 </body>

@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pragma — Testing Guide</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: rgba(255,255,255,0.04);
+    --surface2: rgba(255,255,255,0.07);
+    --border: rgba(255,255,255,0.08);
+    --accent: #7c6fe0;
+    --accent2: #4ecdc4;
+    --accent3: #f7931e;
+    --text: #e8e8f0;
+    --muted: #888;
+    --green: #4ade80;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --purple: #a78bfa;
+    --blue: #60a5fa;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { overflow-x: hidden; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* NAV */
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(10,10,15,0.9);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 40px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap;
+  }
+  .nav-logo { font-size: 17px; font-weight: 700; letter-spacing: -0.5px; white-space: nowrap; }
+  .nav-logo span { color: var(--accent); }
+  .nav-links { display: flex; gap: 24px; flex-wrap: wrap; }
+  .nav-links a { color: var(--muted); text-decoration: none; font-size: 13px; transition: color .2s; white-space: nowrap; }
+  .nav-links a:hover { color: var(--text); }
+  .nav-links a.active { color: var(--text); }
+
+  /* HERO */
+  .hero {
+    padding: 64px 40px 48px;
+    background: radial-gradient(ellipse 800px 350px at 50% 0%, rgba(124,111,224,0.12) 0%, transparent 70%);
+    text-align: center;
+  }
+  .hero-badge {
+    display: inline-block;
+    background: rgba(124,111,224,0.15);
+    border: 1px solid rgba(124,111,224,0.3);
+    color: var(--accent);
+    font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+    padding: 4px 14px; border-radius: 20px; margin-bottom: 20px;
+  }
+  .hero h1 {
+    font-size: clamp(28px, 4vw, 48px);
+    font-weight: 800; letter-spacing: -1.5px;
+    background: linear-gradient(135deg, #fff 40%, var(--accent) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 12px;
+  }
+  .hero p { color: var(--muted); font-size: 16px; max-width: 600px; margin: 0 auto; }
+
+  /* TOC */
+  .toc {
+    max-width: 1100px; margin: 0 auto; padding: 0 40px 40px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;
+  }
+  .toc-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    text-decoration: none;
+    color: var(--muted);
+    font-size: 13px;
+    transition: all .2s;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .toc-item:hover { border-color: rgba(124,111,224,0.4); color: var(--text); background: rgba(124,111,224,0.07); }
+  .toc-num { font-size: 11px; font-weight: 800; color: var(--accent); min-width: 18px; }
+
+  /* LAYOUT */
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 40px; }
+  section { padding: 48px 0; border-top: 1px solid var(--border); }
+  h2 { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 6px; }
+  h3 { font-size: 16px; font-weight: 700; margin-bottom: 10px; }
+  .section-sub { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+
+  /* SCENARIO CARD */
+  .scenario {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .scenario-header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+  }
+  .scenario-icon { font-size: 18px; flex-shrink: 0; }
+  .scenario-title { font-size: 14px; font-weight: 700; flex: 1; }
+  .scenario-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+  .badge {
+    display: inline-block; padding: 2px 9px; border-radius: 5px;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; white-space: nowrap;
+  }
+  .badge-block   { background: rgba(248,113,113,0.15); color: #fca5a5; }
+  .badge-allow   { background: rgba(74,222,128,0.15);  color: #86efac; }
+  .badge-override{ background: rgba(251,191,36,0.15);  color: #fde68a; }
+  .badge-proxy   { background: rgba(239,68,68,0.15);   color: #fca5a5; }
+  .badge-compound{ background: rgba(167,139,250,0.15); color: #c4b5fd; }
+  .badge-pass    { background: rgba(74,222,128,0.15);  color: #86efac; }
+  .badge-partial { background: rgba(251,191,36,0.15);  color: #fde68a; }
+  .badge-fail    { background: rgba(248,113,113,0.15); color: #fca5a5; }
+  .badge-info    { background: rgba(96,165,250,0.15);  color: #93c5fd; }
+  .badge-api     { background: rgba(124,111,224,0.15); color: #c4b5fd; }
+
+  .scenario-body { padding: 20px; }
+
+  /* STEPS */
+  .steps { display: flex; flex-direction: column; gap: 14px; }
+  .step { display: flex; gap: 14px; align-items: flex-start; }
+  .step-num {
+    width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+    background: rgba(124,111,224,0.2); border: 1px solid rgba(124,111,224,0.4);
+    color: var(--accent); font-size: 11px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step-content { flex: 1; }
+  .step-content p { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  .step-content p strong { color: var(--text); }
+
+  /* FIELD TABLE */
+  .field-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+  .field-table th {
+    text-align: left; padding: 8px 12px;
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    color: var(--muted); background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid var(--border);
+  }
+  .field-table td {
+    padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.04);
+    vertical-align: top;
+  }
+  .field-table tr:last-child td { border-bottom: none; }
+  .field-name { font-family: 'SF Mono', 'Menlo', monospace; color: #93c5fd; font-size: 12px; }
+  .field-value { font-family: 'SF Mono', 'Menlo', monospace; color: #86efac; font-size: 12px; }
+
+  /* CODE */
+  code {
+    background: rgba(255,255,255,0.07); border-radius: 4px;
+    padding: 1px 6px; font-family: 'SF Mono', 'Menlo', monospace; font-size: 12px; color: var(--text);
+  }
+  .code-block {
+    background: rgba(0,0,0,0.5);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px;
+    padding: 16px 20px;
+    font-family: 'SF Mono', 'Menlo', monospace;
+    font-size: 12px;
+    line-height: 1.9;
+    color: var(--text);
+    overflow-x: auto;
+    position: relative;
+    margin-bottom: 10px;
+  }
+  .code-comment { color: #6b7280; }
+  .code-key     { color: #93c5fd; }
+  .code-val     { color: #86efac; }
+  .code-str     { color: #f9a8d4; }
+  .code-cmd     { color: var(--accent2); }
+  .copy-btn {
+    position: absolute; top: 10px; right: 10px;
+    background: rgba(255,255,255,0.08); border: 1px solid var(--border);
+    color: var(--muted); font-size: 10px; font-weight: 600;
+    padding: 3px 10px; border-radius: 5px; cursor: pointer;
+    font-family: inherit; letter-spacing: 0.5px; text-transform: uppercase;
+    transition: all .15s;
+  }
+  .copy-btn:hover { background: rgba(255,255,255,0.14); color: var(--text); }
+  .copy-btn.copied { color: var(--green); border-color: rgba(74,222,128,0.4); }
+
+  /* EXPECTED OUTPUT */
+  .expected {
+    background: rgba(74,222,128,0.06);
+    border: 1px solid rgba(74,222,128,0.2);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 12px;
+    margin-top: 10px;
+  }
+  .expected-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--green); margin-bottom: 6px;
+  }
+  .expected ul { color: var(--muted); padding-left: 16px; }
+  .expected ul li { margin-bottom: 3px; line-height: 1.5; }
+  .expected ul li strong { color: var(--text); }
+
+  .warning-box {
+    background: rgba(251,191,36,0.06);
+    border: 1px solid rgba(251,191,36,0.25);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 12px;
+    color: var(--muted);
+    margin: 10px 0;
+  }
+  .warning-box strong { color: var(--yellow); }
+
+  .info-box {
+    background: rgba(96,165,250,0.06);
+    border: 1px solid rgba(96,165,250,0.2);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 12px;
+    color: var(--muted);
+    margin: 10px 0;
+  }
+  .info-box strong { color: var(--blue); }
+
+  /* CSV PREVIEW */
+  .csv-preview {
+    background: rgba(0,0,0,0.5);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-family: 'SF Mono','Menlo',monospace;
+    font-size: 11px;
+    line-height: 1.8;
+    color: var(--text);
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  /* GRID */
+  .card-grid { display: grid; gap: 14px; }
+  .card-grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+  .card-grid.cols-3 { grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); }
+  .mini-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+  }
+  .mini-card h4 { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+  .mini-card p { font-size: 12px; color: var(--muted); line-height: 1.55; }
+
+  /* VERDICT LEGEND */
+  .verdict-legend {
+    display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;
+  }
+  .verdict-pill {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 14px; font-size: 12px;
+  }
+  .verdict-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* DIVIDER */
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  /* FOOTER */
+  footer {
+    text-align: center; padding: 36px;
+    color: var(--muted); font-size: 13px;
+    border-top: 1px solid var(--border);
+  }
+
+  @media (max-width: 600px) {
+    .container, .toc { padding: 0 20px; }
+    nav { padding: 14px 20px; }
+    .hero { padding: 48px 20px 36px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo"><span>Pragma</span> &mdash; Testing Guide</div>
+  <div class="nav-links">
+    <a href="#prereqs">Prerequisites</a>
+    <a href="#firewall">Firewall</a>
+    <a href="#proxy">Proxy Guard</a>
+    <a href="#batch">Batch</a>
+    <a href="#counterfactual">Counterfactual</a>
+    <a href="#compliance">EU AI Act</a>
+    <a href="#hitl">HITL</a>
+    <a href="#chat">Chat</a>
+    <a href="#api">API / curl</a>
+    <a href="business.html">Business →</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-badge">QA &amp; Evaluation Guide</div>
+  <h1>Testing Pragma</h1>
+  <p>Step-by-step test scenarios with exact field values, expected verdicts, and what to look for on screen — covering every major feature.</p>
+</div>
+
+<!-- ENV SWITCHER -->
+<div style="max-width:1100px;margin:0 auto;padding:0 40px 28px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+  <span style="font-size:12px;font-weight:700;color:var(--muted);letter-spacing:0.5px;text-transform:uppercase;">Test against:</span>
+  <button id="envLocal" onclick="setEnv('local')" style="padding:7px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid rgba(124,111,224,0.5);background:rgba(124,111,224,0.15);color:#c4b5fd;font-family:inherit;transition:all .15s;">⚡ Local (localhost:8000)</button>
+  <button id="envProd" onclick="setEnv('prod')" style="padding:7px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-family:inherit;transition:all .15s;">🚀 Production (Railway)</button>
+  <span id="activeUrl" style="font-family:'SF Mono','Menlo',monospace;font-size:12px;color:var(--accent2);background:rgba(78,205,196,0.08);border:1px solid rgba(78,205,196,0.2);padding:4px 12px;border-radius:6px;">http://localhost:8000</span>
+</div>
+
+<!-- TOC -->
+<div class="toc">
+  <a class="toc-item" href="#prereqs"><span class="toc-num">0</span> Prerequisites</a>
+  <a class="toc-item" href="#firewall"><span class="toc-num">1</span> Compliance Firewall</a>
+  <a class="toc-item" href="#proxy"><span class="toc-num">2</span> ECOA Proxy Guard</a>
+  <a class="toc-item" href="#batch"><span class="toc-num">3</span> Batch CSV Eval</a>
+  <a class="toc-item" href="#counterfactual"><span class="toc-num">4</span> Counterfactual</a>
+  <a class="toc-item" href="#compliance"><span class="toc-num">5</span> EU AI Act</a>
+  <a class="toc-item" href="#hitl"><span class="toc-num">6</span> HITL Override</a>
+  <a class="toc-item" href="#chat"><span class="toc-num">7</span> Chat Firewall</a>
+  <a class="toc-item" href="#api"><span class="toc-num">8</span> API / curl</a>
+</div>
+
+<div class="container">
+
+  <!-- ── 0. PREREQUISITES ──────────────────────────────────────────────────── -->
+  <section id="prereqs">
+    <h2>0 · Prerequisites</h2>
+    <p class="section-sub">Choose your environment — test against Production (no setup) or run locally.</p>
+
+    <!-- Option A: Production -->
+    <div style="background:rgba(78,205,196,0.06);border:1px solid rgba(78,205,196,0.25);border-radius:14px;padding:24px;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <span style="font-size:20px;">🚀</span>
+        <div>
+          <div style="font-size:15px;font-weight:700;">Option A — Production (no setup required)</div>
+          <div style="font-size:13px;color:var(--muted);">Everything is already deployed on Railway. Open the app in your browser and start testing immediately.</div>
+        </div>
+      </div>
+      <div class="card-grid cols-3">
+        <div class="mini-card">
+          <h4>1. Open the app</h4>
+          <p>Navigate to the live deployment:</p>
+          <div class="code-block" style="font-size:11px;margin-top:8px;word-break:break-all;">
+            <a href="https://virtuous-fulfillment-production-05d3.up.railway.app/" target="_blank" style="color:var(--accent2);text-decoration:none;">virtuous-fulfillment-production-05d3<br>.up.railway.app</a>
+          </div>
+        </div>
+        <div class="mini-card">
+          <h4>2. Sign in</h4>
+          <p>Click <strong>Continue as Guest</strong> (10 free evals) or <strong>Sign in with Google</strong> for 100 evals/month on the Free plan.</p>
+        </div>
+        <div class="mini-card">
+          <h4>3. Health check</h4>
+          <div class="code-block" style="font-size:11px;margin-top:8px;word-break:break-all;">
+            <span class="code-cmd">curl</span> https://virtuous-fulfillment-production-05d3.up.railway.app/health-check
+          </div>
+          <p>Expect <code>{"status":"healthy"}</code>.</p>
+        </div>
+      </div>
+      <div class="info-box" style="margin-top:12px;margin-bottom:0;">
+        <strong>Prod note:</strong> All curl examples in Section 8 work against Production — just swap <code>http://localhost:8000</code> for the Railway URL, or use the env switcher at the top of this page to update them automatically.
+      </div>
+    </div>
+
+    <!-- Option B: Local -->
+    <div style="background:rgba(124,111,224,0.05);border:1px solid rgba(124,111,224,0.2);border-radius:14px;padding:24px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <span style="font-size:20px;">⚡</span>
+        <div>
+          <div style="font-size:15px;font-weight:700;">Option B — Local (requires Python + API keys)</div>
+          <div style="font-size:13px;color:var(--muted);">Run the full stack locally for development, debugging, or offline testing.</div>
+        </div>
+      </div>
+      <div class="card-grid cols-3">
+        <div class="mini-card">
+          <h4>1. Install &amp; run</h4>
+          <div class="code-block" style="font-size:11px;margin-top:8px;">
+            <span class="code-cmd">pip install -r requirements.txt</span><br>
+            <span class="code-cmd">python -m uvicorn backend.main:app --reload</span>
+          </div>
+          <p>Dashboard at <strong style="color:var(--accent2);">http://localhost:8000</strong></p>
+        </div>
+        <div class="mini-card">
+          <h4>2. Required env vars</h4>
+          <div class="code-block" style="font-size:11px;margin-top:8px;">
+            <span class="code-key">ANTHROPIC_API_KEY</span>=sk-ant-...<br>
+            <span class="code-key">OPENAI_API_KEY</span>=sk-...<br>
+            <span class="code-key">GOOGLE_CLIENT_ID</span>=...
+          </div>
+        </div>
+        <div class="mini-card">
+          <h4>3. Health check</h4>
+          <div class="code-block" style="font-size:11px;margin-top:8px;">
+            <span class="code-cmd">curl http://localhost:8000/health-check</span>
+          </div>
+          <p>Expect <code>{"status":"healthy"}</code> with all model providers.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="verdict-legend" style="margin-top:24px;">
+      <div class="verdict-pill"><div class="verdict-dot" style="background:#f87171;"></div> <strong>block</strong> — decision halted, do not proceed</div>
+      <div class="verdict-pill"><div class="verdict-dot" style="background:#fbbf24;"></div> <strong>override_required</strong> — escalate to human investigator</div>
+      <div class="verdict-pill"><div class="verdict-dot" style="background:#4ade80;"></div> <strong>allow</strong> — no significant risk detected</div>
+    </div>
+  </section>
+
+  <!-- ── 1. COMPLIANCE FIREWALL ────────────────────────────────────────────── -->
+  <section id="firewall">
+    <h2>1 · Compliance Firewall</h2>
+    <p class="section-sub">Tab: <strong>Evaluate</strong> — Tests the pre-execution decision screening engine.</p>
+
+    <!-- 1A: Block -->
+    <div class="scenario">
+      <div class="scenario-header">
+        <span class="scenario-icon">🚫</span>
+        <span class="scenario-title">1A — Clear violation → block verdict</span>
+        <div class="scenario-badges"><span class="badge badge-block">block</span><span class="badge badge-info">hiring</span></div>
+      </div>
+      <div class="scenario-body">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <p>Open the <strong>Evaluate</strong> tab. Set <strong>Category</strong> to <code>Hiring</code>.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <p>Enter the <strong>Decision</strong>:</p>
+              <div class="code-block">Reject job candidate — she is 58 years old and overqualified</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-content">
+              <p>Add these <strong>Context fields</strong>:</p>
+              <table class="field-table">
+                <thead><tr><th>Field</th><th>Value</th></tr></thead>
+                <tbody>
+                  <tr><td class="field-name">gender</td><td class="field-value">female</td></tr>
+                  <tr><td class="field-name">age</td><td class="field-value">58</td></tr>
+                  <tr><td class="field-name">experience_years</td><td class="field-value">30</td></tr>
+                  <tr><td class="field-name">role</td><td class="field-value">senior engineer</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div class="step-content">
+              <p>Click <strong>Evaluate Decision</strong> and review the results panel.</p>
+            </div>
+          </div>
+        </div>
+        <div class="expected">
+          <div class="expected-label">✓ Expected Output</div>
+          <ul>
+            <li>Red <strong>BLOCKED</strong> banner at the top of results</li>
+            <li>Risk flags: <strong>bias, discrimination, fairness</strong></li>
+            <li>Regulations cited: <strong>EEOC Title VII, ADEA (Age Discrimination in Employment Act)</strong></li>
+            <li>Three-framework analysis (Kantian, Utilitarian, Virtue Ethics) — all flag the decision</li>
+            <li>Recommendation: "Evaluate candidates on qualifications only — remove age and gender from criteria"</li>
+            <li>HITL override panel appears (for escalation to human investigator)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1B: Allow -->
+    <div class="scenario">
+      <div class="scenario-header">
+        <span class="scenario-icon">✅</span>
+        <span class="scenario-title">1B — Merit-based decision → allow verdict</span>
+        <div class="scenario-badges"><span class="badge badge-allow">allow</span><span class="badge badge-info">hiring</span></div>
+      </div>
+      <div class="scenario-body">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <p>Category: <code>Hiring</code>. Decision:</p>
+              <div class="code-block">Advance candidate to final interview round</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <p>Context fields:</p>
+              <table class="field-table">
+                <thead><tr><th>Field</th><th>Value</th></tr></thead>
+                <tbody>
+                  <tr><td class="field-name">years_experience</td><td class="field-value">7</td></tr>
+                  <tr><td class="field-name">technical_score</td><td class="field-value">92</td></tr>
+                  <tr><td class="field-name">communication_score</td><td class="field-value">88</td></tr>
+                  <tr><td class="field-name">role</td><td class="field-value">backend engineer</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="expected">
+          <div class="expected-label">✓ Expected Output</div>
+          <ul>
+            <li>Green <strong>ALLOWED</strong> banner</li>
+            <li>No protected attributes in context — no bias or discrimination flags</li>
+            <li>Low confidence score (low risk)</li>
+            <li>Recommendation: decision appears merit-based, proceed</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1C: Override Required -->
+    <div class="scenario">
+      <div class="scenario-header">
+        <span class="scenario-icon">⚠️</span>
+        <span class="scenario-title">1C — Borderline decision → override_required</span>
+        <div class="scenario-badges"><span class="badge badge-override">override_required</span><span class="badge badge-info">finance</span></div>
+      </div>
+      <div class="scenario-body">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <p>Category: <code>Finance</code>. Decision:</p>
+              <div class="code-block">Offer applicant a higher interest rate than standard</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <p>Context:</p>
+              <table class="field-table">
+                <thead><tr><th>Field</th><th>Value</th></tr></thead>
+                <tbody>
+                  <tr><td class="field-name">credit_score</td><td class="field-value">640</td></tr>
+                  <tr><td class="field-name">income</td><td class="field-value">52000</td></tr>
+                  <tr><td class="field-name">neighborhood</td><td class="field-value">south side</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="expected">
+          <div class="expected-label">✓ Expected Output</div>
+          <ul>
+            <li>Yellow <strong>OVERRIDE REQUIRED</strong> banner — human review needed before proceeding</li>
+            <li><strong>neighborhood</strong> flagged as geographic proxy (ECOA Proxy Variable Guard card appears)</li>
+            <li>HITL override panel visible — you can record an investigator decision (see Section 6)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1D: Financial redlining -->
+    <div class="scenario">
+      <div class="scenario-header">
+        <span class="scenario-icon">🏠</span>
+        <span class="scenario-title">1D — Mortgage denial with proxy variables</span>
+        <div class="scenario-badges"><span class="badge badge-block">block</span><span class="badge badge-proxy">proxy detected</span><span class="badge badge-info">finance</span></div>
+      </div>
+      <div class="scenario-body">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <p>Category: <code>Finance</code>. Decision:</p>
+              <div class="code-block">Deny mortgage application</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <p>Context:</p>
+              <table class="field-table">
+                <thead><tr><th>Field</th><th>Value</th></tr></thead>
+                <tbody>
+                  <tr><td class="field-name">zip_code</td><td class="field-value">60620</td></tr>
+                  <tr><td class="field-name">last_name</td><td class="field-value">Rodriguez</td></tr>
+                  <tr><td class="field-name">income</td><td class="field-value">95000</td></tr>
+                  <tr><td class="field-name">credit_score</td><td class="field-value">730</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="expected">
+          <div class="expected-label">✓ Expected Output</div>
+          <ul>
+            <li>Red <strong>BLOCKED</strong> banner</li>
+            <li>ECOA Proxy Variable Guard card shows <strong>2 fields detected</strong>: <code>zip_code</code> (HIGH — Race/National Origin, REDLINING RISK badge) and <code>last_name</code> (HIGH — National Origin)</li>
+            <li>Each card shows: protected class, mechanism text, all applicable statutes (ECOA + FHA + CRA), and "Use instead" replacement fields</li>
+            <li>Regulations: ECOA, Fair Housing Act, CRA</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 2. ECOA PROXY VARIABLE GUARD ─────────────────────────────────────── -->
+  <section id="proxy">
+    <h2>2 · ECOA Proxy Variable Guard</h2>
+    <p class="section-sub">Tests the field-specific proxy detection engine — new in this release.</p>
+
+    <!-- 2A: Compound risk -->
+    <div class="scenario">
+      <div class="scenario-header">
+        <span class="scenario-icon">🔗</span>
+        <span class="scenario-title">2A — Compound reconstruction risk (multiple fields, same protected class)</span>
+        <div class="scenario-badges"><span class="badge badge-compound">compound risk</span><span class="badge badge-block">block</span></div>
+      </div>
+      <div class="scenario-body">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">When multiple fields that proxy for the same protected class co-occur, a model can reconstruct that class far more accurately than any single field. Pragma surfaces this explicitly — competitors don't.</p>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <p>Category: <code>Finance</code>. Decision:</p>
+              <div class="code-block">Decline credit application</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <p>Context — use three fields from the same protected class group:</p>
+              <table class="field-table">
+                <thead><tr><th>Field</th><th>Value</th><th>Why it's a proxy</th></tr></thead>
+                <tbody>
+                  <tr><td class="field-name">zip_code</td><td class="field-value">60620</td><td style="font-size:11px;color:var(--muted);">Geographic redlining</td></tr>
+                  <tr><td class="field-name">ip_city</td><td class="field-value">Chicago</td><td style="font-size:11px;color:var(--muted);">IP-derived location</td></tr>
+                  <tr><td class="field-name">device_language</td><td class="field-value">es-MX</td><td style="font-size:11px;color:var(--muted);">National origin</td></tr>
+                  <tr><td class="field-name">income</td><td class="field-value">80000</td><td style="font-size:11px;color:var(--muted);">Safe field</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="expected">
+          <div class="expected-label">✓ Expected Output</div>
+          <ul>
+            <li>Three individual proxy cards (each with mechanism, statutes, replacement)</li>
+            <li>Purple <strong>⚠️ Compound Reconstruction Risk</strong> block below the individual cards — warning that the three co-occurring fields allow race reconstruction at far higher accuracy than any individual field</li>
+            <li>Co-occurring fields listed: <code>zip_code</code>, <code>ip_city</code>, <code>device_language</code></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2B: Name proxies -->
+    <div class="scenario">
+      <div class="scenario-header">
+        <span class="scenario-icon">👤</span>
+        <span class="scenario-title">2B — Name-based ethnicity and gender proxies</span>
+        <div class="scenario-badges"><span class="badge badge-proxy">2 proxies</span><span class="badge badge-info">hiring</span></div>
+      </div>
+      <div class="scenario-body">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <p>Category: <code>Hiring</code>. Decision:</p>
+              <div class="code-block">Screen resume for shortlist</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <p>Context:</p>
+              <table class="field-table">
+                <thead><tr><th>Field</th><th>Value</th></tr></thead>
+                <tbody>
+                  <tr><td class="field-name">first_name</td><td class="field-value">DeShawn</td></tr>
+                  <tr><td class="field-name">last_name</td><td class="field-value">Washington</td></tr>
+                  <tr><td class="field-name">years_experience</td><td class="field-value">5</td></tr>
+                  <tr><td class="field-name">technical_score</td><td class="field-value">88</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="expected">
+          <div class="expected-label">✓ Expected Output</div>
+          <ul>
+            <li><code>first_name</code> flagged: protected class = <strong>Gender / Ethnicity</strong> — name gender detection mechanism explained</li>
+            <li><code>last_name</code> flagged: protected class = <strong>National Origin / Ethnicity</strong></li>
+            <li>Both cards show "Remove name fields entirely from model inputs" as the replacement</li>
+            <li>Statutes: ECOA Regulation B + EEOC Title VII (employment context)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2C: Safe context -->
+    <div class="scenario">
+      <div class="scenario-header">
+        <span class="scenario-icon">✅</span>
+        <span class="scenario-title">2C — Safe context — no proxy fields (negative test)</span>
+        <div class="scenario-badges"><span class="badge badge-allow">clean</span></div>
+      </div>
+      <div class="scenario-body">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <p>Category: <code>Finance</code>. Decision: <code>Approve loan application</code></p>
+              <p>Context — use only legally safe, merit-based fields:</p>
+              <table class="field-table">
+                <thead><tr><th>Field</th><th>Value</th></tr></thead>
+                <tbody>
+                  <tr><td class="field-name">credit_score</td><td class="field-value">750</td></tr>
+                  <tr><td class="field-name">debt_to_income</td><td class="field-value">0.22</td></tr>
+                  <tr><td class="field-name">employment_years</td><td class="field-value">8</td></tr>
+                  <tr><td class="field-name">payment_history_score</td><td class="field-value">97</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="expected">
+          <div class="expected-label">✓ Expected Output</div>
+          <ul>
+            <li>ECOA Proxy Variable Guard section is <strong>hidden</strong> — no proxy fields detected</li>
+            <li>Firewall verdict: <strong>allow</strong></li>
+            <li>This is the "safe" baseline — what lenders should use instead of zip codes and surnames</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 3. BATCH CSV EVALUATION ───────────────────────────────────────────── -->
+  <section id="batch">
+    <h2>3 · Batch CSV Evaluation</h2>
+    <p class="section-sub">Tab: <strong>Batch</strong> — Upload a CSV of decisions and get a results file back.</p>
+
+    <div class="scenario">
+      <div class="scenario-header">
+        <span class="scenario-icon">📂</span>
+        <span class="scenario-title">3A — Upload a mixed-verdict CSV (block / allow / override)</span>
+        <div class="scenario-badges"><span class="badge badge-block">block</span><span class="badge badge-allow">allow</span><span class="badge badge-override">override</span></div>
+      </div>
+      <div class="scenario-body">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <p>Save the following as <code>test_batch.csv</code> on your desktop:</p>
+              <div class="csv-preview">decision,category,gender,age,credit_score,income,zip_code
+"Reject loan application",finance,,,640,52000,60620
+"Approve loan application",finance,,,750,95000,
+"Hire the candidate",hiring,male,32,,80000,
+"Reject candidate — she seems too old",hiring,female,61,,,
+"Advance to interview — strong technical skills",hiring,,28,,75000,</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <p>Open the <strong>Batch</strong> tab → drag and drop <code>test_batch.csv</code> into the upload area → click <strong>Run Batch Evaluation</strong>.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-content">
+              <p>After processing, click <strong>Download Results CSV</strong>.</p>
+            </div>
+          </div>
+        </div>
+        <div class="expected">
+          <div class="expected-label">✓ Expected Output</div>
+          <ul>
+            <li>Row 1: <strong>block</strong> (zip_code proxy + loan denial)</li>
+            <li>Row 2: <strong>allow</strong> (safe fields, strong credit)</li>
+            <li>Row 3: <strong>allow</strong> or <strong>override_required</strong></li>
+            <li>Row 4: <strong>block</strong> (age + gender in decision text)</li>
+            <li>Row 5: <strong>allow</strong> (merit-based, no protected attributes)</li>
+            <li>Results CSV has appended columns: <code>firewall_action</code>, <code>confidence_score</code>, <code>risk_flags</code>, <code>recommendation</code></li>
+          </ul>
+        </div>
+        <div class="warning-box">
+          <strong>Rate limit:</strong> Free plan allows 100 evaluations/month. Batch evaluations count toward this limit. A 5-row CSV uses 5 evaluations.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 4. COUNTERFACTUAL ─────────────────────────────────────────────────── -->
+  <section id="counterfactual">
+    <h2>4 · Counterfactual Bias Detection</h2>
+    <p class="section-sub">Tab: <strong>Evaluate</strong> → Counterfactual panel — Tests whether changing a protected attribute changes the outcome.</p>
+
+    <div class="scenario">
+      <div class="scenario-header">
+        <span class="scenario-icon">⚖️</span>
+        <span class="scenario-title">4A — Gender-based disparate impact test</span>
+        <div class="scenario-badges"><span class="badge badge-info">disparate impact</span></div>
+      </div>
+      <div class="scenario-body">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <p>Scroll to the <strong>Counterfactual Analysis</strong> section in the Evaluate tab.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <p>Decision: <code>Reject job candidate</code></p>
+              <p>Context:</p>
+              <table class="field-table">
+                <thead><tr><th>Field</th><th>Value</th></tr></thead>
+                <tbody>
+                  <tr><td class="field-name">gender</td><td class="field-value">female</td></tr>
+                  <tr><td class="field-name">experience_years</td><td class="field-value">5</td></tr>
+                  <tr><td class="field-name">education</td><td class="field-value">bachelors</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-content">
+              <p>Set <strong>Changed Field</strong> = <code>gender</code>, <strong>Changed Value</strong> = <code>male</code>. Click <strong>Run Counterfactual</strong>.</p>
+            </div>
+          </div>
+        </div>
+        <div class="expected">
+          <div class="expected-label">✓ Expected Output</div>
+          <ul>
+            <li>Two side-by-side analyses: <strong>Original</strong> (female) vs <strong>Modified</strong> (male)</li>
+            <li>Diff shows: flags added/removed between the two runs and confidence delta</li>
+            <li>If <code>flags_added</code> appears in the original that aren't in the modified, this is evidence of disparate impact — changing only gender changed the compliance outcome</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 5. EU AI ACT COMPLIANCE ───────────────────────────────────────────── -->
+  <section id="compliance">
+    <h2>5 · EU AI Act 15-Article Compliance</h2>
+    <p class="section-sub">Tab: <strong>Compliance 🏛️</strong> — Register an AI system, work through the 5-step wizard, generate a certificate.</p>
+
+    <!-- 5A: Demo system -->
+    <div class="scenario">
+      <div class="scenario-header">
+        <span class="scenario-icon">▶</span>
+        <span class="scenario-title">5A — One-click demo system (fastest path to a certificate)</span>
+        <div class="scenario-badges"><span class="badge badge-partial">partial score</span><span class="badge badge-fail">1 fail</span></div>
+      </div>
+      <div class="scenario-body">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <p>Open the <strong>Compliance 🏛️</strong> tab. Click <strong>▶ Try Demo — LoanSight AI</strong>.</p>
+              <p>This pre-fills the wizard with a realistic EU credit-scoring system (Veridian Finance SA) without manual data entry.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <p>Click through the 5-step wizard (<strong>Next</strong> on each step) → <strong>Register System</strong>.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-content">
+              <p>The registered system appears in the list. Click it → <strong>View Compliance Report</strong> → <strong>Generate Certificate PDF</strong>.</p>
+            </div>
+          </div>
+        </div>
+        <div class="expected">
+          <div class="expected-label">✓ Expected Compliance Report</div>
+          <ul>
+            <li>Art. 4 AI Literacy → <strong>PASS</strong> (declaration + evidence date)</li>
+            <li>Art. 5 Prohibited → <strong>PASS</strong> (no prohibited practices)</li>
+            <li>Art. 6 High-Risk → <strong>PASS</strong> (Annex III: A.5 Essential services)</li>
+            <li>Art. 9 Risk Mgmt → <strong>FAIL</strong> (no evaluations yet — run some first)</li>
+            <li>Art. 14 Human Oversight → <strong>FAIL</strong> (no HITL override yet — see Section 6)</li>
+            <li>Art. 17 QMS → <strong>PARTIAL</strong> (declaration only, no documentation notes)</li>
+            <li>Art. 27 FRIA → <strong>FAIL</strong> (not conducted — intentional critical gap)</li>
+            <li>Art. 30 EU DB → <strong>PARTIAL</strong> (registered=true but no registration number)</li>
+            <li>Certificate PDF: <strong>SELF-ASSESSMENT ONLY</strong> diagonal watermark on both pages; <strong>DECLARATION ONLY</strong> badges on articles without supporting evidence</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5B: Fully compliant system -->
+    <div class="scenario">
+      <div class="scenario-header">
+        <span class="scenario-icon">🏆</span>
+        <span class="scenario-title">5B — Fully compliant system (score ≥ 0.9, all articles pass)</span>
+        <div class="scenario-badges"><span class="badge badge-pass">ready</span><span class="badge badge-pass">score ≥ 0.9</span></div>
+      </div>
+      <div class="scenario-body">
+        <div class="info-box">
+          <strong>Note:</strong> Arts. 9, 12, 13, 14 are automated — they require actual evaluation and override history. Run at least 10 evaluations with risk flags and 1 HITL override before checking compliance (see Sections 1 and 6).
+        </div>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <p>Click <strong>+ Register a New AI System</strong> and fill the 5-step wizard with these values:</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <p><strong>Step 1 — System Info:</strong></p>
+              <table class="field-table">
+                <thead><tr><th>Field</th><th>Value</th></tr></thead>
+                <tbody>
+                  <tr><td class="field-name">System Name</td><td class="field-value">CreditScan Pro</td></tr>
+                  <tr><td class="field-name">Company</td><td class="field-value">Acme Financial</td></tr>
+                  <tr><td class="field-name">Model Version</td><td class="field-value">3.1.0</td></tr>
+                  <tr><td class="field-name">Use Case</td><td class="field-value">Automated credit scoring for retail lending</td></tr>
+                  <tr><td class="field-name">Intended Purpose</td><td class="field-value">Assess creditworthiness of retail applicants seeking consumer loans. Generates approve / refer / decline recommendation.</td></tr>
+                  <tr><td class="field-name">Geographic Scope</td><td class="field-value">European Union</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-content">
+              <p><strong>Step 2 — Risk Classification:</strong></p>
+              <table class="field-table">
+                <thead><tr><th>Field</th><th>Value</th></tr></thead>
+                <tbody>
+                  <tr><td class="field-name">Risk Tier</td><td class="field-value">High</td></tr>
+                  <tr><td class="field-name">Art. 6 — Annex III Category</td><td class="field-value">A.5 — Access to and enjoyment of essential private services and public services and benefits</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div class="step-content">
+              <p><strong>Step 3 — Data &amp; Training:</strong></p>
+              <table class="field-table">
+                <thead><tr><th>Field</th><th>Value</th></tr></thead>
+                <tbody>
+                  <tr><td class="field-name">Training Data Sources</td><td class="field-value">Internal loan repayment history 2018–2024 (1.8M records)</td></tr>
+                  <tr><td class="field-name">(add second source)</td><td class="field-value">HMDA public dataset — bias testing reference</td></tr>
+                  <tr><td class="field-name">Art. 15 — Accuracy Metric</td><td class="field-value">F1=0.94, AUROC=0.91 — Q3 2025 holdout set (n=38,000)</td></tr>
+                  <tr><td class="field-name">Art. 15 — Robustness Tested</td><td class="field-value">✓ checked</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">5</div>
+            <div class="step-content">
+              <p><strong>Step 4 — Declaration:</strong> Check all boxes and fill evidence for each article:</p>
+              <table class="field-table">
+                <thead><tr><th>Article</th><th>Declaration</th><th>Evidence Notes</th><th>Evidence Date</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td style="font-size:11px;">Art. 4 — AI Literacy</td>
+                    <td class="field-value">✓</td>
+                    <td style="font-size:11px;color:var(--muted);">All staff completed EU AI Act literacy Q1 2025 — ref training-log-ACM-001</td>
+                    <td class="field-value">2025-03-01</td>
+                  </tr>
+                  <tr>
+                    <td style="font-size:11px;">Art. 17 — QMS</td>
+                    <td class="field-value">✓</td>
+                    <td style="font-size:11px;color:var(--muted);">ISO 9001 QMS certified — ref cert ACM-QMS-2024</td>
+                    <td class="field-value">2024-11-15</td>
+                  </tr>
+                  <tr>
+                    <td style="font-size:11px;">Art. 25 — Instructions</td>
+                    <td class="field-value">✓</td>
+                    <td style="font-size:11px;color:var(--muted);">Deployer handbook v3.2 — ref IFU-ACM-2025-04</td>
+                    <td class="field-value">2025-04-10</td>
+                  </tr>
+                  <tr>
+                    <td style="font-size:11px;">Art. 25 — Monitoring</td>
+                    <td class="field-value">✓</td>
+                    <td style="font-size:11px;color:var(--muted);">Monthly AUROC dashboard active since Jan 2025 — ref MON-ACM-001</td>
+                    <td class="field-value">2025-01-10</td>
+                  </tr>
+                  <tr>
+                    <td style="font-size:11px;">Art. 27 — FRIA</td>
+                    <td class="field-value">✓</td>
+                    <td style="font-size:11px;color:var(--muted);">FRIA completed by legal team — ref FRIA-ACM-2025-01</td>
+                    <td class="field-value">2025-02-28</td>
+                  </tr>
+                  <tr>
+                    <td style="font-size:11px;">Art. 30 — EU DB</td>
+                    <td class="field-value">✓</td>
+                    <td style="font-size:11px;color:var(--muted);">Registered in EU AI database</td>
+                    <td class="field-value">2025-05-01</td>
+                  </tr>
+                  <tr>
+                    <td style="font-size:11px;">Art. 30 — Reg. Number</td>
+                    <td class="field-value">EU-2026-001</td>
+                    <td style="font-size:11px;color:var(--muted);">—</td>
+                    <td>—</td>
+                  </tr>
+                  <tr>
+                    <td style="font-size:11px;">Art. 33 — Conformity</td>
+                    <td class="field-value">self-assessment</td>
+                    <td style="font-size:11px;color:var(--muted);">Annex VI self-assessment completed — ref CONF-ACM-2025</td>
+                    <td class="field-value">2025-04-20</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">6</div>
+            <div class="step-content">
+              <p>After registering: run at least <strong>10 evaluations with risk flags</strong> (use Test 1D above) and record <strong>1 HITL override</strong> (Section 6). Then click <strong>View Compliance Report</strong>.</p>
+            </div>
+          </div>
+        </div>
+        <div class="expected">
+          <div class="expected-label">✓ Expected Output</div>
+          <ul>
+            <li>All 15 articles: <strong>PASS</strong></li>
+            <li>Overall score ≥ 0.9 → verdict: <strong>ready</strong></li>
+            <li>Certificate PDF has no DECLARATION ONLY badges — all articles have supporting evidence</li>
+            <li>SELF-ASSESSMENT ONLY watermark still present (this is always shown)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 6. HITL OVERRIDE ──────────────────────────────────────────────────── -->
+  <section id="hitl">
+    <h2>6 · Human-in-the-Loop (HITL) Override</h2>
+    <p class="section-sub">Tab: <strong>Evaluate</strong> → HITL panel — Records an investigator override per EU AI Act Art. 14.</p>
+
+    <div class="scenario">
+      <div class="scenario-header">
+        <span class="scenario-icon">🧑‍⚖️</span>
+        <span class="scenario-title">6A — Record a human investigator override</span>
+        <div class="scenario-badges"><span class="badge badge-info">Art. 14</span><span class="badge badge-pass">EU AI Act</span></div>
+      </div>
+      <div class="scenario-body">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <p>Run test <strong>1C</strong> or <strong>1D</strong> above — any evaluation that returns <code>block</code> or <code>override_required</code>.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <p>The <strong>HITL Override</strong> panel appears at the bottom of the results. Enter a reason:</p>
+              <div class="code-block">Reviewed by compliance officer — applicant confirmed neighborhood field was self-reported for mail delivery, not used as a credit signal. Manual review found no discriminatory intent. Proceeding with standard credit assessment on financial criteria only.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-content">
+              <p>Click <strong>Record Override</strong>. Check the <strong>Audit Log 🔐</strong> tab to verify the entry.</p>
+            </div>
+          </div>
+        </div>
+        <div class="expected">
+          <div class="expected-label">✓ Expected Output</div>
+          <ul>
+            <li>Green confirmation: "Override recorded"</li>
+            <li>Audit Log tab shows the entry with <code>hitl_override: 1</code> and your reason text</li>
+            <li>After this override, Art. 14 (Human Oversight) will show <strong>PASS</strong> in the compliance report for any registered system belonging to your account</li>
+          </ul>
+        </div>
+        <div class="warning-box">
+          <strong>Security:</strong> Only the user who created an audit entry can override it. Another guest session attempting to override a different user's entry will receive HTTP 404.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 7. CHAT FIREWALL ──────────────────────────────────────────────────── -->
+  <section id="chat">
+    <h2>7 · Compliance-Aware Chat</h2>
+    <p class="section-sub">Tab: <strong>Chat</strong> — The firewall intercepts messages before the AI generates a response.</p>
+
+    <div class="card-grid cols-2">
+      <div class="scenario" style="margin-bottom:0;">
+        <div class="scenario-header">
+          <span class="scenario-icon">🚫</span>
+          <span class="scenario-title">7A — Blocked message</span>
+          <div class="scenario-badges"><span class="badge badge-block">blocked</span></div>
+        </div>
+        <div class="scenario-body">
+          <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Type in the Chat tab:</p>
+          <div class="code-block">"Should we reject the 58-year-old applicant? She seems overqualified."</div>
+          <div class="expected" style="margin-top:12px;">
+            <div class="expected-label">✓ Expected</div>
+            <ul>
+              <li>Red <strong>BLOCKED</strong> badge on the message</li>
+              <li>No AI response generated — firewall intercepted before LLM call</li>
+              <li>Risk flags and regulatory refs shown inline</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="scenario" style="margin-bottom:0;">
+        <div class="scenario-header">
+          <span class="scenario-icon">✅</span>
+          <span class="scenario-title">7B — Allowed message</span>
+          <div class="scenario-badges"><span class="badge badge-allow">allowed</span></div>
+        </div>
+        <div class="scenario-body">
+          <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Type in the Chat tab:</p>
+          <div class="code-block">"What criteria should we use to evaluate loan applications fairly?"</div>
+          <div class="expected" style="margin-top:12px;">
+            <div class="expected-label">✓ Expected</div>
+            <ul>
+              <li>Green <strong>ALLOWED</strong> badge</li>
+              <li>AI response generated normally</li>
+              <li>Response references ECOA-compliant criteria</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 8. API / CURL ─────────────────────────────────────────────────────── -->
+  <section id="api">
+    <h2>8 · API Testing with curl</h2>
+    <p class="section-sub">Test every major endpoint directly. Replace <code>$TOKEN</code> with your Bearer token from <code>POST /auth/guest</code>.</p>
+
+    <!-- Auth -->
+    <h3 style="margin-bottom:10px;">Authentication</h3>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <span class="code-comment"># Get a guest token</span><br>
+      <span class="code-cmd">curl</span> -s -X POST http://localhost:8000/auth/guest | python3 -m json.tool<br>
+      <br>
+      <span class="code-comment"># Store it</span><br>
+      <span class="code-key">TOKEN</span>=<span class="code-str">$(curl -s -X POST http://localhost:8000/auth/guest | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")</span>
+    </div>
+
+    <!-- Evaluate -->
+    <h3 style="margin-top:24px;margin-bottom:10px;">Compliance Firewall</h3>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <span class="code-cmd">curl</span> -s -X POST http://localhost:8000/evaluate-decision \<br>
+      &nbsp;&nbsp;-H <span class="code-str">"Authorization: Bearer $TOKEN"</span> \<br>
+      &nbsp;&nbsp;-H <span class="code-str">"Content-Type: application/json"</span> \<br>
+      &nbsp;&nbsp;-d <span class="code-str">'{<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"decision": "Deny mortgage application",<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"context": {"zip_code": "60620", "last_name": "Garcia", "income": 95000, "credit_score": 730},<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"category": "finance",<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"block_threshold": 0.75<br>
+      &nbsp;&nbsp;}'</span> | python3 -m json.tool
+    </div>
+
+    <!-- Proxy report -->
+    <h3 style="margin-top:24px;margin-bottom:10px;">Proxy Variable Report</h3>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <span class="code-cmd">curl</span> -s -X POST http://localhost:8000/proxy-variable-report \<br>
+      &nbsp;&nbsp;-H <span class="code-str">"Authorization: Bearer $TOKEN"</span> \<br>
+      &nbsp;&nbsp;-H <span class="code-str">"Content-Type: application/json"</span> \<br>
+      &nbsp;&nbsp;-d <span class="code-str">'{<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"context": {<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"zip_code": "60620",<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"ip_city": "Chicago",<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"device_language": "es-MX",<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"first_name": "Maria",<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"income": 80000<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+      &nbsp;&nbsp;}'</span> | python3 -m json.tool<br>
+      <br>
+      <span class="code-comment"># Expect: 4 proxy fields, compound_risks warning, high_severity_count: 3</span>
+    </div>
+
+    <!-- Counterfactual -->
+    <h3 style="margin-top:24px;margin-bottom:10px;">Counterfactual Bias Audit</h3>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <span class="code-cmd">curl</span> -s -X POST http://localhost:8000/counterfactual \<br>
+      &nbsp;&nbsp;-H <span class="code-str">"Authorization: Bearer $TOKEN"</span> \<br>
+      &nbsp;&nbsp;-H <span class="code-str">"Content-Type: application/json"</span> \<br>
+      &nbsp;&nbsp;-d <span class="code-str">'{<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"decision": "Reject job application",<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"context": {"gender": "female", "experience_years": 5},<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"category": "hiring",<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"changed_key": "gender",<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"changed_value": "male"<br>
+      &nbsp;&nbsp;}'</span> | python3 -m json.tool<br>
+      <br>
+      <span class="code-comment"># Check diff.flags_added and diff.confidence_delta in the response</span>
+    </div>
+
+    <!-- Audit log -->
+    <h3 style="margin-top:24px;margin-bottom:10px;">Audit Trail</h3>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <span class="code-comment"># Last 50 audit entries</span><br>
+      <span class="code-cmd">curl</span> -s http://localhost:8000/audit/log \<br>
+      &nbsp;&nbsp;-H <span class="code-str">"Authorization: Bearer $TOKEN"</span> | python3 -m json.tool<br>
+      <br>
+      <span class="code-comment"># Record a HITL override (replace AUDIT_ID with an id from above)</span><br>
+      <span class="code-cmd">curl</span> -s -X POST http://localhost:8000/audit/override \<br>
+      &nbsp;&nbsp;-H <span class="code-str">"Authorization: Bearer $TOKEN"</span> \<br>
+      &nbsp;&nbsp;-H <span class="code-str">"Content-Type: application/json"</span> \<br>
+      &nbsp;&nbsp;-d <span class="code-str">'{"audit_log_id": AUDIT_ID, "reason": "Reviewed by compliance officer — cleared."}'</span>
+    </div>
+
+    <!-- AI systems -->
+    <h3 style="margin-top:24px;margin-bottom:10px;">EU AI Act — Register &amp; Check Compliance</h3>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <span class="code-comment"># Register an AI system</span><br>
+      <span class="code-cmd">curl</span> -s -X POST http://localhost:8000/ai-systems \<br>
+      &nbsp;&nbsp;-H <span class="code-str">"Authorization: Bearer $TOKEN"</span> \<br>
+      &nbsp;&nbsp;-H <span class="code-str">"Content-Type: application/json"</span> \<br>
+      &nbsp;&nbsp;-d <span class="code-str">'{<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"system_name": "CreditScan Pro",<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"company_name": "Acme Financial",<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"risk_tier": "high",<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"use_case": "Automated credit scoring for retail lending",<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"model_version": "3.1.0",<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"training_data_sources": ["Internal loan history 2018-2024", "HMDA public dataset"],<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"intended_purpose": "Assess creditworthiness for consumer loans",<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"geographic_scope": "European Union",<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"art4_literacy_training": true,<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"art4_literacy_training_evidence_notes": "Staff training Q1 2025 — ref ACM-001",<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"art4_literacy_training_evidence_date": "2025-03-01",<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"art6_annex_category": "A.5 — Access to and enjoyment of essential private services",<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"art15_accuracy_metric": "F1=0.94, AUROC=0.91",<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"art15_robustness_tested": true,<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"art17_qms_documented": true,<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"art17_qms_documented_evidence_notes": "ISO 9001 certified — ref ACM-QMS-2024",<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"art17_qms_documented_evidence_date": "2024-11-15",<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"art25_instructions_provided": true,<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"art25_monitoring_active": true,<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"art27_fria_conducted": true,<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"art27_fria_conducted_evidence_notes": "FRIA completed by legal — ref FRIA-ACM-2025",<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"art27_fria_conducted_evidence_date": "2025-02-28",<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"art30_eu_db_registered": true,<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"art30_registration_number": "EU-2026-001",<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;"art33_conformity_type": "self-assessment"<br>
+      &nbsp;&nbsp;}'</span><br>
+      <br>
+      <span class="code-comment"># Get the system_id from the response, then:</span><br>
+      <span class="code-cmd">curl</span> -s http://localhost:8000/ai-systems/<span class="code-key">SYSTEM_ID</span>/compliance \<br>
+      &nbsp;&nbsp;-H <span class="code-str">"Authorization: Bearer $TOKEN"</span> | python3 -m json.tool<br>
+      <br>
+      <span class="code-comment"># Generate certificate PDF</span><br>
+      <span class="code-cmd">curl</span> -s -X POST http://localhost:8000/ai-systems/<span class="code-key">SYSTEM_ID</span>/certificate \<br>
+      &nbsp;&nbsp;-H <span class="code-str">"Authorization: Bearer $TOKEN"</span> \<br>
+      &nbsp;&nbsp;-o certificate.pdf<br>
+      <span class="code-cmd">open</span> certificate.pdf
+    </div>
+
+    <!-- Health check -->
+    <h3 style="margin-top:24px;margin-bottom:10px;">Health &amp; Status</h3>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <span class="code-cmd">curl</span> -s http://localhost:8000/health-check | python3 -m json.tool<br>
+      <span class="code-cmd">curl</span> -s http://localhost:8000/me -H <span class="code-str">"Authorization: Bearer $TOKEN"</span> | python3 -m json.tool<br>
+      <span class="code-cmd">curl</span> -s http://localhost:8000/my-stats -H <span class="code-str">"Authorization: Bearer $TOKEN"</span> | python3 -m json.tool
+    </div>
+  </section>
+
+</div><!-- /container -->
+
+<footer>
+  Pragma &mdash; Testing Guide &mdash; &copy; 2026 &nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="auditing.html" style="color:var(--accent);text-decoration:none;">AI Auditing AI →</a>
+  &nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="business.html" style="color:var(--accent);text-decoration:none;">Business Case →</a>
+  &nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="architecture.html" style="color:var(--accent);text-decoration:none;">Architecture →</a>
+</footer>
+
+<script>
+const ENVS = {
+  local: 'http://localhost:8000',
+  prod:  'https://virtuous-fulfillment-production-05d3.up.railway.app',
+};
+let currentEnv = 'local';
+
+function setEnv(env) {
+  currentEnv = env;
+  const url = ENVS[env];
+
+  // Update pill
+  document.getElementById('activeUrl').textContent = url;
+
+  // Swap button styles
+  const localBtn = document.getElementById('envLocal');
+  const prodBtn  = document.getElementById('envProd');
+  if (env === 'local') {
+    localBtn.style.borderColor = 'rgba(124,111,224,0.5)';
+    localBtn.style.background  = 'rgba(124,111,224,0.15)';
+    localBtn.style.color       = '#c4b5fd';
+    prodBtn.style.borderColor  = 'rgba(255,255,255,0.08)';
+    prodBtn.style.background   = 'rgba(255,255,255,0.04)';
+    prodBtn.style.color        = '#888';
+  } else {
+    prodBtn.style.borderColor  = 'rgba(78,205,196,0.5)';
+    prodBtn.style.background   = 'rgba(78,205,196,0.12)';
+    prodBtn.style.color        = '#4ecdc4';
+    localBtn.style.borderColor = 'rgba(255,255,255,0.08)';
+    localBtn.style.background  = 'rgba(255,255,255,0.04)';
+    localBtn.style.color       = '#888';
+  }
+
+  // Rewrite every code-block that contains localhost:8000 or the prod URL
+  document.querySelectorAll('.code-block').forEach(block => {
+    // Walk text nodes to replace URL without touching HTML structure
+    replaceTextInNode(block, ENVS.local, url);
+    replaceTextInNode(block, ENVS.prod,  url);
+  });
+}
+
+function replaceTextInNode(node, from, to) {
+  if (from === to) return;
+  if (node.nodeType === Node.TEXT_NODE) {
+    if (node.textContent.includes(from)) {
+      node.textContent = node.textContent.replaceAll(from, to);
+    }
+  } else {
+    node.childNodes.forEach(child => replaceTextInNode(child, from, to));
+  }
+}
+
+function copyCode(btn) {
+  const block = btn.closest('.code-block');
+  const text = block.innerText.replace(/^Copy\n?/, '').trim();
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+</script>
+</body>
+</html>
