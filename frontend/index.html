@@ -809,6 +809,42 @@
     .wiz-step-dot.active { background:var(--accent);color:#fff; }
     .wiz-step-dot.done { background:#d1fae5;color:#065f46; }
     .wiz-step-dot.todo { background:var(--card-border);color:var(--text-muted); }
+
+    /* ── Dashboard ── */
+    .dash-summary-row { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+    .dash-stat-card { flex:1; min-width:120px; background:var(--card-bg); border:1px solid var(--card-border); border-radius:10px; padding:14px 16px; }
+    .dash-stat-value { font-size:26px; font-weight:800; color:var(--text); line-height:1; margin-bottom:4px; }
+    .dash-stat-label { font-size:11px; color:var(--text-muted); font-weight:600; letter-spacing:0.5px; text-transform:uppercase; }
+    .dash-system-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:14px; margin-bottom:24px; }
+    .dash-sys-card { background:var(--card-bg); border:1px solid var(--card-border); border-radius:10px; padding:16px 18px; cursor:pointer; transition:border-color .15s; }
+    .dash-sys-card:hover { border-color:rgba(99,102,241,0.5); }
+    .dash-sys-name { font-size:14px; font-weight:700; color:var(--text); margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .dash-sys-company { font-size:11px; color:var(--text-muted); margin-bottom:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .dash-sys-score-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+    .dash-sys-score { font-size:22px; font-weight:800; }
+    .dash-sys-verdict { font-size:10px; font-weight:700; letter-spacing:0.5px; text-transform:uppercase; padding:2px 8px; border-radius:20px; }
+    .dash-sys-sparkline { width:100%; height:40px; }
+    .dash-sys-pills { display:flex; gap:5px; margin-top:8px; flex-wrap:wrap; }
+    .dash-pill { font-size:10px; font-weight:600; padding:2px 7px; border-radius:10px; }
+    .pill-pass { background:rgba(34,197,94,0.12); color:#4ade80; border:1px solid rgba(34,197,94,0.25); }
+    .pill-partial { background:rgba(245,158,11,0.12); color:#fbbf24; border:1px solid rgba(245,158,11,0.25); }
+    .pill-fail { background:rgba(239,68,68,0.12); color:#f87171; border:1px solid rgba(239,68,68,0.25); }
+    .dash-heatmap-section { background:var(--card-bg); border:1px solid var(--card-border); border-radius:10px; padding:18px; overflow-x:auto; }
+    .dash-heatmap-title { font-size:13px; font-weight:700; color:var(--text); margin-bottom:14px; }
+    .dash-heatmap { border-collapse:collapse; width:100%; min-width:400px; }
+    .dash-heatmap th { font-size:10px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; padding:4px 6px; text-align:left; border-bottom:1px solid var(--card-border); white-space:nowrap; }
+    .dash-heatmap td { padding:5px 6px; }
+    .dash-heatmap .art-label { font-size:11px; color:var(--text-muted); white-space:nowrap; }
+    .hm-cell { width:28px; height:22px; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; }
+    .hm-pass    { background:rgba(34,197,94,0.18);  color:#4ade80; }
+    .hm-partial { background:rgba(245,158,11,0.18); color:#fbbf24; }
+    .hm-fail    { background:rgba(239,68,68,0.18);  color:#f87171; }
+    .hm-none    { background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.2); }
+    .dash-empty { text-align:center; padding:60px 20px; color:var(--text-muted); font-size:13px; }
+    .dash-deadline-bar { background:linear-gradient(135deg,rgba(99,102,241,0.12),rgba(167,139,250,0.08)); border:1px solid rgba(99,102,241,0.25); border-radius:10px; padding:14px 18px; margin-bottom:20px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+    .dash-deadline-days { font-size:32px; font-weight:800; color:#a78bfa; line-height:1; }
+    .dash-deadline-text { font-size:13px; color:var(--text-muted); line-height:1.5; }
+    @media (max-width:600px) { .dash-system-grid { grid-template-columns:1fr; } .dash-summary-row { gap:8px; } }
   </style>
 </head>
 <body>
@@ -986,6 +1022,9 @@
         <button class="app-tab" onclick="switchTab('compliance')">
           <span class="tab-icon">🏛️</span>EU AI Act
         </button>
+        <button class="app-tab" onclick="switchTab('dashboard')">
+          <span class="tab-icon">📊</span>Dashboard
+        </button>
         <button class="app-tab" onclick="switchTab('settings')">
           <span class="tab-icon">⚙️</span>Settings
         </button>
@@ -1021,6 +1060,10 @@
       <button class="mobile-nav-btn" onclick="switchTab('compliance')" data-tab="compliance">
         <span class="mnav-icon">🏛️</span>
         <span class="mnav-label">EU AI Act</span>
+      </button>
+      <button class="mobile-nav-btn" onclick="switchTab('dashboard')" data-tab="dashboard">
+        <span class="mnav-icon">📊</span>
+        <span class="mnav-label">Dashboard</span>
       </button>
       <button class="mobile-nav-btn" onclick="switchTab('settings')" data-tab="settings">
         <span class="mnav-icon">⚙️</span>
@@ -1530,6 +1573,15 @@
             <div id="complianceArticleList"></div>
           </div>
 
+        </div>
+
+        <!-- ── Dashboard tab ── -->
+        <div class="tab-pane" id="tab-dashboard">
+          <div id="dashboardContent">
+            <div style="text-align:center;padding:60px 20px;color:var(--text-muted);font-size:13px;">
+              Loading dashboard…
+            </div>
+          </div>
         </div>
 
         <!-- ── Settings tab ── -->
@@ -2661,11 +2713,11 @@
     }
 
     // ── Tab switching ──────────────────────────────────────────────────────
-    const PAGE_TITLES = { evaluate: 'Risk Screen', history: 'Decision History', batch: 'Batch Evaluation', audit: 'Regulatory Audit Trail', compliance: 'EU AI Act Readiness', settings: 'Settings' };
+    const PAGE_TITLES = { evaluate: 'Risk Screen', history: 'Decision History', batch: 'Batch Evaluation', audit: 'Regulatory Audit Trail', compliance: 'EU AI Act Readiness', dashboard: 'Compliance Dashboard', settings: 'Settings' };
 
     function switchTab(name) {
       document.querySelectorAll('.app-tab').forEach((t,i) => {
-        const names = ['evaluate','history','batch','audit','compliance','settings'];
+        const names = ['evaluate','history','batch','audit','compliance','dashboard','settings'];
         t.classList.toggle('active', names[i] === name);
       });
       document.querySelectorAll('.mobile-nav-btn').forEach(b => {
@@ -2678,6 +2730,7 @@
       if (name === 'history') loadHistory();
       if (name === 'audit') loadAuditLog();
       if (name === 'compliance') loadComplianceTab();
+      if (name === 'dashboard') loadDashboard();
       if (name === 'settings') { loadOrgs(); loadAPIKeys(); loadBilling(); }
     }
 
@@ -2965,6 +3018,194 @@
         document.body.appendChild(b);
         setTimeout(() => b.remove(), 5000);
       }, 500);
+    }
+
+    // ── Compliance Dashboard ────────────────────────────────────────────────
+
+    const _ARTICLE_LABELS = {
+      art_4:  'Art. 4 — AI Literacy',
+      art_5:  'Art. 5 — Prohibited Practices',
+      art_6:  'Art. 6 — High-Risk Classification',
+      art_9:  'Art. 9 — Risk Management',
+      art_10: 'Art. 10 — Data Governance',
+      art_11: 'Art. 11 — Technical Docs',
+      art_12: 'Art. 12 — Record-Keeping',
+      art_13: 'Art. 13 — Transparency',
+      art_14: 'Art. 14 — Human Oversight',
+      art_15: 'Art. 15 — Accuracy & Robustness',
+      art_17: 'Art. 17 — Quality Management',
+      art_25: 'Art. 25 — Deployer Obligations',
+      art_27: 'Art. 27 — FRIA',
+      art_30: 'Art. 30 — EU DB Registration',
+      art_33: 'Art. 33 — Conformity Assessment',
+    };
+
+    const _DEADLINE = new Date('2026-08-01T00:00:00Z');
+
+    function _daysUntilDeadline() {
+      return Math.max(0, Math.ceil((_DEADLINE - Date.now()) / 86400000));
+    }
+
+    function _verdictStyle(verdict) {
+      if (verdict === 'ready')     return { color: '#4ade80', bg: 'rgba(34,197,94,0.12)',  border: 'rgba(34,197,94,0.25)',  label: 'Ready' };
+      if (verdict === 'partial')   return { color: '#fbbf24', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.25)', label: 'Partial' };
+      if (verdict === 'prohibited')return { color: '#f87171', bg: 'rgba(239,68,68,0.15)',  border: 'rgba(239,68,68,0.3)',   label: 'PROHIBITED' };
+      return                               { color: '#f87171', bg: 'rgba(239,68,68,0.12)',  border: 'rgba(239,68,68,0.25)',  label: 'Not Ready' };
+    }
+
+    function _scoreColor(score) {
+      if (score >= 0.9) return '#4ade80';
+      if (score >= 0.6) return '#fbbf24';
+      return '#f87171';
+    }
+
+    function _buildSparkline(history) {
+      if (!history || history.length < 2) {
+        return `<svg class="dash-sys-sparkline" viewBox="0 0 120 40">
+          <text x="60" y="24" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.2)">No trend data yet</text>
+        </svg>`;
+      }
+      const scores = history.map(h => h.score);
+      const min = Math.min(...scores);
+      const max = Math.max(...scores);
+      const range = max - min || 0.1;
+      const w = 120, h = 40, pad = 4;
+      const pts = scores.map((s, i) => {
+        const x = pad + (i / (scores.length - 1)) * (w - pad * 2);
+        const y = h - pad - ((s - min) / range) * (h - pad * 2);
+        return `${x},${y}`;
+      });
+      const lastScore = scores[scores.length - 1];
+      const color = _scoreColor(lastScore);
+      return `<svg class="dash-sys-sparkline" viewBox="0 0 ${w} ${h}">
+        <polyline points="${pts.join(' ')}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" opacity="0.8"/>
+        <circle cx="${pts[pts.length-1].split(',')[0]}" cy="${pts[pts.length-1].split(',')[1]}" r="2.5" fill="${color}"/>
+      </svg>`;
+    }
+
+    function _buildSystemCard(sys) {
+      const latest = sys.latest;
+      if (!latest) {
+        return `<div class="dash-sys-card" onclick="switchTab('compliance')">
+          <div class="dash-sys-name">${sys.system_name}</div>
+          <div class="dash-sys-company">${sys.company_name}</div>
+          <div style="font-size:12px;color:var(--text-muted);padding:10px 0;">
+            No assessment yet — <span style="color:var(--accent2);">run compliance check</span>
+          </div>
+        </div>`;
+      }
+      const vs = _verdictStyle(latest.verdict);
+      const scorePct = Math.round(latest.score * 100);
+      const sparkline = _buildSparkline(sys.history);
+      const pills = [
+        latest.passes   ? `<span class="dash-pill pill-pass">${latest.passes} PASS</span>` : '',
+        latest.partials ? `<span class="dash-pill pill-partial">${latest.partials} PARTIAL</span>` : '',
+        latest.fails    ? `<span class="dash-pill pill-fail">${latest.fails} FAIL</span>` : '',
+      ].join('');
+      const takenDate = latest.taken_at ? latest.taken_at.slice(0, 10) : '';
+      return `<div class="dash-sys-card" onclick="switchTab('compliance')" title="Click to open EU AI Act tab">
+        <div class="dash-sys-name">${sys.system_name}</div>
+        <div class="dash-sys-company">${sys.company_name}</div>
+        <div class="dash-sys-score-row">
+          <div class="dash-sys-score" style="color:${_scoreColor(latest.score)}">${scorePct}%</div>
+          <span class="dash-sys-verdict" style="color:${vs.color};background:${vs.bg};border:1px solid ${vs.border};">${vs.label}</span>
+          <span style="flex:1"></span>
+          <span style="font-size:10px;color:var(--text-subtle);">${takenDate}</span>
+        </div>
+        ${sparkline}
+        <div class="dash-sys-pills">${pills}</div>
+      </div>`;
+    }
+
+    function _buildHeatmap(systems) {
+      const withData = systems.filter(s => s.latest && s.latest.articles);
+      if (!withData.length) return '';
+      const artKeys = Object.keys(_ARTICLE_LABELS);
+      const header = `<tr><th>Article</th>${withData.map(s =>
+        `<th title="${s.system_name}" style="max-width:80px;overflow:hidden;text-overflow:ellipsis;">${s.system_name.length > 10 ? s.system_name.slice(0, 10) + '…' : s.system_name}</th>`
+      ).join('')}</tr>`;
+      const rows = artKeys.map(key => {
+        const label = _ARTICLE_LABELS[key] || key;
+        const cells = withData.map(s => {
+          const status = (s.latest.articles || {})[key] || 'none';
+          const cls = `hm-${status === 'pass' ? 'pass' : status === 'partial' ? 'partial' : status === 'fail' ? 'fail' : 'none'}`;
+          const icon = status === 'pass' ? '✓' : status === 'partial' ? '~' : status === 'fail' ? '✗' : '·';
+          return `<td><div class="hm-cell ${cls}" title="${label}: ${status.toUpperCase()}">${icon}</div></td>`;
+        }).join('');
+        return `<tr><td class="art-label">${label}</td>${cells}</tr>`;
+      }).join('');
+      return `<div class="dash-heatmap-section">
+        <div class="dash-heatmap-title">Article Compliance Heatmap — across all registered systems</div>
+        <table class="dash-heatmap"><thead>${header}</thead><tbody>${rows}</tbody></table>
+      </div>`;
+    }
+
+    async function loadDashboard() {
+      const el = document.getElementById('dashboardContent');
+      el.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text-muted);font-size:13px;">Loading…</div>';
+      let data;
+      try {
+        const r = await fetch(`${API}/dashboard/summary`, { headers: authHeaders() });
+        if (!r.ok) throw new Error(r.status);
+        data = await r.json();
+      } catch (e) {
+        el.innerHTML = '<div class="dash-empty">Failed to load dashboard. Please try again.</div>';
+        return;
+      }
+      const systems = data.systems || [];
+      if (!systems.length) {
+        el.innerHTML = `<div class="dash-empty">
+          <div style="font-size:32px;margin-bottom:10px;">🏛️</div>
+          <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px;">No AI systems registered yet</div>
+          <div style="margin-bottom:16px;">Register your first system in the EU AI Act tab to see compliance trends here.</div>
+          <button class="btn btn-primary" onclick="switchTab('compliance')" style="font-size:13px;padding:8px 18px;width:auto;">Go to EU AI Act →</button>
+        </div>`;
+        return;
+      }
+
+      const days = _daysUntilDeadline();
+      const daysColor = days < 60 ? '#f87171' : days < 120 ? '#fbbf24' : '#a78bfa';
+      const systemsWithData = systems.filter(s => s.latest);
+      const avgScore = systemsWithData.length
+        ? Math.round(systemsWithData.reduce((a, s) => a + s.latest.score, 0) / systemsWithData.length * 100)
+        : null;
+      const readyCount  = systemsWithData.filter(s => s.latest.verdict === 'ready').length;
+      const totalEvals  = systems.reduce((a, s) => a + s.history.length, 0);
+
+      const deadlineBar = `<div class="dash-deadline-bar">
+        <div>
+          <div class="dash-deadline-days" style="color:${daysColor}">${days}</div>
+          <div style="font-size:10px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">days left</div>
+        </div>
+        <div class="dash-deadline-text">
+          <strong style="color:var(--text);">EU AI Act deadline — 1 August 2026</strong><br>
+          High-risk AI obligations (Arts. 9–15, 17, 25, 27, 30, 33) apply from this date.
+        </div>
+      </div>`;
+
+      const summaryRow = `<div class="dash-summary-row">
+        <div class="dash-stat-card">
+          <div class="dash-stat-value">${systems.length}</div>
+          <div class="dash-stat-label">Systems registered</div>
+        </div>
+        ${avgScore !== null ? `<div class="dash-stat-card">
+          <div class="dash-stat-value" style="color:${_scoreColor(avgScore/100)}">${avgScore}%</div>
+          <div class="dash-stat-label">Average compliance score</div>
+        </div>` : ''}
+        <div class="dash-stat-card">
+          <div class="dash-stat-value" style="color:#4ade80">${readyCount}</div>
+          <div class="dash-stat-label">Compliance ready</div>
+        </div>
+        <div class="dash-stat-card">
+          <div class="dash-stat-value">${totalEvals}</div>
+          <div class="dash-stat-label">Score snapshots</div>
+        </div>
+      </div>`;
+
+      const systemGrid = `<div class="dash-system-grid">${systems.map(_buildSystemCard).join('')}</div>`;
+      const heatmap = _buildHeatmap(systems);
+
+      el.innerHTML = deadlineBar + summaryRow + systemGrid + heatmap;
     }
   </script>
 </body>

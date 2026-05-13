@@ -231,6 +231,20 @@ notification_log = Table(
     Column("sent_at",           String,  nullable=False),
 )
 
+compliance_snapshots = Table(
+    "compliance_snapshots", _meta,
+    Column("id",            Integer, primary_key=True, autoincrement=True),
+    Column("google_sub",    String,  nullable=False),
+    Column("system_id",     Integer, nullable=False),
+    Column("score",         Float,   nullable=False),
+    Column("verdict",       String,  nullable=False),
+    Column("passes",        Integer, nullable=False),
+    Column("partials",      Integer, nullable=False),
+    Column("fails",         Integer, nullable=False),
+    Column("articles_json", String,  nullable=False),  # {art_key: status}
+    Column("taken_at",      String,  nullable=False),  # ISO UTC timestamp
+)
+
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
@@ -1178,3 +1192,86 @@ def log_notification(google_sub: str, notification_type: str,
             email=email,
             sent_at=now,
         ))
+
+
+# ── Compliance snapshots ──────────────────────────────────────────────────────
+
+def save_compliance_snapshot(
+    google_sub: str,
+    system_id: int,
+    score: float,
+    verdict: str,
+    passes: int,
+    partials: int,
+    fails: int,
+    articles: Dict,
+) -> None:
+    """Persist one compliance snapshot per system per day (deduplication on UTC date)."""
+    today = datetime.now(timezone.utc).date().isoformat()
+    with _engine.connect() as conn:
+        existing = conn.execute(
+            compliance_snapshots.select()
+            .where(compliance_snapshots.c.google_sub == google_sub)
+            .where(compliance_snapshots.c.system_id == system_id)
+            .where(compliance_snapshots.c.taken_at >= today)
+        ).fetchone()
+    if existing:
+        return
+    now = datetime.now(timezone.utc).isoformat()
+    articles_json = json.dumps({k: v["status"] for k, v in articles.items()})
+    with _engine.begin() as conn:
+        conn.execute(compliance_snapshots.insert().values(
+            google_sub=google_sub,
+            system_id=system_id,
+            score=round(score, 3),
+            verdict=verdict,
+            passes=passes,
+            partials=partials,
+            fails=fails,
+            articles_json=articles_json,
+            taken_at=now,
+        ))
+
+
+def get_compliance_history(google_sub: str, system_id: int, limit: int = 30) -> List[Dict]:
+    """Return up to `limit` snapshots for a system, oldest-first (for trend charts)."""
+    with _engine.connect() as conn:
+        rows = conn.execute(
+            compliance_snapshots.select()
+            .where(compliance_snapshots.c.google_sub == google_sub)
+            .where(compliance_snapshots.c.system_id == system_id)
+            .order_by(compliance_snapshots.c.taken_at.asc())
+            .limit(limit)
+        ).fetchall()
+    return [
+        {
+            "score":    row.score,
+            "verdict":  row.verdict,
+            "passes":   row.passes,
+            "partials": row.partials,
+            "fails":    row.fails,
+            "articles": json.loads(row.articles_json),
+            "taken_at": row.taken_at,
+        }
+        for row in rows
+    ]
+
+
+def get_dashboard_summary(google_sub: str) -> Dict:
+    """Return per-system compliance summaries for the dashboard view."""
+    systems = get_ai_systems(google_sub=google_sub)
+    result = []
+    for sys in systems:
+        sid = sys["system_id"]
+        history = get_compliance_history(google_sub=google_sub, system_id=sid)
+        latest = history[-1] if history else None
+        result.append({
+            "system_id":   sid,
+            "system_name": sys["system_name"],
+            "company_name": sys["company_name"],
+            "risk_tier":   sys["risk_tier"],
+            "created_at":  sys["created_at"],
+            "latest":      latest,
+            "history":     [{"score": h["score"], "taken_at": h["taken_at"]} for h in history],
+        })
+    return {"systems": result}
