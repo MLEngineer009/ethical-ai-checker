@@ -71,6 +71,7 @@ class TestVerifyGoogleToken:
         mock_info = {
             "sub": "google-sub-123",
             "name": "Test User",
+            "email": "test@example.com",
             "picture": "https://example.com/photo.jpg",
         }
         with patch.object(auth, "GOOGLE_CLIENT_ID", "real-client-id"):
@@ -79,6 +80,7 @@ class TestVerifyGoogleToken:
         assert result == {
             "sub": "google-sub-123",
             "name": "Test User",
+            "email": "test@example.com",
             "picture": "https://example.com/photo.jpg",
         }
 

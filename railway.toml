@@ -13,3 +13,11 @@ restartPolicyMaxRetries = 10
 #   ANTHROPIC_API_KEY — your Anthropic API key
 #   OPENAI_API_KEY    — your OpenAI API key
 #   GOOGLE_CLIENT_ID  — from Google Cloud Console
+#   RESEND_API_KEY    — from resend.com (for email notifications)
+#   EMAIL_FROM        — e.g. "Pragma <notifications@usepragma.ai>"
+#   APP_URL           — production URL e.g. https://virtuous-fulfillment-production-05d3.up.railway.app
+
+[[cron]]
+name = "daily-notifications"
+schedule = "0 9 * * *"
+command = "python send_notifications.py"
