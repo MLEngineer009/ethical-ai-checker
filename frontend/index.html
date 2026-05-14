@@ -1102,7 +1102,7 @@
           <!-- Input card -->
           <div class="card">
             <div class="card-title">Decision</div>
-            <textarea id="decision" placeholder="Describe the decision being evaluated…" rows="3"></textarea>
+            <textarea id="decision" placeholder="e.g. Deny this personal loan — applicant has a credit score of 610, income $48 k, and is located in zip code 60620." rows="3"></textarea>
 
             <div style="margin-top:18px;" id="contextSection">
               <div class="card-title" id="contextTitle">Context</div>
@@ -1110,20 +1110,20 @@
               <!-- Fallback generic fields (shown for "other" category) -->
               <div id="contextRows" style="display:none;">
                 <div class="context-row" style="margin-bottom:7px;">
-                  <input type="text" id="ctx1_key"   placeholder="Field name" style="color:var(--accent2);font-weight:600;">
-                  <input type="text" id="ctx1_value" placeholder="Value">
+                  <input type="text" id="ctx1_key"   placeholder="e.g. decision_type" style="color:var(--accent2);font-weight:600;">
+                  <input type="text" id="ctx1_value" placeholder="e.g. loan approval">
                 </div>
                 <div class="context-row" style="margin-bottom:7px;">
-                  <input type="text" id="ctx2_key"   placeholder="Field name" style="color:var(--accent2);font-weight:600;">
-                  <input type="text" id="ctx2_value" placeholder="Value">
+                  <input type="text" id="ctx2_key"   placeholder="e.g. credit_score" style="color:var(--accent2);font-weight:600;">
+                  <input type="text" id="ctx2_value" placeholder="e.g. 610">
                 </div>
                 <div class="context-row" style="margin-bottom:7px;">
-                  <input type="text" id="ctx3_key"   placeholder="Field name" style="color:var(--accent2);font-weight:600;">
-                  <input type="text" id="ctx3_value" placeholder="Value">
+                  <input type="text" id="ctx3_key"   placeholder="e.g. zip_code" style="color:var(--accent2);font-weight:600;">
+                  <input type="text" id="ctx3_value" placeholder="e.g. 60620">
                 </div>
                 <div class="context-row">
-                  <input type="text" id="ctx4_key"   placeholder="Field name" style="color:var(--accent2);font-weight:600;">
-                  <input type="text" id="ctx4_value" placeholder="Value">
+                  <input type="text" id="ctx4_key"   placeholder="e.g. income" style="color:var(--accent2);font-weight:600;">
+                  <input type="text" id="ctx4_value" placeholder="e.g. 48000">
                 </div>
                 <button type="button" id="btnAddCtx" class="btn-add-field">+ Add Field</button>
               </div>
@@ -1923,16 +1923,33 @@
     document.getElementById('thumbUp').addEventListener('click',   () => sendFeedback(1));
     document.getElementById('thumbDown').addEventListener('click', () => sendFeedback(-1));
 
+    const _DECISION_SAMPLES = {
+      hiring:    "Reject this resume — the candidate has a 3-year employment gap and attended a community college rather than a 4-year university.",
+      workplace: "Terminate the employment of a call-center agent who has missed their performance targets for 4 consecutive quarters.",
+      finance:   "Deny this personal loan — the applicant has a credit score of 610, income $48 k, and is located in zip code 60620.",
+      healthcare:"Deprioritize this uninsured patient for an elective procedure because the hospital is operating at 95% ICU capacity.",
+      policy:    "Implement a mandatory return-to-office policy requiring all staff to work on-site 5 days a week starting next quarter.",
+      personal:  "I'm considering quitting my stable job to start a company with my co-founder — we have 6 months of runway and one paying pilot customer.",
+      other:     "Decide whether to share this dataset with a third-party research partner without obtaining renewed consent from study participants.",
+    };
+
+    function updateDecisionPlaceholder(cat) {
+      document.getElementById('decision').placeholder =
+        _DECISION_SAMPLES[cat] || "Describe the decision being evaluated…";
+    }
+
     document.querySelectorAll('.cat-pill').forEach(pill => {
       pill.addEventListener('click', () => {
         document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
         pill.classList.add('active');
         selectedCategory = pill.dataset.cat;
         renderQuestions(selectedCategory);
+        updateDecisionPlaceholder(selectedCategory);
       });
     });
 
     renderQuestions(selectedCategory);
+    updateDecisionPlaceholder(selectedCategory);
 
     function buildContext() {
       if (selectedCategory !== 'other' && document.getElementById('guidedQuestions').children.length) {
