@@ -845,6 +845,22 @@
     .dash-deadline-days { font-size:32px; font-weight:800; color:#a78bfa; line-height:1; }
     .dash-deadline-text { font-size:13px; color:var(--text-muted); line-height:1.5; }
     @media (max-width:600px) { .dash-system-grid { grid-template-columns:1fr; } .dash-summary-row { gap:8px; } }
+
+    /* ── Evidence collection buttons ── */
+    .ev-actions { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+    .btn-ev-upload, .btn-ev-interview { font-size:11px; font-weight:600; padding:4px 10px; border-radius:5px; cursor:pointer; border:1px solid rgba(99,102,241,0.4); background:rgba(99,102,241,0.08); color:var(--accent2); transition:background .15s; }
+    .btn-ev-upload:hover, .btn-ev-interview:hover { background:rgba(99,102,241,0.18); }
+    .btn-ev-upload { display:inline-block; }
+    .btn-ev-interview { font-family:inherit; }
+    .ev-badge span, .ev-badge-pass, .ev-badge-partial, .ev-badge-fail, .ev-badge-loading { font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; }
+    .ev-badge-pass    { background:rgba(34,197,94,0.15);  color:#4ade80; border:1px solid rgba(34,197,94,0.3); }
+    .ev-badge-partial { background:rgba(245,158,11,0.15); color:#fbbf24; border:1px solid rgba(245,158,11,0.3); }
+    .ev-badge-fail    { background:rgba(239,68,68,0.15);  color:#f87171; border:1px solid rgba(239,68,68,0.3); }
+    .ev-badge-loading { background:rgba(255,255,255,0.06); color:var(--text-muted); border:1px solid var(--card-border); }
+    .ev-feedback-box { font-size:11px; line-height:1.5; padding:8px 10px; border-radius:5px; }
+    .ev-fb-pass    { background:rgba(34,197,94,0.08);  color:#86efac; border-left:3px solid #4ade80; }
+    .ev-fb-partial { background:rgba(245,158,11,0.08); color:#fde68a; border-left:3px solid #fbbf24; }
+    .ev-fb-fail    { background:rgba(239,68,68,0.08);  color:#fca5a5; border-left:3px solid #f87171; }
   </style>
 </head>
 <body>
@@ -1444,6 +1460,11 @@
                   </label>
                   <div class="wiz-evidence-box">
                     <div class="wiz-evidence-hint">📎 Add evidence to score PASS (not just PARTIAL)</div>
+                    <div class="ev-actions">
+                      <label class="btn-ev-upload" title="Upload a document for AI analysis">📄 Upload doc<input type="file" accept=".pdf,.txt,.md,.csv" style="display:none" onchange="handleEvidenceUpload(this,'art_4','sysArt4EvidenceNotes','sysArt4EvidenceDate')"></label>
+                      <button class="btn-ev-interview" onclick="openInterview('art_4','sysArt4EvidenceNotes','sysArt4EvidenceDate')">💬 Interview</button>
+                      <span class="ev-badge" id="evBadge_art_4"></span>
+                    </div>
                     <input type="text" id="sysArt4EvidenceNotes" class="wiz-input" style="margin-bottom:6px;" placeholder="e.g. All staff completed AI literacy course Q1 2026 — ref. training-log-001">
                     <div class="wiz-evidence-row">
                       <input type="text" id="sysArt4EvidenceDate" class="wiz-input" type="date" placeholder="Evidence date (YYYY-MM-DD)">
@@ -1460,6 +1481,11 @@
                   </label>
                   <div class="wiz-evidence-box">
                     <div class="wiz-evidence-hint">📎 Add evidence to score PASS</div>
+                    <div class="ev-actions">
+                      <label class="btn-ev-upload" title="Upload a document for AI analysis">📄 Upload doc<input type="file" accept=".pdf,.txt,.md,.csv" style="display:none" onchange="handleEvidenceUpload(this,'art_17','sysArt17EvidenceNotes','sysArt17EvidenceDate')"></label>
+                      <button class="btn-ev-interview" onclick="openInterview('art_17','sysArt17EvidenceNotes','sysArt17EvidenceDate')">💬 Interview</button>
+                      <span class="ev-badge" id="evBadge_art_17"></span>
+                    </div>
                     <input type="text" id="sysArt17EvidenceNotes" class="wiz-input" style="margin-bottom:6px;" placeholder="e.g. ISO 9001:2015 certification, cert #QMS-2026-042">
                     <input type="text" id="sysArt17EvidenceDate" class="wiz-input" placeholder="Evidence date (YYYY-MM-DD)">
                   </div>
@@ -1474,6 +1500,11 @@
                   </label>
                   <div class="wiz-evidence-box" style="margin-bottom:10px;">
                     <div class="wiz-evidence-hint">📎 Evidence for instructions (PASS vs PARTIAL)</div>
+                    <div class="ev-actions">
+                      <label class="btn-ev-upload" title="Upload a document for AI analysis">📄 Upload doc<input type="file" accept=".pdf,.txt,.md,.csv" style="display:none" onchange="handleEvidenceUpload(this,'art_25','sysArt25InstrNotes','sysArt25InstrDate')"></label>
+                      <button class="btn-ev-interview" onclick="openInterview('art_25','sysArt25InstrNotes','sysArt25InstrDate')">💬 Interview</button>
+                      <span class="ev-badge" id="evBadge_art_25"></span>
+                    </div>
                     <input type="text" id="sysArt25InstrNotes" class="wiz-input" style="margin-bottom:6px;" placeholder="e.g. Deployer handbook v3 distributed — doc ref IFU-2026-07">
                     <input type="text" id="sysArt25InstrDate" class="wiz-input" placeholder="Evidence date (YYYY-MM-DD)">
                   </div>
@@ -1483,6 +1514,9 @@
                   </label>
                   <div class="wiz-evidence-box">
                     <div class="wiz-evidence-hint">📎 Evidence for monitoring (PASS vs PARTIAL)</div>
+                    <div class="ev-actions">
+                      <label class="btn-ev-upload" title="Upload a document for AI analysis">📄 Upload doc<input type="file" accept=".pdf,.txt,.md,.csv" style="display:none" onchange="handleEvidenceUpload(this,'art_25','sysArt25MonNotes','sysArt25MonDate')"></label>
+                    </div>
                     <input type="text" id="sysArt25MonNotes" class="wiz-input" style="margin-bottom:6px;" placeholder="e.g. Monthly performance dashboard + anomaly alerts active since 2026-01">
                     <input type="text" id="sysArt25MonDate" class="wiz-input" placeholder="Evidence date (YYYY-MM-DD)">
                   </div>
@@ -1497,6 +1531,11 @@
                   </label>
                   <div class="wiz-evidence-box">
                     <div class="wiz-evidence-hint">📎 Add evidence to score PASS</div>
+                    <div class="ev-actions">
+                      <label class="btn-ev-upload" title="Upload a document for AI analysis">📄 Upload doc<input type="file" accept=".pdf,.txt,.md,.csv" style="display:none" onchange="handleEvidenceUpload(this,'art_27','sysArt27EvidenceNotes','sysArt27EvidenceDate')"></label>
+                      <button class="btn-ev-interview" onclick="openInterview('art_27','sysArt27EvidenceNotes','sysArt27EvidenceDate')">💬 Interview</button>
+                      <span class="ev-badge" id="evBadge_art_27"></span>
+                    </div>
                     <input type="text" id="sysArt27EvidenceNotes" class="wiz-input" style="margin-bottom:6px;" placeholder="e.g. FRIA report ref. FR-2026-042 on file, reviewed by DPO">
                     <input type="text" id="sysArt27EvidenceDate" class="wiz-input" placeholder="Evidence date (YYYY-MM-DD)">
                   </div>
@@ -1517,6 +1556,11 @@
                   <input type="text" id="sysArt30RegNumber" class="wiz-input" style="margin-bottom:8px;" placeholder="EU registration number (self-evidencing — upgrades to PASS)">
                   <div class="wiz-evidence-box">
                     <div class="wiz-evidence-hint">📎 Additional evidence</div>
+                    <div class="ev-actions">
+                      <label class="btn-ev-upload" title="Upload a document for AI analysis">📄 Upload doc<input type="file" accept=".pdf,.txt,.md,.csv" style="display:none" onchange="handleEvidenceUpload(this,'art_30','sysArt30EvidenceNotes','sysArt30EvidenceDate')"></label>
+                      <button class="btn-ev-interview" onclick="openInterview('art_30','sysArt30EvidenceNotes','sysArt30EvidenceDate')">💬 Interview</button>
+                      <span class="ev-badge" id="evBadge_art_30"></span>
+                    </div>
                     <input type="text" id="sysArt30EvidenceNotes" class="wiz-input" style="margin-bottom:6px;" placeholder="e.g. Registration confirmed via EUID portal on 2026-03-15">
                     <input type="text" id="sysArt30EvidenceDate" class="wiz-input" placeholder="Evidence date (YYYY-MM-DD)">
                   </div>
@@ -1534,6 +1578,11 @@
                   </select>
                   <div class="wiz-evidence-box">
                     <div class="wiz-evidence-hint">📎 Add evidence to score PASS (not just PARTIAL)</div>
+                    <div class="ev-actions">
+                      <label class="btn-ev-upload" title="Upload a document for AI analysis">📄 Upload doc<input type="file" accept=".pdf,.txt,.md,.csv" style="display:none" onchange="handleEvidenceUpload(this,'art_33','sysArt33EvidenceNotes','sysArt33EvidenceDate')"></label>
+                      <button class="btn-ev-interview" onclick="openInterview('art_33','sysArt33EvidenceNotes','sysArt33EvidenceDate')">💬 Interview</button>
+                      <span class="ev-badge" id="evBadge_art_33"></span>
+                    </div>
                     <input type="text" id="sysArt33EvidenceNotes" class="wiz-input" style="margin-bottom:6px;" placeholder="e.g. Certificate of conformity issued by TÜV SÜD, cert #CE-2026-7891">
                     <input type="text" id="sysArt33EvidenceDate" class="wiz-input" placeholder="Evidence date (YYYY-MM-DD)">
                   </div>
@@ -3207,6 +3256,165 @@
 
       el.innerHTML = deadlineBar + summaryRow + systemGrid + heatmap;
     }
+
+    // ── Evidence: document upload ──────────────────────────────────────────
+
+    async function handleEvidenceUpload(input, articleKey, notesId, dateId) {
+      const file = input.files[0];
+      if (!file) return;
+      const badge = document.getElementById('evBadge_' + articleKey);
+      if (badge) badge.innerHTML = '<span class="ev-badge-loading">⏳ Analysing…</span>';
+
+      const fd = new FormData();
+      fd.append('article_key', articleKey);
+      fd.append('file', file);
+
+      try {
+        const r = await fetch('/evidence/extract', {
+          method: 'POST',
+          headers: { 'X-Session-Token': sessionToken },
+          body: fd,
+        });
+        if (!r.ok) { const e = await r.json(); throw new Error(e.detail || r.status); }
+        const data = await r.json();
+        if (data.notes)  document.getElementById(notesId).value = data.notes;
+        if (data.date)   document.getElementById(dateId).value  = data.date;
+        if (badge) badge.innerHTML = _evBadgeHtml(data.verdict, data.confidence);
+        if (data.explanation) {
+          _showEvFeedback(articleKey, data.verdict, data.explanation, []);
+        }
+      } catch (e) {
+        if (badge) badge.innerHTML = '<span class="ev-badge-fail">✗ Failed</span>';
+        console.error('Evidence upload failed:', e);
+      }
+      input.value = '';
+    }
+
+    // ── Evidence: guided interview ─────────────────────────────────────────
+
+    let _interviewState = {};
+
+    async function openInterview(articleKey, notesId, dateId) {
+      const modal = document.getElementById('interviewModal');
+      const body  = document.getElementById('interviewModalBody');
+      body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">Loading questions…</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const r = await fetch(`/evidence/questions/${articleKey}`, {
+          headers: { 'X-Session-Token': sessionToken },
+        });
+        if (!r.ok) throw new Error(r.status);
+        const info = await r.json();
+        _interviewState = { articleKey, notesId, dateId, info };
+        body.innerHTML = _buildInterviewForm(info, articleKey, notesId, dateId);
+      } catch (e) {
+        body.innerHTML = `<div style="color:#f87171;padding:20px;">Failed to load questions: ${e.message}</div>`;
+      }
+    }
+
+    function _buildInterviewForm(info, articleKey, notesId, dateId) {
+      const questions = info.questions.map(q => `
+        <div style="margin-bottom:14px;">
+          <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:5px;">${q.text}</div>
+          <textarea id="ivq_${q.id}" rows="2" class="wiz-input" style="resize:vertical;font-family:inherit;font-size:12px;" placeholder="Your answer…"></textarea>
+        </div>`).join('');
+      return `
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;">
+          <div>
+            <div style="font-size:16px;font-weight:700;color:var(--text);">${info.title}</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:3px;line-height:1.5;max-width:480px;">${info.requirement}</div>
+          </div>
+          <button onclick="closeInterview()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px;padding:0 0 0 16px;flex-shrink:0;">✕</button>
+        </div>
+        <div id="ivQuestions">${questions}</div>
+        <div id="ivFeedbackArea"></div>
+        <div style="display:flex;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--card-border);">
+          <button class="btn btn-primary" style="font-size:12px;padding:8px 18px;width:auto;" onclick="submitInterview('${articleKey}','${notesId}','${dateId}')">
+            ✨ Score with AI
+          </button>
+          <button class="btn" style="font-size:12px;padding:8px 14px;width:auto;" onclick="closeInterview()">Cancel</button>
+          <span id="ivSpinner" style="display:none;font-size:12px;color:var(--text-muted);align-self:center;">⏳ Scoring…</span>
+        </div>`;
+    }
+
+    async function submitInterview(articleKey, notesId, dateId) {
+      const info = _interviewState.info;
+      if (!info) return;
+      const answers = info.questions.map(q => ({
+        question: q.text,
+        answer: (document.getElementById('ivq_' + q.id) || {}).value || '',
+      }));
+      document.getElementById('ivSpinner').style.display = 'inline';
+
+      try {
+        const r = await fetch('/evidence/interview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
+          body: JSON.stringify({ article_key: articleKey, answers }),
+        });
+        if (!r.ok) { const e = await r.json(); throw new Error(e.detail || r.status); }
+        const data = await r.json();
+
+        if (data.notes) document.getElementById(notesId).value = data.notes;
+        const badge = document.getElementById('evBadge_' + articleKey);
+        if (badge) badge.innerHTML = _evBadgeHtml(data.verdict, 1);
+        _showEvFeedback(articleKey, data.verdict, data.feedback, data.missing || []);
+
+        const fb = document.getElementById('ivFeedbackArea');
+        if (fb) {
+          const missHtml = (data.missing || []).length
+            ? '<ul style="margin:6px 0 0 0;padding-left:16px;">' + data.missing.map(m => `<li style="font-size:11px;color:#fbbf24;margin-bottom:3px;">${m}</li>`).join('') + '</ul>'
+            : '';
+          fb.innerHTML = `<div class="ev-feedback-box ${data.verdict === 'pass' ? 'ev-fb-pass' : data.verdict === 'partial' ? 'ev-fb-partial' : 'ev-fb-fail'}">
+            <b>${{pass:'✓ PASS',partial:'~ PARTIAL',fail:'✗ FAIL'}[data.verdict] || data.verdict}</b> — ${data.feedback}${missHtml}
+          </div>`;
+        }
+        if (data.verdict === 'pass') {
+          setTimeout(closeInterview, 2000);
+        }
+      } catch (e) {
+        const fb = document.getElementById('ivFeedbackArea');
+        if (fb) fb.innerHTML = `<div class="ev-feedback-box ev-fb-fail">Scoring failed: ${e.message}</div>`;
+      } finally {
+        document.getElementById('ivSpinner').style.display = 'none';
+      }
+    }
+
+    function closeInterview() {
+      document.getElementById('interviewModal').style.display = 'none';
+      _interviewState = {};
+    }
+
+    function _evBadgeHtml(verdict, confidence) {
+      const cfg = {
+        pass:         { cls: 'ev-badge-pass',    label: '✓ AI: PASS' },
+        partial:      { cls: 'ev-badge-partial', label: '~ AI: PARTIAL' },
+        insufficient: { cls: 'ev-badge-fail',    label: '✗ AI: Insufficient' },
+        fail:         { cls: 'ev-badge-fail',    label: '✗ AI: FAIL' },
+      }[verdict] || { cls: 'ev-badge-fail', label: verdict };
+      const conf = confidence != null ? ` (${Math.round(confidence * 100)}%)` : '';
+      return `<span class="${cfg.cls}">${cfg.label}${conf}</span>`;
+    }
+
+    function _showEvFeedback(articleKey, verdict, explanation, missing) {
+      // Surface explanation in the evidence hint area if possible
+      const box = document.querySelector(`#evBadge_${articleKey}`)?.closest('.wiz-evidence-box');
+      if (!box) return;
+      let fb = box.querySelector('.ev-inline-feedback');
+      if (!fb) { fb = document.createElement('div'); fb.className = 'ev-inline-feedback'; box.appendChild(fb); }
+      const missHtml = missing.length
+        ? '<div style="margin-top:5px;"><b>To improve:</b><ul style="margin:3px 0;padding-left:16px;">' + missing.map(m => `<li>${m}</li>`).join('') + '</ul></div>'
+        : '';
+      fb.innerHTML = `<div class="ev-feedback-box ${verdict === 'pass' ? 'ev-fb-pass' : verdict === 'partial' ? 'ev-fb-partial' : 'ev-fb-fail'}" style="margin-top:8px;">${explanation}${missHtml}</div>`;
+    }
   </script>
+
+  <!-- ── Interview modal ── -->
+  <div id="interviewModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:2000;align-items:flex-start;justify-content:center;overflow-y:auto;padding:40px 16px;">
+    <div style="background:#111318;border:1px solid #1e2232;border-radius:12px;padding:28px;max-width:580px;width:100%;margin:auto;">
+      <div id="interviewModalBody"></div>
+    </div>
+  </div>
 </body>
 </html>

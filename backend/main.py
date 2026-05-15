@@ -14,7 +14,7 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 from pydantic import BaseModel
 import uvicorn
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Request
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -480,6 +480,89 @@ async def get_compliance_history(system_id: int, user: dict = Depends(get_curren
 async def get_dashboard_summary(user: dict = Depends(get_current_user)):
     """Return compliance summary across all of the user's AI systems."""
     return database.get_dashboard_summary(google_sub=user["sub"])
+
+
+# ── Evidence collection endpoints ─────────────────────────────────────────────
+
+@app.post("/evidence/extract", dependencies=[Depends(get_current_user)])
+async def extract_evidence_from_document(
+    article_key: str = Form(...),
+    file: UploadFile = File(...),
+    user: dict = Depends(get_current_user),
+):
+    """
+    Upload a compliance document and extract structured evidence using AI.
+    Returns notes, date, verdict, and explanation for the given article.
+    """
+    from .evidence_analyzer import analyze_document
+    from .interview_engine import get_article_questions
+
+    article_info = get_article_questions(article_key)
+    if not article_info:
+        raise HTTPException(status_code=400, detail=f"Unknown article key: {article_key}")
+
+    max_bytes = 10 * 1024 * 1024  # 10 MB
+    data = await file.read(max_bytes + 1)
+    if len(data) > max_bytes:
+        raise HTTPException(status_code=413, detail="File too large — maximum 10 MB")
+
+    logger.info(
+        "Evidence extraction — user=%s article=%s file=%s size=%d",
+        user["sub"][:8], article_key, file.filename, len(data),
+    )
+    result = analyze_document(
+        article_key=article_key,
+        article_title=article_info["title"],
+        article_requirement=article_info["requirement"],
+        filename=file.filename or "upload",
+        file_data=data,
+    )
+    return result
+
+
+@app.post("/evidence/interview", dependencies=[Depends(get_current_user)])
+async def score_evidence_interview(
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Score structured interview answers for a compliance article using AI.
+    Body: { article_key: str, answers: [{question: str, answer: str}] }
+    """
+    from .evidence_analyzer import score_interview
+    from .interview_engine import get_article_questions
+
+    body = await request.json()
+    article_key = body.get("article_key", "")
+    answers = body.get("answers", [])
+
+    article_info = get_article_questions(article_key)
+    if not article_info:
+        raise HTTPException(status_code=400, detail=f"Unknown article key: {article_key}")
+    if not answers:
+        raise HTTPException(status_code=400, detail="No answers provided")
+
+    logger.info(
+        "Interview scoring — user=%s article=%s answers=%d",
+        user["sub"][:8], article_key, len(answers),
+    )
+    result = score_interview(
+        article_key=article_key,
+        article_title=article_info["title"],
+        article_requirement=article_info["requirement"],
+        questions_and_answers=answers,
+    )
+    return result
+
+
+@app.get("/evidence/questions/{article_key}", dependencies=[Depends(get_current_user)])
+async def get_interview_questions(article_key: str, _: dict = Depends(get_current_user)):
+    """Return the guided interview questions for a given article."""
+    from .interview_engine import get_article_questions
+    info = get_article_questions(article_key)
+    if not info:
+        raise HTTPException(status_code=404, detail=f"No interview available for: {article_key}")
+    return info
 
 
 @app.post("/ai-systems/{system_id}/certificate", dependencies=[Depends(get_current_user)])
