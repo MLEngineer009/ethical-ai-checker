@@ -433,7 +433,7 @@ HF_TOKEN=hf_... python ml/evaluate.py \<br>
     <div class="card-grid cols-3">
       <div class="card">
         <h3><span class="dot purple"></span> Web Frontend</h3>
-        <p>iOS-style glassmorphism single-page app. Tabs: Evaluate (proxy var callout, HITL override panel), History, Batch, Chat, Audit Log 🔐, Compliance 🏛️ (5-step wizard, "Try Demo — LoanSight AI" button, certificate), Settings + Billing. Mobile bottom nav bar with iOS Safari fixed-position fix. Served from Railway, also deployable on Vercel.</p>
+        <p>iOS-style glassmorphism single-page app. Tabs: Evaluate (proxy var guard, HITL override), History, Batch, Audit Log 🔐, Compliance 🏛️ (5-step wizard with AI evidence upload + guided interview, certificate), Dashboard 📊 (score trends, heatmap, deadline countdown), Settings + Billing. Mobile bottom nav bar with iOS Safari fixed-position fix.</p>
         <div class="stack-list">
           <span class="stack-pill">HTML5</span>
           <span class="stack-pill">Vanilla JS</span>
@@ -530,6 +530,18 @@ HF_TOKEN=hf_... python ml/evaluate.py \<br>
           Feedback Logger
           <small>/feedback endpoint</small>
         </div>
+        <div class="arch-box backend">
+          Evidence Analyzer
+          <small>evidence_analyzer.py</small>
+        </div>
+        <div class="arch-box backend">
+          Interview Engine
+          <small>interview_engine.py</small>
+        </div>
+        <div class="arch-box backend">
+          Notifications
+          <small>notifications.py · Resend</small>
+        </div>
       </div>
 
       <div class="arch-row"><div class="arch-arrow">↓</div></div>
@@ -584,7 +596,7 @@ HF_TOKEN=hf_... python ml/evaluate.py \<br>
       <div class="arch-row">
         <div class="arch-box db">
           PostgreSQL
-          <small>request_logs · audit_log · ai_systems · subscriptions</small>
+          <small>request_logs · audit_log · ai_systems · certificates · subscriptions · users · notification_log · compliance_snapshots · analysis_feedback · waitlist · organizations · org_members · api_keys</small>
         </div>
         <div class="arch-box db">
           In-Memory Sessions
@@ -787,6 +799,54 @@ HF_TOKEN=hf_... python ml/evaluate.py \<br>
             <td>Stripe webhook receiver — signature-verified; handles checkout.session.completed, subscription created/updated/deleted</td>
           </tr>
           <tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/proxy-variable-report</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Run standalone ECOA proxy variable scan on a context dict; returns proxy_variables_detected, compound_risks, severity summary</td>
+          </tr>
+          <tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/evidence/extract</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Upload PDF/TXT/MD/CSV + article_key; Claude extracts compliance evidence and returns notes, date, verdict (pass/partial/insufficient), confidence</td>
+          </tr>
+          <tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/evidence/interview</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Submit Q&amp;A answers for an article; Claude scores them and returns verdict, feedback, and list of gaps</td>
+          </tr>
+          <tr>
+            <td><span class="method get">GET</span></td>
+            <td><code>/evidence/questions/{article_key}</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Return the 4–5 structured interview questions for any of the 9 interviewable articles (Art. 4, 9, 10, 11, 17, 25, 27, 30, 33)</td>
+          </tr>
+          <tr>
+            <td><span class="method get">GET</span></td>
+            <td><code>/ai-systems/{id}/history</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Return ordered compliance snapshots for a system (for trend charts in the Dashboard)</td>
+          </tr>
+          <tr>
+            <td><span class="method get">GET</span></td>
+            <td><code>/dashboard/summary</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Return all registered systems with latest compliance scores + snapshot history for the Dashboard tab</td>
+          </tr>
+          <tr>
+            <td><span class="method get">GET</span></td>
+            <td><code>/notifications/unsubscribe</code></td>
+            <td><span class="badge pub">Public</span></td>
+            <td>One-click unsubscribe via token query param</td>
+          </tr>
+          <tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/notifications/preferences</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Update email notification opt-in/out preferences</td>
+          </tr>
+          <tr>
             <td><span class="method get">GET</span></td>
             <td><code>/health-check</code></td>
             <td><span class="badge pub">Public</span></td>
@@ -914,6 +974,9 @@ except ComplianceError as e:
           <li>Audit log: sha256 input hash, firewall verdict, proxy vars detected, HITL override reason</li>
           <li>AI system profiles (company name, risk tier, training data sources) — EU AI Act Art. 10</li>
           <li>Compliance certificates (certificate ID, articles status, issue date)</li>
+          <li>User email (Google-authenticated users only) — for compliance notifications</li>
+          <li>Notification log — deduplication of sent welcome/gap/countdown emails</li>
+          <li>Daily compliance score snapshots per system — powers Dashboard trend charts</li>
         </ul>
       </div>
       <div class="card">
@@ -1047,6 +1110,43 @@ CREATE TABLE subscriptions (
   current_period_end      TEXT,       -- ISO 8601 UTC
   created_at              TEXT NOT NULL,
   updated_at              TEXT NOT NULL
+);
+
+-- User profiles (email capture + notification preferences)
+CREATE TABLE users (
+  id               SERIAL PRIMARY KEY,
+  google_sub       TEXT UNIQUE NOT NULL,
+  email            TEXT,
+  name             TEXT,
+  unsubscribe_token TEXT UNIQUE,
+  notify_welcome   BOOLEAN DEFAULT TRUE,
+  notify_gap       BOOLEAN DEFAULT TRUE,
+  notify_countdown BOOLEAN DEFAULT TRUE,
+  created_at       TEXT,
+  updated_at       TEXT
+);
+
+-- Notification deduplication log
+CREATE TABLE notification_log (
+  id               SERIAL PRIMARY KEY,
+  google_sub       TEXT NOT NULL,
+  notification_type TEXT NOT NULL,  -- welcome | gap_reminder | countdown
+  system_id        INTEGER,         -- NULL for user-level notifications
+  sent_at          TEXT NOT NULL
+);
+
+-- Daily compliance score snapshots per system (for Dashboard trend charts)
+CREATE TABLE compliance_snapshots (
+  id               SERIAL PRIMARY KEY,
+  google_sub       TEXT NOT NULL,
+  system_id        INTEGER NOT NULL,
+  score            REAL NOT NULL,
+  verdict          TEXT NOT NULL,
+  passes           INTEGER NOT NULL,
+  partials         INTEGER NOT NULL,
+  fails            INTEGER NOT NULL,
+  articles_json    TEXT NOT NULL,   -- {art_key: status} snapshot
+  taken_at         TEXT NOT NULL    -- ISO UTC timestamp, one per day (deduped)
 );</code>
     </div>
   </section>
@@ -1164,6 +1264,8 @@ CREATE TABLE subscriptions (
           <span class="stack-pill">reportlab</span>
           <span class="stack-pill">python-dotenv</span>
           <span class="stack-pill">httpx</span>
+          <span class="stack-pill">resend</span>
+          <span class="stack-pill">pypdf</span>
         </div>
       </div>
       <div class="card">
@@ -1209,6 +1311,7 @@ CREATE TABLE subscriptions (
           <span class="stack-pill">httpx</span>
           <span class="stack-pill">GitHub Actions</span>
           <span class="stack-pill">Nixpacks</span>
+          <span class="stack-pill">Resend</span>
         </div>
       </div>
     </div>

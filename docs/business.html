@@ -192,6 +192,8 @@
           <li>No PII stored — anonymous metadata only, GDPR-safe by design</li>
           <li>VPC-deployable — sensitive data never leaves your infrastructure</li>
           <li>August 2026 EU AI Act deadline coverage out of the box</li>
+          <li><strong>AI-powered evidence collection</strong> — upload compliance docs (PDF, CSV) or take a guided interview; Claude validates evidence against the specific article's legal requirement</li>
+          <li><strong>Compliance dashboard</strong> — track score trends across all registered systems, article heatmap, EU AI Act deadline countdown</li>
         </ul>
       </div>
     </div>
@@ -355,67 +357,74 @@
           <tr>
             <th>Capability</th>
             <th>Pragma</th>
-            <th>Arthur / Fiddler / WhyLabs</th>
-            <th>Generic LLM Prompt</th>
+            <th>FairNow / Saidot / KomplyAI</th>
+            <th>Holistic AI / Credo AI</th>
             <th>Manual Compliance Review</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td><strong>Pre-execution blocking</strong></td>
-            <td style="color:var(--green);">Yes — decision halted before model call</td>
-            <td style="color:var(--red);">No — post-hoc monitoring only</td>
-            <td style="color:var(--red);">No</td>
+            <td><strong>Pre-execution decision blocking</strong></td>
+            <td style="color:var(--green);">Yes — decision halted before it executes</td>
+            <td style="color:var(--red);">No — compliance assessment only, no runtime firewall</td>
+            <td style="color:var(--red);">No — model inventory &amp; risk governance, no blocking</td>
             <td style="color:var(--red);">No</td>
           </tr>
           <tr>
             <td><strong>ECOA proxy variable guard</strong></td>
-            <td style="color:var(--green);">Yes — 20+ fields auto-detected, CFPB-cited</td>
+            <td style="color:var(--green);">Yes — 35+ fields auto-detected, compound risk detection, CFPB-cited</td>
             <td style="color:var(--red);">No</td>
             <td style="color:var(--red);">No</td>
             <td style="color:var(--red);">No</td>
           </tr>
           <tr>
             <td><strong>EU AI Act 15-article certificate</strong></td>
-            <td style="color:var(--green);">Yes — live checklist (Arts. 4–6, 9–15, 17, 25, 27, 30, 33) + PDF certificate</td>
-            <td style="color:var(--red);">No</td>
-            <td style="color:var(--red);">No</td>
+            <td style="color:var(--green);">Yes — live checklist + AI-validated evidence + PDF certificate</td>
+            <td style="color:var(--muted);">Partial — assessment without AI evidence validation</td>
+            <td style="color:var(--muted);">Partial — enterprise scope, no self-serve certificate</td>
             <td style="color:var(--muted);">Expensive consulting, months</td>
+          </tr>
+          <tr>
+            <td><strong>AI-powered evidence collection</strong></td>
+            <td style="color:var(--green);">Yes — document upload + guided interview scored by Claude</td>
+            <td style="color:var(--red);">No — self-declaration only</td>
+            <td style="color:var(--red);">No — checkbox-based</td>
+            <td style="color:var(--red);">No</td>
+          </tr>
+          <tr>
+            <td>Compliance dashboard + trend charts</td>
+            <td style="color:var(--green);">Yes — score snapshots, sparklines, heatmap, deadline countdown</td>
+            <td style="color:var(--muted);">Limited</td>
+            <td style="color:var(--muted);">Partial</td>
+            <td style="color:var(--red);">No</td>
           </tr>
           <tr>
             <td>Immutable audit trail</td>
             <td style="color:var(--green);">Yes — SHA-256 hashed, HITL override</td>
+            <td style="color:var(--red);">No</td>
             <td style="color:var(--muted);">Partial</td>
-            <td style="color:var(--red);">No</td>
             <td style="color:var(--muted);">Manual logs</td>
-          </tr>
-          <tr>
-            <td>Specific regulation citations</td>
-            <td style="color:var(--green);">Yes — ECOA, EEOC, GDPR, NYC LL144, CFPB</td>
-            <td style="color:var(--muted);">Statistical drift only</td>
-            <td style="color:var(--red);">No</td>
-            <td style="color:var(--muted);">Depends on reviewer</td>
           </tr>
           <tr>
             <td>API-first, one-line SDK integration</td>
             <td style="color:var(--green);">Yes — <code>Pragma(OpenAI(), ...)</code></td>
-            <td style="color:var(--muted);">Complex integration, weeks</td>
-            <td style="color:var(--muted);">Requires prompt engineering</td>
+            <td style="color:var(--red);">No</td>
+            <td style="color:var(--red);">No</td>
             <td style="color:var(--red);">No</td>
           </tr>
           <tr>
-            <td>Speed</td>
-            <td style="color:var(--green);">&lt;2 seconds</td>
-            <td style="color:var(--muted);">Real-time monitoring</td>
-            <td style="color:var(--muted);">Seconds (no structure)</td>
-            <td style="color:var(--red);">Days / weeks</td>
+            <td>Speed to first compliance check</td>
+            <td style="color:var(--green);">Under 5 minutes</td>
+            <td style="color:var(--muted);">Days (setup required)</td>
+            <td style="color:var(--muted);">Weeks (enterprise onboarding)</td>
+            <td style="color:var(--red);">Months</td>
           </tr>
           <tr>
-            <td>Privacy-safe (no PII stored)</td>
-            <td style="color:var(--green);">Yes — SHA-256 hash only</td>
-            <td style="color:var(--muted);">Varies</td>
-            <td style="color:var(--red);">Data sent to third-party API</td>
-            <td style="color:var(--muted);">Varies</td>
+            <td>Price</td>
+            <td style="color:var(--green);">Free / $299/mo / Enterprise</td>
+            <td style="color:var(--muted);">Enterprise only</td>
+            <td style="color:var(--muted);">Enterprise only ($500+/seat/mo)</td>
+            <td style="color:var(--muted);">$50K+ consulting</td>
           </tr>
         </tbody>
       </table>
@@ -452,7 +461,10 @@
           <li>SaaS web dashboard (Evaluate, History, Batch, Chat, Audit Log 🔐, Compliance 🏛️, Settings + Billing tabs)</li>
           <li>iOS + Android mobile app with Chat screen and firewall verdict banners</li>
           <li>Google SSO + guest sessions, org accounts, API key management</li>
-          <li>382 tests, all passing · 87% coverage</li>
+          <li><strong style="color:var(--text);">Email Notifications</strong> — welcome, compliance gap reminders (30-day cadence), EU AI Act countdown (weekly); Railway cron at 09:00 UTC; Resend integration</li>
+          <li><strong style="color:var(--text);">Compliance Dashboard</strong> — daily score snapshots, SVG sparkline trend charts (no JS libraries), 15-article heatmap, days-to-deadline countdown bar</li>
+          <li><strong style="color:var(--text);">AI-Powered Evidence Collection</strong> — document upload (PDF/TXT/MD/CSV → Claude validates against article requirement) and guided interview (5 Q&amp;A per article → Claude scores and surfaces gaps)</li>
+          <li>434 tests, all passing · 82.5% coverage</li>
         </ul>
       </div>
       <div class="card" style="border-color:rgba(124,111,224,0.3);">
