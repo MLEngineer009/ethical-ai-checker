@@ -20,6 +20,9 @@ export DATABASE_URL=postgresql://...               # PostgreSQL connection strin
 export STRIPE_SECRET_KEY=sk_live_...              # Stripe billing (optional)
 export STRIPE_WEBHOOK_SECRET=whsec_...            # Stripe webhook signature
 export STRIPE_GROWTH_PRICE_ID=price_...           # Stripe Growth plan price ID
+export RESEND_API_KEY=re_...                      # Resend API key (email notifications)
+export EMAIL_FROM="Pragma <notifications@usepragma.ai>"  # Sender address
+export APP_URL=https://yourdomain.com             # Production URL (used in email links)
 export ALLOWED_ORIGINS=https://yourdomain.com     # CORS allowlist (comma-separated)
 ```
 
@@ -303,6 +306,70 @@ Response:
 { "status": "override recorded", "audit_log_id": 42 }
 ```
 
+### Compliance Dashboard
+
+**`GET /dashboard/summary`** — Returns per-system compliance summaries for the dashboard view. Each system entry includes its latest snapshot and score history array for sparkline rendering.
+
+**`GET /ai-systems/{id}/history`** — Returns up to 30 ordered compliance snapshots for trend charts. Snapshots are automatically saved (once per day per system) whenever the compliance checklist is loaded.
+
+### Evidence Collection
+
+**`POST /evidence/extract`** — Upload a compliance document and extract structured evidence using Claude.
+
+```bash
+curl -X POST http://localhost:8000/evidence/extract \
+  -H "X-Session-Token: $TOKEN" \
+  -F "article_key=art_27" \
+  -F "file=@fria-report.pdf"
+```
+
+Response:
+```json
+{
+  "notes":       "FRIA conducted by external DPO in Q1 2026 covering credit scoring impact on protected groups.",
+  "date":        "2026-01-15",
+  "verdict":     "pass",
+  "explanation": "Document clearly evidences a completed FRIA with identified groups and mitigations.",
+  "confidence":  0.91
+}
+```
+
+**`POST /evidence/interview`** — Score structured interview answers for an article using Claude.
+
+```json
+{
+  "article_key": "art_27",
+  "answers": [
+    { "question": "Who conducted the FRIA?", "answer": "External DPO and legal counsel" },
+    { "question": "What groups were identified as potentially affected?", "answer": "Credit applicants aged 18-25 and non-EU nationals" }
+  ]
+}
+```
+
+Response:
+```json
+{
+  "notes":    "FRIA conducted by external DPO covering two affected groups with documented mitigations.",
+  "verdict":  "partial",
+  "feedback": "Strong on identified groups. Missing: specific mitigations implemented and next review date.",
+  "missing":  ["Mitigation measures implemented", "FRIA review schedule"]
+}
+```
+
+**`GET /evidence/questions/{article_key}`** — Return the guided interview questions for an article.
+
+Supported articles: `art_4`, `art_9`, `art_10`, `art_11`, `art_17`, `art_25`, `art_27`, `art_30`, `art_33`
+
+### Notifications
+
+**`GET /notifications/unsubscribe?token=`** — One-click unsubscribe (no auth required). Returns an HTML confirmation page.
+
+**`POST /notifications/preferences`** — Toggle email notifications on/off for the authenticated user.
+
+```json
+{ "enabled": false }
+```
+
 ### EU AI Act Data Lineage & Compliance Certificate
 
 **Register an AI system — `POST /ai-systems`**
@@ -398,10 +465,11 @@ The certificate record is stored in the `compliance_certificates` table and can 
 pytest                                 # all tests with coverage
 pytest tests/test_api.py -v            # API endpoint tests
 pytest tests/test_regulations.py -v   # regulatory mapping
-pytest tests/test_orgs_and_api_keys.py -v
+pytest tests/test_notifications.py -v # email notification logic
+pytest tests/test_evidence.py -v      # evidence upload + interview scoring
 ```
 
-Coverage: 87% across 382 tests.
+Coverage: 82.5% across 434 tests.
 
 ---
 
@@ -410,22 +478,31 @@ Coverage: 87% across 382 tests.
 ```
 backend/
   main.py                   # FastAPI app — all endpoints, firewall logic, chat, Stripe billing, rate limiting
-  database.py               # SQLAlchemy ORM — request logs, orgs, API keys, audit log, AI systems, certificates, subscriptions
+  database.py               # SQLAlchemy Core — all 13 tables: request_logs, audit_log, ai_systems, users,
+                            #   notification_log, compliance_snapshots, compliance_certificates, subscriptions, orgs, etc.
   llm_orchestrator.py       # Pragma model → Claude → OpenAI fallback chain
-  risk_detector.py          # Heuristic risk detection (bias, discrimination…) + proxy variable guard
-  regulations.py            # Risk flag → regulatory reference mapping
+  risk_detector.py          # Heuristic risk detection (bias, discrimination…) + ECOA proxy variable guard
+  regulations.py            # Risk flag → regulatory reference mapping (EU AI Act, EEOC, GDPR, CFPB, NYC LL144)
   report_generator.py       # PDF audit report generation
-  compliance_engine.py      # EU AI Act per-article compliance checklist computation (15 articles)
-  compliance_certificate.py # PDF compliance readiness certificate generation (SELF-ASSESSMENT ONLY watermark)
+  compliance_engine.py      # EU AI Act 15-article compliance checklist (pass/partial/fail per article)
+  compliance_certificate.py # PDF compliance certificate (SELF-ASSESSMENT ONLY watermark)
+  evidence_analyzer.py      # Claude-powered document extraction + interview scoring
+  interview_engine.py       # Per-article guided interview question sets (9 articles)
+  notifications.py          # Notification business logic (welcome, gap reminder, countdown + deduplication)
+  email_service.py          # Resend integration + branded HTML email templates
   questions.py              # Category-specific guided context questions
   auth.py                   # Google OAuth + guest session management
   custom_model.py           # Fine-tuned Pragma compliance model interface
 
 frontend/
-  index.html           # Single-file SaaS dashboard (vanilla JS)
-                       # Tabs: Evaluate, History, Batch, Chat, Audit Log (🔐), Compliance (🏛️), Settings
-                       # Includes: XSS-safe esc() helper, Stripe billing card, 5-step assessment wizard,
-                       # mobile bottom nav bar, "Try Demo — LoanSight AI" one-click demo button
+  index.html           # Single-file SaaS dashboard (vanilla JS, no build step)
+                       # Tabs: Evaluate, History, Batch, Audit (🔐), EU AI Act (🏛️), Dashboard (📊), Settings
+                       # Evidence boxes: 📄 Upload doc + 💬 Interview buttons per article
+                       # Dashboard: SVG sparklines, article heatmap, EU AI Act deadline countdown
+                       # Mobile: bottom nav, responsive grid, iOS Safari fixed-position fix
+
+send_notifications.py  # Railway cron entry point — daily email dispatch
+                       # Flags: --dry-run, --welcome-only, --user EMAIL
 
 mobile/
   App.tsx              # Tab navigator (Evaluate, History, Chat)
@@ -497,6 +574,9 @@ Connect the GitHub repo to Railway and it auto-deploys on every push to `main`.
 | `STRIPE_SECRET_KEY` | Billing | Stripe secret key (`sk_live_...`) |
 | `STRIPE_WEBHOOK_SECRET` | Billing | Stripe webhook signing secret (`whsec_...`) |
 | `STRIPE_GROWTH_PRICE_ID` | Billing | Price ID for the Growth plan (`price_...`) |
+| `RESEND_API_KEY` | Email | Resend API key for notification emails |
+| `EMAIL_FROM` | Email | Sender name + address e.g. `Pragma <notifications@usepragma.ai>` |
+| `APP_URL` | Email | Production URL for links inside emails |
 | `CUSTOM_MODEL_REPO` | Optional | HuggingFace repo for the Pragma model |
 | `HF_TOKEN` | Optional | HuggingFace API token |
 
