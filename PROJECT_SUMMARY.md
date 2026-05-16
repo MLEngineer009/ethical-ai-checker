@@ -87,8 +87,54 @@ Returns per-article `status` (pass/partial/fail), `overall_score` (0–1), and `
 
 **PDF Compliance Readiness Certificate (`POST /ai-systems/{id}/certificate`)** — Generates a PDF report (not a legal notified-body certification) containing a unique certificate ID (e.g. `PRAGMA-A3F9C2`), issue date, valid-until date (1 year), company/system info, risk tier, per-article checklist with evidence, and overall score. Stored in the `compliance_certificates` table.
 
-### 15. LLM Orchestration (`backend/llm_orchestrator.py`)
-Fallback chain: Custom Pragma model → Claude (extended thinking) → GPT-4o → heuristic mock.
+### 15. Email Notification System (`backend/notifications.py`, `backend/email_service.py`)
+
+Automated lifecycle emails via the Resend API. Three notification types, each deduplicated via the `notification_log` table:
+
+- **Welcome** — sent once on first Google login. Introduces Pragma, explains the 3-step setup, highlights the 1 Aug 2026 EU AI Act deadline.
+- **Gap reminder** — sent per AI system (30-day cadence) when FAIL or PARTIAL articles are unresolved. Lists the specific failing articles, the current score, and links to the app.
+- **Countdown** — sent weekly to users with at least one high-risk system. Shows days remaining to the EU AI Act enforcement deadline.
+
+**Architecture:** Railway cron job (`send_notifications.py`) runs at 09:00 UTC daily. Supports `--dry-run`, `--welcome-only`, and `--user EMAIL` flags for testing. All emails include a unique one-click unsubscribe token.
+
+**Endpoints:**
+- `GET /notifications/unsubscribe?token=` — one-click unsubscribe (no auth required)
+- `POST /notifications/preferences` — toggle email notifications on/off
+
+### 16. Compliance Dashboard (`backend/database.py`, `frontend/index.html`)
+
+A new Dashboard tab (📊) giving users an at-a-glance view of compliance health across all their registered AI systems.
+
+**Compliance snapshots:** Every call to `GET /ai-systems/{id}/compliance` auto-saves a score snapshot (once per day per system, deduplicated). These accumulate over time to power trend charts.
+
+**Dashboard components:**
+- **EU AI Act deadline bar** — days remaining to 1 Aug 2026, colour-coded by urgency (purple → amber → red)
+- **Summary stats** — total systems, average compliance score, ready count, total snapshots collected
+- **Per-system cards** — SVG sparkline trend chart (no JS libraries), score %, verdict badge, PASS/PARTIAL/FAIL pill counts, last assessed date
+- **15-article heatmap** — grid showing compliance status (✓/~/✗) per article per system at a glance
+
+**Endpoints:**
+- `GET /ai-systems/{id}/history` — ordered score snapshots for trend charts
+- `GET /dashboard/summary` — cross-system summary with latest scores and history arrays
+
+### 17. AI-Powered Evidence Collection (`backend/evidence_analyzer.py`, `backend/interview_engine.py`)
+
+Two mechanisms for verifiable, defensible compliance evidence — moving beyond self-declaration (checkbox + free text) to AI-validated proof.
+
+**Document upload (`POST /evidence/extract`):**
+- Accepts `.pdf`, `.txt`, `.md`, `.csv` files up to 10 MB
+- PDF text extracted via `pypdf`; plain text decoded directly
+- Claude reads the document excerpt (max 12,000 chars) in the context of the specific article's legal requirement
+- Returns: `notes` (1-2 sentence summary), `date` (extracted from document), `verdict` (pass/partial/insufficient), `explanation`, `confidence`
+- Frontend auto-fills the evidence fields and shows a coloured AI verdict badge (✓ AI: PASS 94%)
+
+**Guided interview (`POST /evidence/interview`):**
+- 4–5 article-specific questions per article, written against the actual legal requirement text
+- Questions available for: Art. 4, 9, 10, 11, 17, 25, 27, 30, 33
+- Claude scores the structured answers and returns: `verdict`, `notes` (auto-fills evidence field), `feedback`, `missing` (specific gaps to address)
+- Modal auto-closes on a PASS verdict
+
+**Why this matters:** Most competitor tools accept a checkbox as evidence. Pragma's evidence is validated by Claude against the actual article requirement — a FRIA document that doesn't actually address fundamental rights assessment will not score as PASS.
 
 ---
 
