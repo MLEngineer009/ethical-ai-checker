@@ -21,7 +21,7 @@ export STRIPE_SECRET_KEY=sk_live_...              # Stripe billing (optional)
 export STRIPE_WEBHOOK_SECRET=whsec_...            # Stripe webhook signature
 export STRIPE_GROWTH_PRICE_ID=price_...           # Stripe Growth plan price ID
 export RESEND_API_KEY=re_...                      # Resend API key (email notifications)
-export EMAIL_FROM="Pragma <notifications@usepragma.ai>"  # Sender address
+export EMAIL_FROM="Pragma <notifications@usepragma.co>"  # Sender address
 export APP_URL=https://yourdomain.com             # Production URL (used in email links)
 export ALLOWED_ORIGINS=https://yourdomain.com     # CORS allowlist (comma-separated)
 ```
@@ -575,7 +575,7 @@ Connect the GitHub repo to Railway and it auto-deploys on every push to `main`.
 | `STRIPE_WEBHOOK_SECRET` | Billing | Stripe webhook signing secret (`whsec_...`) |
 | `STRIPE_GROWTH_PRICE_ID` | Billing | Price ID for the Growth plan (`price_...`) |
 | `RESEND_API_KEY` | Email | Resend API key for notification emails |
-| `EMAIL_FROM` | Email | Sender name + address e.g. `Pragma <notifications@usepragma.ai>` |
+| `EMAIL_FROM` | Email | Sender name + address e.g. `Pragma <notifications@usepragma.co>` |
 | `APP_URL` | Email | Production URL for links inside emails |
 | `CUSTOM_MODEL_REPO` | Optional | HuggingFace repo for the Pragma model |
 | `HF_TOKEN` | Optional | HuggingFace API token |

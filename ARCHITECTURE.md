@@ -295,7 +295,7 @@ Railway cron (daily 09:00 UTC)
 | `OPENAI_API_KEY` | GPT-4o-mini fallback |
 | `GOOGLE_CLIENT_ID` | Google OAuth token verification |
 | `RESEND_API_KEY` | Transactional email |
-| `EMAIL_FROM` | Sender address e.g. `Pragma <notifications@usepragma.ai>` |
+| `EMAIL_FROM` | Sender address e.g. `Pragma <notifications@usepragma.co>` |
 | `APP_URL` | Production URL for email links |
 | `STRIPE_SECRET_KEY` | Billing |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signature verification |

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Cosmos AI — AI Compliance Infrastructure</title>
 <meta name="description" content="Cosmos AI builds AI compliance infrastructure for regulated industries. Pragma is our flagship product — a real-time AI decision firewall and EU AI Act compliance platform." />
+<link rel="canonical" href="https://getcosmosai.com" />
 <style>
   :root {
     --bg:        #ffffff;
@@ -397,7 +398,7 @@
 
 <!-- ── NAV ── -->
 <nav>
-  <a href="#" class="nav-logo">
+  <a href="https://getcosmosai.com" class="nav-logo">
     <div class="nav-logo-mark">C</div>
     Cosmos AI
   </a>
@@ -405,7 +406,7 @@
     <a href="#product">Product</a>
     <a href="#about">Company</a>
     <a href="#waitlist">Contact</a>
-    <a href="https://virtuous-fulfillment-production-05d3.up.railway.app" target="_blank" class="nav-cta">Try Pragma →</a>
+    <a href="https://usepragma.co" target="_blank" class="nav-cta">Try Pragma →</a>
   </div>
 </nav>
 
@@ -417,7 +418,7 @@
   <h1>AI compliance infrastructure for <em>regulated industries</em></h1>
   <p class="hero-sub">Cosmos AI builds the tools that let companies deploy AI safely and stay compliant — before regulators come knocking. Our flagship product Pragma screens every AI decision in real time.</p>
   <div class="hero-actions">
-    <a href="https://virtuous-fulfillment-production-05d3.up.railway.app" target="_blank" class="btn-primary">Try Pragma Free →</a>
+    <a href="https://usepragma.co" target="_blank" class="btn-primary">Try Pragma Free →</a>
     <a href="#waitlist" class="btn-secondary">Join Waitlist</a>
   </div>
   <div class="hero-stats">
@@ -492,7 +493,7 @@
           <h3>Pragma</h3>
           <p>A real-time compliance firewall that screens every AI decision against ECOA, EEOC, GDPR, and the EU AI Act — before it executes. Paired with a full 15-article EU AI Act compliance platform: evidence collection, score tracking, and regulator-ready PDF certificates.</p>
           <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:20px;">
-            <a href="https://virtuous-fulfillment-production-05d3.up.railway.app" target="_blank" class="btn-primary" style="font-size:14px; padding:9px 20px;">Try it free →</a>
+            <a href="https://usepragma.co" target="_blank" class="btn-primary" style="font-size:14px; padding:9px 20px;">Try it free →</a>
             <a href="architecture.html" target="_blank" class="btn-secondary" style="font-size:14px; padding:9px 20px;">Architecture docs</a>
           </div>
         </div>
@@ -736,13 +737,13 @@
       Cosmos AI LLC
     </div>
     <div class="footer-links">
-      <a href="#product">Pragma</a>
+      <a href="https://usepragma.co" target="_blank">Pragma</a>
       <a href="#about">Company</a>
       <a href="architecture.html">Architecture</a>
       <a href="business.html">Business</a>
       <a href="auditing.html">AI Auditing</a>
     </div>
-    <div class="footer-copy">© 2026 Cosmos AI LLC · Texas · All rights reserved</div>
+    <div class="footer-copy">© 2026 Cosmos AI LLC · <a href="https://getcosmosai.com" style="color:inherit;text-decoration:none;">getcosmosai.com</a> · Texas · All rights reserved</div>
   </div>
 </footer>
 
@@ -756,7 +757,7 @@
     const btn = document.querySelector('.waitlist-btn');
     btn.textContent = '…'; btn.disabled = true;
     try {
-      await fetch('https://virtuous-fulfillment-production-05d3.up.railway.app/waitlist', {
+      await fetch('https://usepragma.co/waitlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),

@@ -972,7 +972,7 @@ async def billing_portal(user: dict = Depends(get_current_user)):
     customer_id = sub.get("stripe_customer_id")
     if not customer_id:
         raise HTTPException(status_code=400, detail="No active subscription found")
-    origin = os.getenv("APP_URL", "https://virtuous-fulfillment-production-05d3.up.railway.app")
+    origin = os.getenv("APP_URL", "https://usepragma.co")
     portal = _stripe.billing_portal.Session.create(
         customer=customer_id,
         return_url=f"{origin}/",

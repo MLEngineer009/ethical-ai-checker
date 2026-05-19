@@ -2,7 +2,7 @@
 Email service — Resend integration with HTML templates.
 
 Set RESEND_API_KEY and EMAIL_FROM in environment.
-EMAIL_FROM defaults to "Pragma <notifications@usepragma.ai>".
+EMAIL_FROM defaults to "Pragma <notifications@usepragma.co>".
 
 Templates:
   welcome         — sent on first Google login
@@ -16,8 +16,8 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-_FROM    = os.getenv("EMAIL_FROM", "Pragma <notifications@usepragma.ai>")
-_APP_URL = os.getenv("APP_URL", "https://virtuous-fulfillment-production-05d3.up.railway.app")
+_FROM    = os.getenv("EMAIL_FROM", "Pragma <notifications@usepragma.co>")
+_APP_URL = os.getenv("APP_URL", "https://usepragma.co")
 
 # EU AI Act key deadlines
 _EUAIA_HIGH_RISK_DATE = "1 August 2026"
