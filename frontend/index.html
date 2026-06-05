@@ -1695,7 +1695,7 @@
   </div>
 
   <script>
-    const API = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:8000' : 'https://usepragma.co';
+    const API = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:8000' : window.location.origin;
 
     // XSS-safe escaping — always use esc() before inserting server strings into innerHTML
     function esc(s) {
