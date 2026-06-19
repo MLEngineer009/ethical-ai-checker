@@ -25,7 +25,7 @@ import anthropic
 from openai import OpenAI, RateLimitError as OpenAIRateLimitError
 
 from .custom_model import CustomModelClient
-from .prompts import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
+from .prompts import SYSTEM_PROMPT, build_user_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -38,11 +38,10 @@ _CLAUDE_FALLBACK_ERRORS = (
 _CLAUDE_CREDIT_MSG = "credit balance is too low"
 
 
-def _build_user_prompt(decision: str, context: Dict[str, Any]) -> str:
-    return USER_PROMPT_TEMPLATE.format(
-        decision=decision,
-        context=json.dumps(context)
-    )
+
+
+def _build_user_prompt(decision: str, context: Dict[str, Any], category: str = "other") -> str:
+    return build_user_prompt(decision, context, category)
 
 
 def _parse_response(text: str) -> Dict[str, Any]:
@@ -121,13 +120,27 @@ def _normalize(data: Dict[str, Any]) -> Dict[str, Any]:
             rec += "\n\n" + "\n".join(steps)
     rec = str(rec)
 
+    # --- Compliance checks ---
+    raw_checks = data.get("compliance_checks", [])
+    compliance_checks = []
+    if isinstance(raw_checks, list):
+        for c in raw_checks:
+            if isinstance(c, dict) and "regulation" in c and "status" in c:
+                compliance_checks.append({
+                    "regulation": str(c.get("regulation", "")),
+                    "article":    str(c.get("article", "")),
+                    "status":     str(c.get("status", "FLAG")).upper(),
+                    "reason":     str(c.get("reason", "")),
+                })
+
     return {
-        "kantian_analysis": kantian,
-        "utilitarian_analysis": utilitarian,
+        "kantian_analysis":      kantian,
+        "utilitarian_analysis":  utilitarian,
         "virtue_ethics_analysis": virtue,
-        "risk_flags": risk_flags,
-        "confidence_score": confidence,
-        "recommendation": rec,
+        "risk_flags":            risk_flags,
+        "confidence_score":      confidence,
+        "recommendation":        rec,
+        "compliance_checks":     compliance_checks,
     }
 
 
@@ -165,12 +178,12 @@ class LLMOrchestrator:
             else None
         )
 
-    def evaluate(self, decision: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    def evaluate(self, decision: str, context: Dict[str, Any], category: str = "other") -> Dict[str, Any]:
         """
         Returns analysis dict with an extra 'provider' key indicating
         which LLM was used: 'claude', 'openai', or 'mock'.
         """
-        user_prompt = _build_user_prompt(decision, context)
+        user_prompt = build_user_prompt(decision, context, category)
 
         # --- Try custom fine-tuned model (fastest, cheapest) ---
         if self._custom.available:
@@ -292,11 +305,12 @@ class LLMOrchestrator:
             )
 
         return {
-            "kantian_analysis": kantian,
-            "utilitarian_analysis": utilitarian,
+            "kantian_analysis":      kantian,
+            "utilitarian_analysis":  utilitarian,
             "virtue_ethics_analysis": virtue,
-            "risk_flags": flags,
-            "confidence_score": confidence,
-            "recommendation": recommendation,
-            "provider": "pragma",
+            "risk_flags":            flags,
+            "confidence_score":      confidence,
+            "recommendation":        recommendation,
+            "compliance_checks":     [],
+            "provider":              "pragma",
         }

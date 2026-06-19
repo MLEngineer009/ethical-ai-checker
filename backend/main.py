@@ -122,6 +122,7 @@ class EthicalAnalysis(BaseModel):
     recommendation: str
     provider: str = "unknown"
     regulatory_refs: list[Dict[str, Any]] = []
+    compliance_checks: list[Dict[str, Any]] = []
     # ── Firewall fields ────────────────────────────────────────────────────────
     should_block: bool = False         # True → decision should be blocked
     override_required: bool = False    # True → human review required before proceeding
@@ -714,7 +715,7 @@ def _compute_firewall(risk_flags: list, confidence_score: float, block_threshold
 
 def _run_evaluation(decision: str, context: Dict[str, Any], category: str, block_threshold: float = 0.8) -> Dict[str, Any]:
     """Shared evaluation logic used by single and batch endpoints."""
-    llm_analysis = orchestrator.evaluate(decision, context)
+    llm_analysis = orchestrator.evaluate(decision, context, category)
     risk_flags = detect_all_risks(decision, context)
     if llm_analysis.get("risk_flags"):
         risk_flags = sorted(list(set(risk_flags) | set(llm_analysis["risk_flags"])))
@@ -730,6 +731,7 @@ def _run_evaluation(decision: str, context: Dict[str, Any], category: str, block
         "recommendation":        llm_analysis.get("recommendation", ""),
         "provider":              llm_analysis.get("provider", "unknown"),
         "regulatory_refs":       get_regulatory_refs(risk_flags, category),
+        "compliance_checks":     llm_analysis.get("compliance_checks", []),
         **_compute_firewall(risk_flags, confidence_score, block_threshold),
     }
 

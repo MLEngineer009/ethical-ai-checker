@@ -1188,6 +1188,13 @@
               <div class="risk-wrap" id="riskWrap"></div>
             </div>
 
+            <!-- Compliance Checks -->
+            <div class="card" id="complianceChecksSection" style="display:none;">
+              <div class="card-title">Compliance Check Results</div>
+              <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">Each regulation applicable to this decision category was checked. FAIL = clear violation. FLAG = possible issue requiring human review. PASS = no violation found.</p>
+              <div id="complianceChecksList"></div>
+            </div>
+
             <!-- Regulatory refs -->
             <div class="card reg-section" id="regSection" style="display:none;">
               <div class="card-title">⚖️ Regulatory Exposure</div>
@@ -2031,7 +2038,7 @@
       document.getElementById('btnEvaluate').disabled = true;
       document.getElementById('providerBadge').style.display = 'none';
 
-      ['riskSection','confSection','recSection','regSection','proxySection','hitlSection','cardExplainability','dlSection'].forEach(id => {
+      ['riskSection','confSection','recSection','complianceChecksSection','regSection','proxySection','hitlSection','cardExplainability','dlSection'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.remove('visible');
       });
@@ -2127,6 +2134,33 @@
         });
       } else {
         wrap.innerHTML = '<div class="no-risk">✅ No significant risks detected</div>';
+      }
+
+      // Compliance checks
+      const ccSection = document.getElementById('complianceChecksSection');
+      const ccList    = document.getElementById('complianceChecksList');
+      ccList.innerHTML = '';
+      const checks = data.compliance_checks || [];
+      if (checks.length) {
+        ccSection.style.display = 'block';
+        checks.forEach(c => {
+          const st = (c.status || 'FLAG').toUpperCase();
+          const stColor = st === 'PASS' ? '#22c55e' : st === 'FAIL' ? '#ef4444' : '#f59e0b';
+          const stBg    = st === 'PASS' ? 'rgba(34,197,94,0.12)' : st === 'FAIL' ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)';
+          ccList.insertAdjacentHTML('beforeend', `
+            <div style="border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:12px 14px;margin-bottom:8px;">
+              <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;">
+                <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;color:${stColor};background:${stBg};white-space:nowrap;flex-shrink:0;">${st}</span>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">${c.regulation.split('—')[0].trim()}</div>
+                  <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">${c.article}</div>
+                  <div style="font-size:12px;color:var(--text-secondary);">${c.reason}</div>
+                </div>
+              </div>
+            </div>`);
+        });
+      } else {
+        ccSection.style.display = 'none';
       }
 
       // Regulatory refs
@@ -2257,7 +2291,7 @@
 
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          const order = ['riskSection','regSection','proxySection','recSection','confSection','hitlSection','cardExplainability','cfSection','dlSection'];
+          const order = ['riskSection','complianceChecksSection','regSection','proxySection','recSection','confSection','hitlSection','cardExplainability','cfSection','dlSection'];
           order.forEach((id, i) => {
             const el = document.getElementById(id);
             if (el && el.style.display !== 'none') setTimeout(() => el.classList.add('visible'), i * 80);
