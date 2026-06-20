@@ -1111,7 +1111,7 @@
               <div class="cat-pill" data-cat="healthcare">🏥 Healthcare</div>
               <div class="cat-pill" data-cat="policy">📋 Policy</div>
               <div class="cat-pill" data-cat="personal">👤 Personal</div>
-              <div class="cat-pill active" data-cat="other">💡 Other</div>
+              <div class="cat-pill" data-cat="other">💡 Other</div>
             </div>
           </div>
 
@@ -1712,8 +1712,8 @@
     }
     const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID_HERE';
 
-    let lastDecision = '', lastContext = {}, lastAnalysis = {}, lastCategory = 'other';
-    let selectedCategory = 'other';
+    let lastDecision = '', lastContext = {}, lastAnalysis = {}, lastCategory = 'hiring';
+    let selectedCategory = 'hiring';
     let sessionToken   = localStorage.getItem('token') || null;
     let sessionName    = localStorage.getItem('userName') || null;
     let sessionPic     = localStorage.getItem('userPic') || null;
@@ -1996,13 +1996,21 @@
 
     document.querySelectorAll('.cat-pill').forEach(pill => {
       pill.addEventListener('click', () => {
+        if (pill.dataset.cat === selectedCategory) return;
         document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
         pill.classList.add('active');
         selectedCategory = pill.dataset.cat;
         renderQuestions(selectedCategory);
         updateDecisionPlaceholder(selectedCategory);
+        // Clear previous results so they don't bleed into the new category
+        document.getElementById('resultsSection').style.display = 'none';
+        document.getElementById('decision').value = '';
       });
     });
+
+    // Activate the default category pill on load
+    const defaultPill = document.querySelector(`.cat-pill[data-cat="${selectedCategory}"]`);
+    if (defaultPill) defaultPill.classList.add('active');
 
     renderQuestions(selectedCategory);
     updateDecisionPlaceholder(selectedCategory);
