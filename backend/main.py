@@ -821,6 +821,175 @@ async def evaluate_batch(
     )
 
 
+# ── Disparate Impact Analysis (EEOC 4/5ths Rule) ─────────────────────────────
+
+@app.post("/disparity-analysis", dependencies=[Depends(get_current_user)])
+async def disparity_analysis(
+    file: UploadFile = File(...),
+    demographic_field: str = Form(...),
+    outcome_field: str = Form(...),
+    positive_outcome: str = Form("advance"),
+    user: dict = Depends(get_current_user),
+):
+    """
+    Upload a CSV of AI decisions and compute disparate impact statistics
+    per demographic group using the EEOC 4/5ths (80%) rule.
+
+    Required CSV columns:
+      - <demographic_field>  e.g. race, gender, age_group
+      - <outcome_field>      e.g. decision, result, ai_verdict
+      Any additional context columns are ignored.
+
+    Returns:
+      - selection_rates: selection rate per group
+      - disparity_ratios: ratio vs. highest-rate group
+      - violations: groups below the 80% threshold (EEOC 4/5ths rule)
+      - adverse_impact_found: bool
+      - total_decisions, total_groups
+    """
+    content = await file.read()
+    try:
+        text = content.decode("utf-8-sig")
+        reader = csv.DictReader(io.StringIO(text))
+        rows = list(reader)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid CSV file")
+
+    if not rows:
+        raise HTTPException(status_code=400, detail="CSV is empty")
+    if len(rows) > 5000:
+        raise HTTPException(status_code=400, detail="Disparity analysis limit is 5,000 rows")
+
+    if demographic_field not in rows[0]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Demographic field '{demographic_field}' not found in CSV. "
+                   f"Available columns: {', '.join(rows[0].keys())}",
+        )
+    if outcome_field not in rows[0]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Outcome field '{outcome_field}' not found in CSV. "
+                   f"Available columns: {', '.join(rows[0].keys())}",
+        )
+
+    # Count selections per demographic group
+    group_total: Dict[str, int] = {}
+    group_selected: Dict[str, int] = {}
+
+    for row in rows:
+        group = (row.get(demographic_field) or "unknown").strip()
+        outcome = (row.get(outcome_field) or "").strip().lower()
+        is_selected = positive_outcome.lower() in outcome or outcome in ("yes", "true", "1", "pass", "advance", "hired")
+
+        group_total[group] = group_total.get(group, 0) + 1
+        if is_selected:
+            group_selected[group] = group_selected.get(group, 0) + 1
+
+    if not group_total:
+        raise HTTPException(status_code=400, detail="No valid rows found")
+
+    # Compute selection rates
+    selection_rates: Dict[str, float] = {
+        g: round(group_selected.get(g, 0) / group_total[g], 4)
+        for g in group_total
+        if group_total[g] >= 5  # minimum sample size for statistical reliability
+    }
+
+    if not selection_rates:
+        raise HTTPException(
+            status_code=400,
+            detail="No groups have enough data (minimum 5 decisions per group required)",
+        )
+
+    highest_rate = max(selection_rates.values())
+    highest_group = max(selection_rates, key=lambda g: selection_rates[g])
+
+    # EEOC 4/5ths rule: a group is disparately impacted if its selection rate
+    # is less than 80% of the highest group's selection rate
+    THRESHOLD = 0.80
+    disparity_ratios: Dict[str, float] = {
+        g: round(rate / highest_rate, 4) if highest_rate > 0 else 1.0
+        for g, rate in selection_rates.items()
+    }
+    violations = [
+        {
+            "group":              g,
+            "selection_rate":     selection_rates[g],
+            "disparity_ratio":    disparity_ratios[g],
+            "vs_highest_group":   highest_group,
+            "total_in_group":     group_total[g],
+            "selected_in_group":  group_selected.get(g, 0),
+            "eeoc_threshold":     THRESHOLD,
+            "verdict":            "ADVERSE IMPACT",
+            "regulation":         "EEOC Uniform Guidelines on Employee Selection Procedures (29 CFR Part 1607) — 4/5ths rule",
+        }
+        for g, ratio in disparity_ratios.items()
+        if ratio < THRESHOLD and g != highest_group
+    ]
+
+    groups_detail = [
+        {
+            "group":             g,
+            "total":             group_total[g],
+            "selected":          group_selected.get(g, 0),
+            "selection_rate":    selection_rates[g],
+            "disparity_ratio":   disparity_ratios[g],
+            "status":            "ADVERSE IMPACT" if disparity_ratios[g] < THRESHOLD and g != highest_group else "OK",
+        }
+        for g in sorted(selection_rates, key=lambda x: selection_rates[x], reverse=True)
+    ]
+
+    adverse_impact_found = len(violations) > 0
+
+    logger.info(
+        "Disparity analysis — rows=%d groups=%d adverse_impact=%s user=%s",
+        len(rows), len(selection_rates), adverse_impact_found, user["sub"][:8],
+    )
+
+    return {
+        "adverse_impact_found":  adverse_impact_found,
+        "total_decisions":       len(rows),
+        "total_groups":          len(selection_rates),
+        "demographic_field":     demographic_field,
+        "outcome_field":         outcome_field,
+        "positive_outcome":      positive_outcome,
+        "highest_rate_group":    highest_group,
+        "highest_selection_rate": highest_rate,
+        "eeoc_threshold":        THRESHOLD,
+        "groups":                groups_detail,
+        "violations":            violations,
+        "regulatory_refs": [
+            {
+                "law":          "EEOC Uniform Guidelines on Employee Selection Procedures",
+                "citation":     "29 CFR Part 1607, Section 4D — 4/5ths (80%) rule",
+                "jurisdiction": "US",
+                "url":          "https://www.govinfo.gov/content/pkg/CFR-2021-title29-vol4/pdf/CFR-2021-title29-vol4-part1607.pdf",
+            },
+            {
+                "law":          "NYC Local Law 144 — Automated Employment Decision Tools",
+                "citation":     "Requires annual bias audit including impact ratio by race/sex and intersectional categories",
+                "jurisdiction": "US (New York City)",
+                "url":          "https://rules.cityofnewyork.us/rule/automated-employment-decision-tools-2/",
+            },
+            {
+                "law":          "EU AI Act Art. 9 — Risk Management System",
+                "citation":     "Requires testing AI systems for discriminatory outputs across demographic groups",
+                "jurisdiction": "EU",
+                "url":          "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=OJ:L_202401689",
+            },
+        ] if adverse_impact_found else [],
+        "summary": (
+            f"Adverse impact detected: {len(violations)} group(s) fall below the EEOC 80% threshold. "
+            f"Highest selection rate: {highest_group} at {highest_rate:.1%}. "
+            f"This pattern may constitute unlawful disparate impact under EEOC guidelines and NYC Local Law 144."
+            if adverse_impact_found else
+            f"No adverse impact detected across {len(selection_rates)} demographic groups. "
+            f"All groups are within the EEOC 80% threshold relative to the highest-rate group ({highest_group} at {highest_rate:.1%})."
+        ),
+    }
+
+
 # ── Counterfactual analysis ────────────────────────────────────────────────────
 
 class CounterfactualRequest(BaseModel):
