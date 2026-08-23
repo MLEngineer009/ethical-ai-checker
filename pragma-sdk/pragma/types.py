@@ -20,12 +20,34 @@ class RegulatoryRef:
 
 
 @dataclass
+class ComplianceCheck:
+    """Per-regulation PASS / FAIL / FLAG verdict returned by the Pragma engine."""
+    regulation: str
+    article: str
+    status: str   # "PASS" | "FAIL" | "FLAG"
+    reason: str
+
+    @property
+    def passed(self) -> bool:
+        return self.status == "PASS"
+
+    @property
+    def failed(self) -> bool:
+        return self.status == "FAIL"
+
+    @property
+    def flagged(self) -> bool:
+        return self.status == "FLAG"
+
+
+@dataclass
 class ComplianceResult:
     firewall_action: FirewallAction
     should_block: bool
     confidence_score: float
     risk_flags: list[str]
     recommendation: str
+    compliance_checks: list[ComplianceCheck] = field(default_factory=list)
     violations: list[RegulatoryRef] = field(default_factory=list)
     kantian_analysis: str = ""
     utilitarian_analysis: str = ""
@@ -33,6 +55,28 @@ class ComplianceResult:
     provider: str = ""
     audit_log_id: int | None = None
     proxy_variables_detected: list[dict[str, Any]] = field(default_factory=list)
+
+    @property
+    def failed_checks(self) -> list[ComplianceCheck]:
+        return [c for c in self.compliance_checks if c.failed]
+
+    @property
+    def flagged_checks(self) -> list[ComplianceCheck]:
+        return [c for c in self.compliance_checks if c.flagged]
+
+    @property
+    def passed_checks(self) -> list[ComplianceCheck]:
+        return [c for c in self.compliance_checks if c.passed]
+
+    @property
+    def overall_status(self) -> str:
+        if self.should_block:
+            return "BLOCK"
+        if self.failed_checks:
+            return "FAIL"
+        if self.flagged_checks:
+            return "FLAG"
+        return "PASS"
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "ComplianceResult":
@@ -46,12 +90,22 @@ class ComplianceResult:
             )
             for r in data.get("regulatory_refs", [])
         ]
+        checks = [
+            ComplianceCheck(
+                regulation=c.get("regulation", ""),
+                article=c.get("article", ""),
+                status=c.get("status", "FLAG"),
+                reason=c.get("reason", ""),
+            )
+            for c in data.get("compliance_checks", [])
+        ]
         return cls(
             firewall_action=FirewallAction(data.get("firewall_action", "allow")),
             should_block=data.get("should_block", False),
             confidence_score=data.get("confidence_score", 0.0),
             risk_flags=data.get("risk_flags", []),
             recommendation=data.get("recommendation", ""),
+            compliance_checks=checks,
             violations=violations,
             kantian_analysis=data.get("kantian_analysis", ""),
             utilitarian_analysis=data.get("utilitarian_analysis", ""),
@@ -65,7 +119,7 @@ class ComplianceResult:
 @dataclass
 class PragmaConfig:
     pragma_api_key: str
-    base_url: str = "https://api.pragma.ai"
+    base_url: str = "https://www.usepragma.co"
     policy_id: str = "default"
     mode: str = "block"  # "block" | "flag" | "audit"
     block_threshold: float = 0.8

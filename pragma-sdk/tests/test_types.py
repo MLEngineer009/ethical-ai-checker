@@ -81,7 +81,7 @@ class TestPragmaConfig:
         cfg = PragmaConfig(pragma_api_key="pragma_test")
         assert cfg.mode == "block"
         assert cfg.block_threshold == 0.8
-        assert cfg.base_url == "https://api.pragma.ai"
+        assert cfg.base_url == "https://www.usepragma.co"
 
     def test_trailing_slash_stripped(self):
         cfg = PragmaConfig(pragma_api_key="x", base_url="http://localhost:8000/")
