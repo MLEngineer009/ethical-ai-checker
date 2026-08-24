@@ -55,7 +55,7 @@ except ImportError:
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 PRAGMA_API_KEY = os.getenv("PRAGMA_API_KEY", "")
 PRAGMA_URL     = os.getenv("PRAGMA_API_URL", "https://www.usepragma.co")
-GEMINI_MODEL   = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+GEMINI_MODEL   = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 
 # Lending chatbot system prompt — sets Gemini's role
 SYSTEM_PROMPT = """You are an AI lending advisor for QuickLend, a consumer lending platform.

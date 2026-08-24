@@ -1494,7 +1494,7 @@ async def gemini_chat_demo(request: GeminiScenarioRequest, user: dict = Depends(
         import google.generativeai as genai
         genai.configure(api_key=gemini_key)
         model = genai.GenerativeModel(
-            model_name=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
+            model_name=os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
             system_instruction=_GEMINI_SYSTEM_PROMPT,
         )
         chat = model.start_chat(history=[])
