@@ -1491,14 +1491,16 @@ async def gemini_chat_demo(request: GeminiScenarioRequest, user: dict = Depends(
         raise HTTPException(status_code=503, detail="GEMINI_API_KEY not configured — add it to Railway env vars")
 
     try:
-        import google.generativeai as genai
-        genai.configure(api_key=gemini_key)
-        model = genai.GenerativeModel(
-            model_name=os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
-            system_instruction=_GEMINI_SYSTEM_PROMPT,
+        from google import genai as google_genai
+        client = google_genai.Client(api_key=gemini_key)
+        gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+        response = client.models.generate_content(
+            model=gemini_model,
+            config=google_genai.types.GenerateContentConfig(
+                system_instruction=_GEMINI_SYSTEM_PROMPT,
+            ),
+            contents=scenario["prompt"],
         )
-        chat = model.start_chat(history=[])
-        response = chat.send_message(scenario["prompt"])
         gemini_response = response.text.strip()
     except Exception as e:
         logger.error("Gemini call failed: %s", e)

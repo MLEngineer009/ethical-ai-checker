@@ -46,10 +46,10 @@ import httpx
 
 # ── optional dependency — informative error if missing ────────────────────────
 try:
-    import google.generativeai as genai
+    from google import genai
 except ImportError:
-    print("ERROR: google-generativeai not installed.")
-    print("  pip install google-generativeai")
+    print("ERROR: google-genai not installed.")
+    print("  pip install google-genai")
     sys.exit(1)
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
@@ -188,10 +188,15 @@ SCENARIOS: List[Dict[str, Any]] = [
 ]
 
 
-def call_gemini(model: genai.GenerativeModel, scenario: Dict) -> str:
+def call_gemini(client: genai.Client, scenario: Dict) -> str:
     """Send the prompt to Gemini and return its text response."""
-    chat = model.start_chat(history=[])
-    response = chat.send_message(scenario["prompt"])
+    response = client.models.generate_content(
+        model=GEMINI_MODEL,
+        config=genai.types.GenerateContentConfig(
+            system_instruction=SYSTEM_PROMPT,
+        ),
+        contents=scenario["prompt"],
+    )
     return response.text.strip()
 
 
@@ -348,25 +353,21 @@ def main() -> None:
     print("  Testing: ECOA · Fair Housing · FCRA · CFPB UDAAP · EU AI Act")
     print("="*70)
 
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel(
-        model_name=GEMINI_MODEL,
-        system_instruction=SYSTEM_PROMPT,
-    )
+    client = genai.Client(api_key=GEMINI_API_KEY)
 
     pragma_results = []
 
-    with httpx.Client() as client:
+    with httpx.Client() as http_client:
         for scenario in SCENARIOS:
             print(f"\nRunning {scenario['id']} — {scenario['label']}")
             print("  Step 1: Calling Gemini…", end="", flush=True)
 
             try:
-                gemini_text = call_gemini(model, scenario)
+                gemini_text = call_gemini(client, scenario)
                 print(" done")
 
                 print("  Step 2: Evaluating with Pragma…", end="", flush=True)
-                pragma_result = call_pragma(client, gemini_text, scenario)
+                pragma_result = call_pragma(http_client, gemini_text, scenario)
                 pragma_results.append(pragma_result)
                 print(" done")
 
