@@ -705,6 +705,31 @@
 
     /* ── Settings ── */
     .settings-section { margin-bottom: 20px; }
+    /* ── Demo / Scenarios tab ── */
+    .demo-uc-btn { background: var(--input-bg); border: 1px solid var(--input-border); border-radius: 20px; padding: 6px 14px; font-size: 12px; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all .15s; }
+    .demo-uc-btn:hover { border-color: var(--accent2); color: var(--text); }
+    .demo-uc-btn.active { background: rgba(99,85,212,0.15); border-color: var(--accent2); color: var(--accent2); }
+    .demo-scenario-card { background: var(--card-bg); border: 1px solid var(--input-border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px; transition: border-color .15s; }
+    .demo-scenario-card.running { border-color: var(--accent2); }
+    .demo-scenario-card.done-pass { border-left: 3px solid #22c55e; }
+    .demo-scenario-card.done-flag { border-left: 3px solid #f59e0b; }
+    .demo-scenario-card.done-fail { border-left: 3px solid #ef4444; }
+    .demo-sc-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .demo-sc-meta { flex: 1; min-width: 0; }
+    .demo-sc-id { font-size: 10px; font-weight: 700; letter-spacing: 1px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 2px; }
+    .demo-sc-label { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .demo-sc-decision { font-size: 12px; color: var(--text-muted); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .demo-sc-run { font-size: 11px; padding: 5px 12px; white-space: nowrap; flex-shrink: 0; }
+    .demo-sc-results { margin-top: 12px; border-top: 1px solid var(--input-border); padding-top: 12px; }
+    .demo-check-row { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+    .demo-check-badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 12px; white-space: nowrap; flex-shrink: 0; margin-top: 1px; }
+    .demo-check-badge.PASS { background: rgba(34,197,94,0.15); color: #22c55e; }
+    .demo-check-badge.FAIL { background: rgba(239,68,68,0.15); color: #ef4444; }
+    .demo-check-badge.FLAG { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .demo-check-text { flex: 1; min-width: 0; }
+    .demo-check-reg { font-size: 12px; font-weight: 600; color: var(--text); }
+    .demo-check-reason { font-size: 11px; color: var(--text-muted); line-height: 1.4; margin-top: 1px; }
+    .demo-proxy-row { font-size: 11px; color: #f59e0b; margin-bottom: 4px; }
     .settings-h { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
     .settings-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5; }
     .key-item { background: var(--input-bg); border: 1px solid var(--input-border); border-radius: var(--radius-sm); padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
@@ -1041,6 +1066,9 @@
         <button class="app-tab" onclick="switchTab('dashboard')">
           <span class="tab-icon">📊</span>Dashboard
         </button>
+        <button class="app-tab" onclick="switchTab('demo')">
+          <span class="tab-icon">🎯</span>Scenarios
+        </button>
         <button class="app-tab" onclick="switchTab('settings')">
           <span class="tab-icon">⚙️</span>Settings
         </button>
@@ -1080,6 +1108,10 @@
       <button class="mobile-nav-btn" onclick="switchTab('dashboard')" data-tab="dashboard">
         <span class="mnav-icon">📊</span>
         <span class="mnav-label">Dashboard</span>
+      </button>
+      <button class="mobile-nav-btn" onclick="switchTab('demo')" data-tab="demo">
+        <span class="mnav-icon">🎯</span>
+        <span class="mnav-label">Scenarios</span>
       </button>
       <button class="mobile-nav-btn" onclick="switchTab('settings')" data-tab="settings">
         <span class="mnav-icon">⚙️</span>
@@ -1638,6 +1670,28 @@
               Loading dashboard…
             </div>
           </div>
+        </div>
+
+        <!-- ── Demo / Scenarios tab ── -->
+        <div class="tab-pane" id="tab-demo">
+          <div class="card" style="margin-bottom:16px;">
+            <div class="card-title" style="margin-bottom:4px;">Live Compliance Scenarios</div>
+            <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px;">Run pre-built scenarios against the live Pragma engine. Each scenario mirrors a real AI system and shows which regulations pass or fail — the same evidence you'd hand a regulator.</p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;" id="demoUseCasePicker">
+              <button class="demo-uc-btn active" data-uc="bnpl" onclick="selectDemoUseCase('bnpl',this)">💳 Affirm BNPL — Financial</button>
+              <button class="demo-uc-btn" data-uc="hiring" onclick="selectDemoUseCase('hiring',this)">🧑‍💼 Workday — Hiring</button>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+            <div id="demoUCLabel" style="font-size:13px;font-weight:600;color:var(--text-muted);"></div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <span id="demoSummaryBadge" style="display:none;font-size:12px;padding:3px 10px;border-radius:20px;background:rgba(99,85,212,0.15);color:var(--accent2);border:1px solid rgba(99,85,212,0.25);"></span>
+              <button class="btn-sm" id="btnRunAll" onclick="runAllScenarios()">Run All Scenarios</button>
+            </div>
+          </div>
+
+          <div id="demoScenarioList"></div>
         </div>
 
         <!-- ── Settings tab ── -->
@@ -2821,11 +2875,193 @@
     }
 
     // ── Tab switching ──────────────────────────────────────────────────────
-    const PAGE_TITLES = { evaluate: 'Risk Screen', history: 'Decision History', batch: 'Batch Evaluation', audit: 'Regulatory Audit Trail', compliance: 'EU AI Act Readiness', dashboard: 'Compliance Dashboard', settings: 'Settings' };
+    const PAGE_TITLES = { evaluate: 'Risk Screen', history: 'Decision History', batch: 'Batch Evaluation', audit: 'Regulatory Audit Trail', compliance: 'EU AI Act Readiness', dashboard: 'Compliance Dashboard', demo: 'Live Scenarios', settings: 'Settings' };
+
+    // ── Demo / Scenarios tab ───────────────────────────────────────────────────
+    const DEMO_USE_CASES = {
+      bnpl: {
+        label: 'Affirm BNPL — AI Underwriting (8 scenarios)',
+        category: 'finance',
+        scenarios: [
+          { id:'AF-001', label:'Zip Code Redlining — South Side Chicago', decision:'Deny this BNPL application for a $650 electronics purchase. Applicant\'s zip code (60620) is flagged as high-default-risk geography. AI model assigns geo-risk score of 0.79 — above the 0.65 denial threshold.', context:{ purchase_amount:'$650', purchase_category:'electronics', zip_code:'60620', credit_score:'682', annual_income:'$52,000', employment_status:'full-time employed', payment_history:'0 missed payments', geo_risk_score:'0.79', adverse_action_notice:'not sent' } },
+          { id:'AF-002', label:'Income Source Discrimination — Public Assistance', decision:'Deny this BNPL application. Income source listed as public assistance / SNAP. AI model downweights non-employment income by 0.4x. Effective income for underwriting: $16,800 — below $20,000 minimum threshold.', context:{ purchase_amount:'$280', zip_code:'30318', credit_score:'644', annual_income:'$42,000', income_source:'public assistance / SNAP', income_weight_applied:'0.4x non-employment penalty', effective_income_used:'$16,800', underwriting_threshold:'$20,000 minimum', adverse_action_notice:'not sent' } },
+          { id:'AF-003', label:'International Remittance as Default Proxy', decision:'Deny this BNPL application. Bank transaction analysis shows regular international wire transfers ($400–$600/month to Mexico). Model classifies this as financial instability signal. AI risk score: 0.71.', context:{ purchase_amount:'$420', zip_code:'77007', credit_score:'671', annual_income:'$58,000', employment_status:'full-time employed', bank_signals_used:'international wire transfers to Mexico', transfer_frequency:'monthly $400-600', ai_risk_score:'0.71', adverse_action_notice:'not sent' } },
+          { id:'AF-004', label:'Employment Gap — Parental Leave Proxy', decision:'Deny this BNPL application. Employment history shows a 14-month gap (Jan 2022 – Mar 2023). AI model scores employment continuity at 0.34 — below 0.50 threshold. No distinction made for parental or medical leave.', context:{ purchase_amount:'$340', purchase_category:'baby / children\'s goods', zip_code:'98101', credit_score:'698', annual_income:'$74,000', employment_gap_months:'14', gap_period:'Jan 2022 – Mar 2023', gap_reason:'not captured', employment_continuity_score:'0.34', adverse_action_notice:'not sent' } },
+          { id:'AF-005', label:'Clean Approval — All Checks Should Pass', decision:'Approve this BNPL application for a $480 purchase. Credit score 720, verified employment, no missed payments. Decision based solely on creditworthiness factors. Adverse action notice process in place if denied.', context:{ purchase_amount:'$480', zip_code:'78701', credit_score:'720', annual_income:'$86,000', income_source:'salary — W2 verified', employment_status:'full-time employed, 4 years tenure', payment_history:'0 missed payments — 18 months', factors_used:'credit score, income, payment history', adverse_action_notice:'process in place', human_review_available:'yes' } },
+          { id:'AF-006', label:'Grocery Store Spending as Race Proxy', decision:'Deny this BNPL application. Open banking analysis flags spending at Save-A-Lot, Dollar Tree, and Western Union as low financial resilience signals. AI assigns financial wellness score of 0.29 — below 0.40 approval floor.', context:{ purchase_amount:'$195', zip_code:'48227', credit_score:'638', annual_income:'$38,000', employment_status:'part-time employed', open_banking_signals:'Save-A-Lot, Dollar Tree, Western Union', financial_wellness_score:'0.29', approval_floor:'0.40', adverse_action_notice:'not sent' } },
+          { id:'AF-007', label:'No Adverse Action Notice — FCRA Violation', decision:'Deny this BNPL application for a $510 purchase. Credit score 601, debt-to-income ratio 48% — above 40% threshold. Application denied automatically with no written adverse action notice sent to the applicant.', context:{ purchase_amount:'$510', credit_score:'601', annual_income:'$45,000', debt_to_income_ratio:'48%', dti_threshold:'40%', denial_factors:'credit score, DTI ratio', adverse_action_notice:'NOT sent — automated denial with no notice', consumer_report_used:'yes — Experian' } },
+          { id:'AF-008', label:'EU Deployment — No GDPR Art. 22 Compliance', decision:'Deny this BNPL application from a UK-based applicant using the same US underwriting model with no modification. No human review option offered. Applicant not informed that an automated system made the decision or given the right to contest it.', context:{ purchase_amount:'£380', applicant_location:'United Kingdom', credit_score:'659', annual_income:'£41,000', model_used:'US underwriting model — no EU adaptation', gdpr_art22_disclosure:'not provided', right_to_human_review:'not offered', eu_ai_act_conformity_assessment:'not completed', adverse_action_notice:'not sent' } },
+        ]
+      },
+      hiring: {
+        label: 'Workday Hiring AI — Screening (6 scenarios)',
+        category: 'hiring',
+        scenarios: [
+          { id:'WD-001', label:'Age Proxy — 42 Years Experience Filtered Out', decision:'Reject this resume. The applicant\'s graduation year (1982) and 40+ years of work history place them outside the target profile. AI confidence score: 0.31 — below 0.50 advancement threshold.', context:{ graduation_year:'1982', years_of_experience:'42', highest_degree:'Bachelor\'s', role_applied:'Senior Software Engineer', ai_confidence_score:'0.31', screening_tool:'Workday AI Recruiting', applicant_location:'New York, NY', bias_audit_on_file:'no', human_review_offered:'no' } },
+          { id:'WD-002', label:'Medical Leave Gap — Disability Proxy Rejection', decision:'Reject this resume. The applicant has a 3-year employment gap (2019–2022) with no explanation. AI confidence score: 0.28. Resume does not meet continuity-of-employment threshold.', context:{ employment_gap_years:'3', gap_period:'2019-2022', gap_reason_disclosed:'medical leave', role_applied:'Marketing Manager', years_of_experience:'12', ai_confidence_score:'0.28', screening_tool:'Workday AI Recruiting', human_review_offered:'no' } },
+          { id:'WD-003', label:'HBCU Proxy — School Name Used as Race Signal', decision:'Rank this candidate in the bottom quartile. Alma mater (Howard University) not in preferred institution list. AI score: 0.38. Does not advance to phone screen.', context:{ university_attended:'Howard University', gpa:'3.9', years_of_experience:'5', role_applied:'Data Analyst', degree:'Computer Science', ai_confidence_score:'0.38', preferred_schools_list:'MIT, Stanford, Carnegie Mellon, UC Berkeley', screening_tool:'Workday AI Recruiting', human_review_offered:'no' } },
+          { id:'WD-004', label:'EU Deployment — No Conformity Assessment', decision:'Screen and rank all EU applicants using the same Workday AI model. No conformity assessment completed. Candidates not notified that automated screening is being used.', context:{ applicant_geography:'European Union', conformity_assessment_status:'not started', transparency_notice_sent:'no', human_oversight_assigned:'no', role_applied:'Operations Analyst', eu_ai_act_registration:'not registered', data_governance_policy:'US policy only' } },
+          { id:'WD-005', label:'Clean Scenario — Should PASS All Checks', decision:'Advance this candidate to the phone screen stage. Strong skills match (Python, SQL, 6 years relevant experience). Human recruiter will review before any final decision.', context:{ years_of_experience:'6', relevant_skills:'Python, SQL, data modeling', graduation_year:'2018', role_applied:'Data Engineer', ai_confidence_score:'0.84', human_review_scheduled:'yes', transparency_notice_sent:'yes', bias_audit_on_file:'yes', screening_tool:'Workday AI Recruiting', applicant_location:'Austin, TX' } },
+          { id:'WD-006', label:'Zip Code + Income Proxy — Intersectional Risk', decision:'Reject this applicant for the remote financial analyst role. Prior compensation history ($38,000) is below the expected salary band. Home zip code 60620 flagged as non-target geography.', context:{ prior_compensation:'$38,000', zip_code:'60620', role_applied:'Financial Analyst', years_of_experience:'4', graduation_year:'2020', ai_confidence_score:'0.29', screening_tool:'Workday AI Recruiting', human_review_offered:'no' } },
+        ]
+      }
+    };
+
+    let _demoUC = 'bnpl';
+    let _demoRunning = false;
+
+    function selectDemoUseCase(uc, btn) {
+      _demoUC = uc;
+      document.querySelectorAll('.demo-uc-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderDemoScenarios();
+    }
+
+    function renderDemoScenarios() {
+      const uc = DEMO_USE_CASES[_demoUC];
+      document.getElementById('demoUCLabel').textContent = uc.label;
+      document.getElementById('demoSummaryBadge').style.display = 'none';
+      const list = document.getElementById('demoScenarioList');
+      list.innerHTML = '';
+      uc.scenarios.forEach((sc, idx) => {
+        list.insertAdjacentHTML('beforeend', `
+          <div class="demo-scenario-card" id="demoCard_${idx}">
+            <div class="demo-sc-header">
+              <div class="demo-sc-meta">
+                <div class="demo-sc-id">${sc.id}</div>
+                <div class="demo-sc-label">${sc.label}</div>
+                <div class="demo-sc-decision">${sc.decision}</div>
+              </div>
+              <button class="btn-sm demo-sc-run" id="demoRunBtn_${idx}" onclick="runScenario(${idx})">Run</button>
+            </div>
+            <div class="demo-sc-results" id="demoResults_${idx}" style="display:none;"></div>
+          </div>`);
+      });
+    }
+
+    async function runScenario(idx) {
+      const uc = DEMO_USE_CASES[_demoUC];
+      const sc = uc.scenarios[idx];
+      const card = document.getElementById(`demoCard_${idx}`);
+      const btn  = document.getElementById(`demoRunBtn_${idx}`);
+      const results = document.getElementById(`demoResults_${idx}`);
+
+      card.className = 'demo-scenario-card running';
+      btn.disabled = true;
+      btn.textContent = '…';
+      results.style.display = 'none';
+
+      try {
+        const res = await fetch(`${API}/evaluate-decision`, {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({ decision: sc.decision, context: sc.context, category: uc.category })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        renderScenarioResult(idx, data);
+      } catch(e) {
+        results.innerHTML = `<div style="font-size:12px;color:#ef4444;">Error: ${esc(e.message)}</div>`;
+        results.style.display = 'block';
+        card.className = 'demo-scenario-card done-fail';
+        btn.disabled = false;
+        btn.textContent = 'Retry';
+      }
+    }
+
+    function renderScenarioResult(idx, data) {
+      const card    = document.getElementById(`demoCard_${idx}`);
+      const btn     = document.getElementById(`demoRunBtn_${idx}`);
+      const results = document.getElementById(`demoResults_${idx}`);
+
+      const checks  = data.compliance_checks || [];
+      const proxies = data.proxy_variables_detected || [];
+      const action  = (data.firewall_action || 'allow').toUpperCase();
+      const hasFail = checks.some(c => c.status === 'FAIL');
+      const hasFlag = checks.some(c => c.status === 'FLAG');
+
+      card.className = 'demo-scenario-card ' + (hasFail || action === 'BLOCK' ? 'done-fail' : hasFlag ? 'done-flag' : 'done-pass');
+
+      let html = '';
+
+      // Overall verdict row
+      const icon = action === 'BLOCK' ? '🚫' : hasFail ? '❌' : hasFlag ? '⚠️' : '✅';
+      const verdict = action === 'BLOCK' ? 'BLOCKED' : hasFail ? 'FAIL' : hasFlag ? 'FLAG' : 'PASS';
+      const conf = Math.round((data.confidence_score || 0) * 100);
+      html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:15px;">${icon}</span>
+        <span style="font-size:13px;font-weight:700;color:var(--text);">${verdict}</span>
+        <span style="font-size:11px;color:var(--text-muted);">${conf}% risk confidence · ${data.risk_flags?.length || 0} risk flag${(data.risk_flags?.length || 0) !== 1 ? 's' : ''}</span>
+      </div>`;
+
+      // Proxy variables
+      if (proxies.length) {
+        html += `<div style="margin-bottom:8px;">`;
+        proxies.slice(0,3).forEach(p => {
+          html += `<div class="demo-proxy-row">⚠ ECOA proxy: <strong>${esc(p.field)}</strong> = ${esc(String(p.value || ''))} — ${esc(p.mechanism || '')} [${esc(p.severity || '')}]</div>`;
+        });
+        html += `</div>`;
+      }
+
+      // Compliance checks
+      if (checks.length) {
+        checks.forEach(c => {
+          html += `<div class="demo-check-row">
+            <span class="demo-check-badge ${c.status}">${c.status}</span>
+            <div class="demo-check-text">
+              <div class="demo-check-reg">${esc(c.regulation.split('—')[0].trim())}</div>
+              ${c.article ? `<div style="font-size:10px;color:var(--text-subtle);margin-bottom:2px;">${esc(c.article)}</div>` : ''}
+              <div class="demo-check-reason">${esc(c.reason)}</div>
+            </div>
+          </div>`;
+        });
+      } else {
+        html += `<div style="font-size:12px;color:var(--text-muted);">Risk flags: ${data.risk_flags?.join(', ') || 'none'}<br><em>Set ANTHROPIC_API_KEY in Railway for per-regulation verdicts.</em></div>`;
+      }
+
+      // Recommendation
+      if (data.recommendation) {
+        html += `<div style="margin-top:10px;padding:8px 10px;background:rgba(99,85,212,0.08);border-radius:6px;font-size:12px;color:var(--text-secondary);border-left:2px solid var(--accent2);">${esc(data.recommendation)}</div>`;
+      }
+
+      results.innerHTML = html;
+      results.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Re-run';
+    }
+
+    async function runAllScenarios() {
+      if (_demoRunning) return;
+      _demoRunning = true;
+      const btn = document.getElementById('btnRunAll');
+      btn.disabled = true;
+      btn.textContent = 'Running…';
+      document.getElementById('demoSummaryBadge').style.display = 'none';
+
+      const uc = DEMO_USE_CASES[_demoUC];
+      let pass = 0, fail = 0, flag = 0;
+
+      for (let i = 0; i < uc.scenarios.length; i++) {
+        await runScenario(i);
+        // tally after each
+        const card = document.getElementById(`demoCard_${i}`);
+        if (card.classList.contains('done-pass')) pass++;
+        else if (card.classList.contains('done-fail')) fail++;
+        else flag++;
+        await new Promise(r => setTimeout(r, 300));
+      }
+
+      const badge = document.getElementById('demoSummaryBadge');
+      badge.textContent = `✅ ${pass} pass · ⚠️ ${flag} flag · ❌ ${fail} fail`;
+      badge.style.display = 'inline-block';
+      btn.disabled = false;
+      btn.textContent = 'Run All Scenarios';
+      _demoRunning = false;
+    }
 
     function switchTab(name) {
       document.querySelectorAll('.app-tab').forEach((t,i) => {
-        const names = ['evaluate','history','batch','audit','compliance','dashboard','settings'];
+        const names = ['evaluate','history','batch','audit','compliance','dashboard','demo','settings'];
         t.classList.toggle('active', names[i] === name);
       });
       document.querySelectorAll('.mobile-nav-btn').forEach(b => {
@@ -2837,6 +3073,7 @@
       window.scrollTo(0, 0);
       if (name === 'history') loadHistory();
       if (name === 'audit') loadAuditLog();
+      if (name === 'demo') { renderDemoScenarios(); }
       if (name === 'compliance') loadComplianceTab();
       if (name === 'dashboard') loadDashboard();
       if (name === 'settings') { loadOrgs(); loadAPIKeys(); loadBilling(); }
