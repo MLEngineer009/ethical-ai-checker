@@ -89,7 +89,7 @@ def get_current_user(
     if token.startswith("pragma_"):
         key_info = database.verify_api_key(token)
         if key_info:
-            return {"sub": key_info["anon_id"], "name": "API", "picture": "", "via_api_key": True}
+            return {"sub": key_info["anon_id"], "name": "API", "picture": "", "via_api_key": True, "api_key_id": key_info["key_id"]}
     raise HTTPException(status_code=401, detail="Invalid or expired session")
 
 
@@ -284,6 +284,16 @@ async def evaluate_decision(
 
     analysis["audit_log_id"] = audit_log_id
     analysis["proxy_variables_detected"] = proxy_report["proxy_variables_detected"]
+
+    database.log_api_call(
+        google_sub=user["sub"],
+        category=category,
+        firewall_action=analysis["firewall_action"],
+        confidence_score=analysis["confidence_score"],
+        compliance_checks=analysis.get("compliance_checks", []),
+        api_key_id=user.get("api_key_id"),
+    )
+
     return EthicalAnalysis(**analysis)
 
 
@@ -482,6 +492,12 @@ async def get_compliance_history(system_id: int, user: dict = Depends(get_curren
 async def get_dashboard_summary(user: dict = Depends(get_current_user)):
     """Return compliance summary across all of the user's AI systems."""
     return database.get_dashboard_summary(google_sub=user["sub"])
+
+
+@app.get("/dashboard/api-traffic", dependencies=[Depends(get_current_user)])
+async def get_api_traffic(user: dict = Depends(get_current_user)):
+    """Return API call logs and traffic stats for the dashboard."""
+    return database.get_api_usage_stats(google_sub=user["sub"])
 
 
 # ── Evidence collection endpoints ─────────────────────────────────────────────

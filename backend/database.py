@@ -135,6 +135,20 @@ api_keys = Table(
     Column("active",      Integer, nullable=False, server_default="1"),  # 1=active
 )
 
+api_call_logs = Table(
+    "api_call_logs", _meta,
+    Column("id",              Integer, primary_key=True, autoincrement=True),
+    Column("anon_id",         String,  nullable=False),
+    Column("api_key_id",      Integer, nullable=True),   # null = web UI call
+    Column("timestamp",       String,  nullable=False),
+    Column("category",        String,  nullable=False, server_default="other"),
+    Column("firewall_action", String,  nullable=False, server_default="allow"),
+    Column("confidence_score", Float,  nullable=False, server_default="0"),
+    Column("fail_count",      Integer, nullable=False, server_default="0"),
+    Column("flag_count",      Integer, nullable=False, server_default="0"),
+    Column("pass_count",      Integer, nullable=False, server_default="0"),
+)
+
 # ── EU AI Act Data Lineage ─────────────────────────────────────────────────────
 
 ai_systems = Table(
@@ -1275,3 +1289,112 @@ def get_dashboard_summary(google_sub: str) -> Dict:
             "history":     [{"score": h["score"], "taken_at": h["taken_at"]} for h in history],
         })
     return {"systems": result}
+
+
+# ── API Call Logging ──────────────────────────────────────────────────────────
+
+def log_api_call(
+    google_sub: str,
+    category: str,
+    firewall_action: str,
+    confidence_score: float,
+    compliance_checks: list,
+    api_key_id: int | None = None,
+) -> None:
+    """Log one /evaluate-decision call for the API traffic dashboard."""
+    aid = anon_id(google_sub)
+    checks = compliance_checks or []
+    fail_count = sum(1 for c in checks if c.get("status") == "FAIL")
+    flag_count = sum(1 for c in checks if c.get("status") == "FLAG")
+    pass_count = sum(1 for c in checks if c.get("status") == "PASS")
+    try:
+        with _engine.begin() as conn:
+            conn.execute(api_call_logs.insert().values(
+                anon_id=aid,
+                api_key_id=api_key_id,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                category=category,
+                firewall_action=firewall_action,
+                confidence_score=float(confidence_score or 0),
+                fail_count=fail_count,
+                flag_count=flag_count,
+                pass_count=pass_count,
+            ))
+    except Exception:
+        logger.exception("Failed to log API call")
+
+
+def get_api_usage_stats(google_sub: str) -> Dict[str, Any]:
+    """Return API traffic stats for the dashboard."""
+    from datetime import timedelta
+    aid = anon_id(google_sub)
+    now = datetime.now(timezone.utc)
+    today_start  = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    week_start   = (now - timedelta(days=7)).isoformat()
+    month_start  = (now - timedelta(days=30)).isoformat()
+
+    with _engine.connect() as conn:
+        rows = conn.execute(
+            api_call_logs.select()
+            .where(api_call_logs.c.anon_id == aid)
+            .order_by(api_call_logs.c.timestamp.desc())
+        ).fetchall()
+
+    if not rows:
+        return {
+            "total_calls": 0, "calls_today": 0, "calls_7d": 0, "calls_30d": 0,
+            "by_action": {"allow": 0, "block": 0, "override_required": 0},
+            "by_verdict": {"pass": 0, "fail": 0, "flag": 0},
+            "calls_by_day": [],
+            "recent_calls": [],
+        }
+
+    total   = len(rows)
+    today   = sum(1 for r in rows if r.timestamp >= today_start)
+    week    = sum(1 for r in rows if r.timestamp >= week_start)
+    month   = sum(1 for r in rows if r.timestamp >= month_start)
+
+    by_action = {"allow": 0, "block": 0, "override_required": 0}
+    by_verdict = {"pass": 0, "fail": 0, "flag": 0}
+    for r in rows:
+        action = r.firewall_action.lower()
+        by_action[action] = by_action.get(action, 0) + 1
+        if r.fail_count > 0:
+            by_verdict["fail"] += 1
+        elif r.flag_count > 0:
+            by_verdict["flag"] += 1
+        else:
+            by_verdict["pass"] += 1
+
+    # Calls per day for last 30 days
+    from collections import defaultdict
+    day_counts: Dict[str, int] = defaultdict(int)
+    for r in rows:
+        if r.timestamp >= month_start:
+            day = r.timestamp[:10]
+            day_counts[day] += 1
+    calls_by_day = [{"date": d, "count": c} for d, c in sorted(day_counts.items())]
+
+    recent = [
+        {
+            "timestamp":       r.timestamp,
+            "category":        r.category,
+            "firewall_action": r.firewall_action,
+            "confidence_score": r.confidence_score,
+            "fail_count":      r.fail_count,
+            "flag_count":      r.flag_count,
+            "pass_count":      r.pass_count,
+        }
+        for r in rows[:20]
+    ]
+
+    return {
+        "total_calls":  total,
+        "calls_today":  today,
+        "calls_7d":     week,
+        "calls_30d":    month,
+        "by_action":    by_action,
+        "by_verdict":   by_verdict,
+        "calls_by_day": calls_by_day,
+        "recent_calls": recent,
+    }

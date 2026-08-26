@@ -254,3 +254,88 @@ class TestVerifyApiKey:
         created = db.create_api_key("anon-user", "Anon Key")
         result = db.verify_api_key(created["key"])
         assert "anon_id" in result
+
+    def test_verify_returns_key_id(self):
+        created = db.create_api_key("keyid-user", "KeyID Key")
+        result = db.verify_api_key(created["key"])
+        assert "key_id" in result
+        assert result["key_id"] == created["key_id"]
+
+
+class TestLogApiCall:
+    def test_log_creates_entry(self):
+        db.log_api_call(
+            google_sub="log-user-1",
+            category="finance",
+            firewall_action="block",
+            confidence_score=0.85,
+            compliance_checks=[
+                {"status": "FAIL", "regulation": "ECOA"},
+                {"status": "FLAG", "regulation": "FCRA"},
+                {"status": "PASS", "regulation": "FHA"},
+            ],
+        )
+        stats = db.get_api_usage_stats("log-user-1")
+        assert stats["total_calls"] == 1
+
+    def test_log_counts_verdicts_correctly(self):
+        db.log_api_call(
+            google_sub="log-user-2",
+            category="finance",
+            firewall_action="allow",
+            confidence_score=0.2,
+            compliance_checks=[
+                {"status": "PASS", "regulation": "ECOA"},
+                {"status": "PASS", "regulation": "FCRA"},
+            ],
+        )
+        stats = db.get_api_usage_stats("log-user-2")
+        assert stats["by_verdict"]["pass"] == 1
+        assert stats["by_verdict"]["fail"] == 0
+
+    def test_log_tracks_fail_verdict(self):
+        db.log_api_call(
+            google_sub="log-user-3",
+            category="hiring",
+            firewall_action="block",
+            confidence_score=0.9,
+            compliance_checks=[{"status": "FAIL", "regulation": "EEOC"}],
+        )
+        stats = db.get_api_usage_stats("log-user-3")
+        assert stats["by_verdict"]["fail"] == 1
+
+    def test_log_with_api_key_id(self):
+        created = db.create_api_key("log-key-user", "Log Key")
+        db.log_api_call(
+            google_sub="log-key-user",
+            category="finance",
+            firewall_action="allow",
+            confidence_score=0.3,
+            compliance_checks=[],
+            api_key_id=created["key_id"],
+        )
+        stats = db.get_api_usage_stats("log-key-user")
+        assert stats["total_calls"] == 1
+
+    def test_empty_stats_for_new_user(self):
+        stats = db.get_api_usage_stats("brand-new-user-xyz")
+        assert stats["total_calls"] == 0
+        assert stats["calls_today"] == 0
+        assert stats["recent_calls"] == []
+
+    def test_stats_isolate_by_user(self):
+        db.log_api_call("isolated-user-a", "finance", "allow", 0.1, [])
+        db.log_api_call("isolated-user-a", "finance", "block", 0.9, [{"status": "FAIL", "regulation": "ECOA"}])
+        stats_a = db.get_api_usage_stats("isolated-user-a")
+        stats_b = db.get_api_usage_stats("isolated-user-b-never-called")
+        assert stats_a["total_calls"] == 2
+        assert stats_b["total_calls"] == 0
+
+    def test_by_action_counts(self):
+        db.log_api_call("action-user", "finance", "block", 0.9, [])
+        db.log_api_call("action-user", "finance", "allow", 0.1, [])
+        db.log_api_call("action-user", "finance", "override_required", 0.6, [])
+        stats = db.get_api_usage_stats("action-user")
+        assert stats["by_action"]["block"] == 1
+        assert stats["by_action"]["allow"] == 1
+        assert stats["by_action"]["override_required"] == 1

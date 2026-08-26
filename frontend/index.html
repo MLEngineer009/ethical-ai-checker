@@ -1665,6 +1665,7 @@
 
         <!-- ── Dashboard tab ── -->
         <div class="tab-pane" id="tab-dashboard">
+          <div id="apiTrafficContent" style="margin-bottom:20px;"></div>
           <div id="dashboardContent">
             <div style="text-align:center;padding:60px 20px;color:var(--text-muted);font-size:13px;">
               Loading dashboard…
@@ -1740,7 +1741,7 @@
           <!-- API Keys -->
           <div class="card settings-section">
             <div class="settings-h">🔑 API Keys</div>
-            <p class="settings-sub">Use your API key to call Pragma programmatically from your own systems. The raw key is shown once — store it safely.</p>
+            <p class="settings-sub">Use your API key to call Pragma from your own AI systems. Every decision your AI makes can be evaluated in real-time. The raw key is shown once — store it safely.</p>
             <div id="newKeyBox" style="display:none;" class="new-key-box"></div>
             <div id="apiKeyList" style="margin-bottom:12px;"></div>
             <div class="inline-row">
@@ -1748,6 +1749,25 @@
               <button class="btn-sm" onclick="createAPIKey()">Generate Key</button>
             </div>
             <div id="apiKeyMsg" style="font-size:13px;color:var(--green);margin-top:8px;"></div>
+            <div style="margin-top:18px;border-top:1px solid var(--border);padding-top:16px;">
+              <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">How to integrate</div>
+              <div style="background:rgba(0,0,0,0.25);border-radius:8px;padding:14px;font-size:12px;font-family:monospace;line-height:1.7;color:#e2e8f0;overflow-x:auto;white-space:pre;">import requests
+
+result = requests.post(
+    "https://www.usepragma.co/evaluate-decision",
+    headers={"Authorization": "Bearer YOUR_PRAGMA_KEY"},
+    json={
+        "decision": your_ai_output,   # any AI response text
+        "context":  application_data, # structured applicant/decision data
+        "category": "finance"          # finance | hiring | other
+    }
+)
+
+verdict = result.json()
+if verdict["firewall_action"] == "block":
+    # Pragma caught a compliance violation
+    print(verdict["compliance_checks"])  # FAIL/FLAG per regulation</div>
+            </div>
           </div>
 
         </div>
@@ -3520,7 +3540,79 @@
       </div>`;
     }
 
+    async function loadApiTraffic() {
+      const el = document.getElementById('apiTrafficContent');
+      try {
+        const r = await fetch(`${API}/dashboard/api-traffic`, { headers: authHeaders() });
+        if (!r.ok) return;
+        const d = await r.json();
+
+        const verdictIcon = n_fail => n_fail > 0 ? '❌' : '⚠️';
+        const actionColor = a => a === 'block' ? '#f87171' : a === 'override_required' ? '#fbbf24' : '#4ade80';
+        const actionLabel = a => a === 'block' ? 'BLOCKED' : a === 'override_required' ? 'FLAGGED' : 'PASSED';
+
+        const recentRows = (d.recent_calls || []).map(c => {
+          const ts = new Date(c.timestamp).toLocaleString();
+          const color = actionColor(c.firewall_action);
+          const label = actionLabel(c.firewall_action);
+          const checks = `✅${c.pass_count} ⚠️${c.flag_count} ❌${c.fail_count}`;
+          return `<tr>
+            <td style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${ts}</td>
+            <td style="font-size:11px;text-transform:capitalize;">${esc(c.category)}</td>
+            <td style="font-size:11px;font-weight:600;color:${color};">${label}</td>
+            <td style="font-size:11px;color:var(--text-muted);">${Math.round((c.confidence_score||0)*100)}%</td>
+            <td style="font-size:11px;">${checks}</td>
+          </tr>`;
+        }).join('');
+
+        const hasData = d.total_calls > 0;
+
+        el.innerHTML = `<div class="card" style="margin-bottom:16px;">
+          <div class="card-title" style="margin-bottom:12px;">📡 API Traffic</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:${hasData ? 16 : 0}px;">
+            <div class="dash-stat-card" style="min-width:80px;">
+              <div class="dash-stat-value">${d.total_calls}</div>
+              <div class="dash-stat-label">Total calls</div>
+            </div>
+            <div class="dash-stat-card" style="min-width:80px;">
+              <div class="dash-stat-value">${d.calls_today}</div>
+              <div class="dash-stat-label">Today</div>
+            </div>
+            <div class="dash-stat-card" style="min-width:80px;">
+              <div class="dash-stat-value">${d.calls_7d}</div>
+              <div class="dash-stat-label">Last 7 days</div>
+            </div>
+            <div class="dash-stat-card" style="min-width:80px;">
+              <div class="dash-stat-value" style="color:#f87171;">${d.by_verdict?.fail||0}</div>
+              <div class="dash-stat-label">FAIL verdicts</div>
+            </div>
+            <div class="dash-stat-card" style="min-width:80px;">
+              <div class="dash-stat-value" style="color:#fbbf24;">${d.by_verdict?.flag||0}</div>
+              <div class="dash-stat-label">FLAG verdicts</div>
+            </div>
+            <div class="dash-stat-card" style="min-width:80px;">
+              <div class="dash-stat-value" style="color:#4ade80;">${d.by_verdict?.pass||0}</div>
+              <div class="dash-stat-label">PASS verdicts</div>
+            </div>
+          </div>
+          ${hasData ? `<div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Recent API Calls</div>
+          <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;">
+            <thead><tr style="border-bottom:1px solid var(--border);">
+              <th style="text-align:left;font-size:10px;color:var(--text-muted);padding:4px 8px 6px 0;font-weight:600;text-transform:uppercase;">Time</th>
+              <th style="text-align:left;font-size:10px;color:var(--text-muted);padding:4px 8px 6px 0;font-weight:600;text-transform:uppercase;">Category</th>
+              <th style="text-align:left;font-size:10px;color:var(--text-muted);padding:4px 8px 6px 0;font-weight:600;text-transform:uppercase;">Verdict</th>
+              <th style="text-align:left;font-size:10px;color:var(--text-muted);padding:4px 8px 6px 0;font-weight:600;text-transform:uppercase;">Confidence</th>
+              <th style="text-align:left;font-size:10px;color:var(--text-muted);padding:4px 8px 6px 0;font-weight:600;text-transform:uppercase;">Checks</th>
+            </tr></thead>
+            <tbody>${recentRows}</tbody>
+          </table></div>` : `<div style="font-size:13px;color:var(--text-muted);">No API calls yet. Generate an API key in Settings and start evaluating decisions from your system.</div>`}
+        </div>`;
+      } catch(_) {}
+    }
+
     async function loadDashboard() {
+      loadApiTraffic();
       const el = document.getElementById('dashboardContent');
       el.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text-muted);font-size:13px;">Loading…</div>';
       let data;
