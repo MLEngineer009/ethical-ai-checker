@@ -1493,7 +1493,7 @@ async def gemini_chat_demo(request: GeminiScenarioRequest, user: dict = Depends(
     try:
         from google import genai as google_genai
         client = google_genai.Client(api_key=gemini_key)
-        gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+        gemini_model = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
         response = client.models.generate_content(
             model=gemini_model,
             config=google_genai.types.GenerateContentConfig(
