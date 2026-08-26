@@ -498,3 +498,355 @@ def compute_compliance(system: Dict, stats: Dict) -> Dict[str, Any]:
         "total_articles": total,
         "stats":          stats,
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PER-DECISION COMPLIANCE CHECKS
+# Deterministic rule-based checks for individual AI decisions.
+# No LLM required — always runs, always deterministic.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── Geography ──────────────────────────────────────────────────────────────────
+_REDLINED_ZIPS: set = {
+    "60620","60621","60628","60636","60637","60619","60649",
+    "48227","48228","48235","48238",
+    "21213","21216","21223","21217",
+    "44103","44104","44105","44108",
+    "63106","63107","63108","63113",
+    "90001","90002","90011","90059",
+    "77020","77026",
+    "30314","30318",
+    "19132","19134","19140",
+    "10037","10039","11212",
+}
+_REDLINED_PREFIXES: set = {"606","482","211","441","631","900","770","303"}
+
+_PROTECTED_INCOME_KW: set = {
+    "snap","food stamp","ebt","welfare","public assistance",
+    "medicaid","ssi","social security disability","unemployment",
+    "government assistance","housing assistance",
+}
+_REMITTANCE_KW: set = {
+    "international wire","remittance","wire transfer","western union",
+    "moneygram","international transfer","wire to",
+}
+_DISCOUNT_STORE_KW: set = {
+    "save-a-lot","dollar tree","dollar general","food 4 less",
+    "western union","check cashing","aldi",
+}
+_DENIAL_KW: set = {
+    "deny","denied","denial","reject","rejected","decline",
+    "declined","not approved","does not meet","below threshold",
+}
+_EU_LOC_KW: set = {
+    "eu","european union","uk","united kingdom","germany","france",
+    "netherlands","spain","italy","belgium","sweden","austria",
+    "denmark","finland","ireland","portugal",
+}
+_HBCU_KW: set = {
+    "howard university","morehouse","spelman","hampton university",
+    "tuskegee","fisk university","clark atlanta","florida a&m",
+}
+
+
+def _s(val) -> str:
+    return str(val or "").lower().strip()
+
+
+def _has(text, keywords: set) -> bool:
+    t = _s(text)
+    return any(kw in t for kw in keywords)
+
+
+def _is_denial(decision: str, context: dict) -> bool:
+    return _has(decision, _DENIAL_KW) or _has(context.get("denial_decision", ""), _DENIAL_KW)
+
+
+def _is_redlined(zip_code: str) -> bool:
+    z = zip_code.strip()
+    return z in _REDLINED_ZIPS or any(z.startswith(p) for p in _REDLINED_PREFIXES)
+
+
+def _is_eu(context: dict) -> bool:
+    loc = _s(context.get("applicant_location", context.get("applicant_geography", "")))
+    return _has(loc, _EU_LOC_KW)
+
+
+def _check_ecoa_decision(decision: str, ctx: dict) -> list:
+    results = []
+    denial = _is_denial(decision, ctx)
+
+    zip_code = _s(ctx.get("zip_code", ""))
+    geo_risk = ctx.get("geo_risk_score", "")
+    denial_reason = _s(ctx.get("denial_reason_candidate", ""))
+    geo_used = _has(denial_reason, {"geo","zip","geographic","geography"}) or bool(geo_risk)
+
+    if zip_code and _is_redlined(zip_code):
+        if denial or geo_used:
+            results.append({
+                "regulation": "ECOA — Equal Credit Opportunity Act",
+                "article": "Regulation B, 12 CFR § 1002.6 — Prohibited Basis (Race)",
+                "status": "FAIL",
+                "reason": (
+                    f"Zip code {zip_code} is in a historically redlined geography. "
+                    "Using geographic risk scores as a denial factor is a proxy for race — "
+                    "prohibited under ECOA Regulation B § 1002.6."
+                ),
+            })
+        else:
+            results.append({
+                "regulation": "ECOA — Equal Credit Opportunity Act",
+                "article": "Regulation B, 12 CFR § 1002.6 — Prohibited Basis",
+                "status": "FLAG",
+                "reason": f"Zip code {zip_code} is a historically redlined geography. Verify it was not used as a credit factor.",
+            })
+    else:
+        results.append({
+            "regulation": "ECOA — Equal Credit Opportunity Act",
+            "article": "Regulation B, 12 CFR § 1002.6 — Geographic Discrimination",
+            "status": "PASS",
+            "reason": "No geographic discrimination pattern detected.",
+        })
+
+    income_source = _s(ctx.get("income_source", ""))
+    income_weight = _s(ctx.get("income_weight_applied", ctx.get("income_weight_policy", "")))
+    if income_source and _has(income_source, _PROTECTED_INCOME_KW):
+        if _has(income_weight, {"0.","penalt","downweight","weight","50%","40%"}):
+            results.append({
+                "regulation": "ECOA — Equal Credit Opportunity Act",
+                "article": "Regulation B, 12 CFR § 1002.6(b)(2) — Public Assistance Income",
+                "status": "FAIL",
+                "reason": (
+                    f"Income from public assistance ('{ctx.get('income_source')}') was penalized "
+                    f"with weight '{ctx.get('income_weight_applied', ctx.get('income_weight_policy'))}'. "
+                    "ECOA prohibits discriminating against applicants who receive public assistance income."
+                ),
+            })
+        elif denial:
+            results.append({
+                "regulation": "ECOA — Equal Credit Opportunity Act",
+                "article": "Regulation B, 12 CFR § 1002.6(b)(2) — Public Assistance Income",
+                "status": "FLAG",
+                "reason": f"Applicant receives public assistance income. Verify it was not used as a denial factor.",
+            })
+
+    bank = _s(ctx.get("bank_behavior", ctx.get("bank_signals_used", "")))
+    proposed_factor = _s(ctx.get("proposed_denial_factor", ""))
+    if _has(bank, _REMITTANCE_KW) or _has(proposed_factor, _REMITTANCE_KW):
+        results.append({
+            "regulation": "ECOA — Equal Credit Opportunity Act",
+            "article": "Regulation B, 12 CFR § 1002.6 — National Origin Proxy",
+            "status": "FAIL",
+            "reason": "International wire transfers / remittances are a proxy for national origin. Using remittance patterns as a credit factor is illegal under ECOA.",
+        })
+
+    gap_months = ctx.get("employment_gap_months", ctx.get("employment_gap_years", ""))
+    gap_reason = _s(ctx.get("gap_reason", ""))
+    if gap_months:
+        try:
+            gap_val = float(_s(gap_months).replace("months","").replace("years",""))
+            if "year" in _s(ctx.get("employment_gap_years","")): gap_val *= 12
+        except ValueError:
+            gap_val = 0
+        if gap_val >= 6:
+            if not gap_reason or _has(gap_reason, {"not captured","unknown","not disclosed"}):
+                results.append({
+                    "regulation": "ECOA — Equal Credit Opportunity Act",
+                    "article": "Regulation B, 12 CFR § 1002.6 — Sex / Pregnancy Discrimination",
+                    "status": "FLAG",
+                    "reason": (
+                        f"A {gap_months}-month employment gap was penalized without capturing the reason. "
+                        "May discriminate against applicants on parental or medical leave — a proxy for sex or disability."
+                    ),
+                })
+            elif _has(gap_reason, {"medical","parental","maternity","paternity","disability","illness"}):
+                results.append({
+                    "regulation": "ECOA — Equal Credit Opportunity Act",
+                    "article": "Regulation B, 12 CFR § 1002.6 — Sex / Disability Discrimination",
+                    "status": "FAIL",
+                    "reason": f"Penalizing '{ctx.get('gap_reason')}' gap discriminates on sex or disability basis.",
+                })
+
+    open_banking = _s(ctx.get("open_banking_signals", ""))
+    if open_banking and _has(open_banking, _DISCOUNT_STORE_KW):
+        results.append({
+            "regulation": "ECOA — Equal Credit Opportunity Act",
+            "article": "Regulation B, 12 CFR § 1002.6 — Race / National Origin Proxy",
+            "status": "FAIL",
+            "reason": (
+                f"Spending at discount and check-cashing stores ('{ctx.get('open_banking_signals')}') "
+                "correlates with race and national origin — prohibited as credit factor under ECOA."
+            ),
+        })
+
+    prior_comp = ctx.get("prior_compensation", "")
+    if prior_comp and (denial or _has(denial_reason, {"compensation","salary"})):
+        results.append({
+            "regulation": "ECOA — Equal Credit Opportunity Act",
+            "article": "Regulation B, 12 CFR § 1002.6 — Sex / Race Compensation Proxy",
+            "status": "FLAG",
+            "reason": f"Prior compensation ({prior_comp}) was used as a denial factor — perpetuates pay gaps.",
+        })
+
+    return results
+
+
+def _check_fcra_decision(decision: str, ctx: dict) -> list:
+    denial = _is_denial(decision, ctx)
+    adverse = _s(ctx.get("adverse_action_notice", ""))
+    consumer_report = _s(ctx.get("consumer_report_used", ""))
+
+    notice_sent = _has(adverse, {"sent","provided","yes","in place","process"})
+    notice_missing = _has(adverse, {"not sent","not provided","not mentioned","not required","no notice"})
+
+    if denial and consumer_report and "yes" in consumer_report:
+        if notice_missing or (not notice_sent and adverse):
+            return [{"regulation":"FCRA — Fair Credit Reporting Act","article":"15 U.S.C. § 1681m — Adverse Action Notice","status":"FAIL",
+                     "reason":"Credit report used in adverse decision but no adverse action notice sent. FCRA § 615 requires written notice with bureau name and free report rights."}]
+        elif notice_sent:
+            return [{"regulation":"FCRA — Fair Credit Reporting Act","article":"15 U.S.C. § 1681m — Adverse Action Notice","status":"PASS",
+                     "reason":"Adverse action notice process in place. FCRA § 615 satisfied."}]
+
+    if denial and notice_missing:
+        return [{"regulation":"FCRA — Fair Credit Reporting Act","article":"15 U.S.C. § 1681m — Adverse Action Notice","status":"FAIL",
+                 "reason":"Application denied with no adverse action notice sent. FCRA requires notifying applicants of their rights."}]
+
+    if denial and not notice_sent:
+        return [{"regulation":"FCRA — Fair Credit Reporting Act","article":"15 U.S.C. § 1681m — Adverse Action Notice","status":"FLAG",
+                 "reason":"Application denied — verify adverse action notice was sent per FCRA § 615."}]
+
+    return [{"regulation":"FCRA — Fair Credit Reporting Act","article":"15 U.S.C. § 1681m — Adverse Action Notice","status":"PASS",
+             "reason":"No adverse action notice violation detected."}]
+
+
+def _check_fha_decision(decision: str, ctx: dict) -> list:
+    zip_code = _s(ctx.get("zip_code", ""))
+    geo_risk = ctx.get("geo_risk_score", "")
+    denial = _is_denial(decision, ctx)
+    if zip_code and _is_redlined(zip_code) and (denial or geo_risk):
+        return [{"regulation":"Fair Housing Act","article":"42 U.S.C. § 3605 — Discrimination in Residential Real Estate","status":"FAIL",
+                 "reason":f"Zip code {zip_code} is in a historically redlined area. Geographic risk scoring violates the Fair Housing Act."}]
+    return [{"regulation":"Fair Housing Act","article":"42 U.S.C. § 3605 — Geographic Discrimination","status":"PASS" if not (zip_code and _is_redlined(zip_code)) else "FLAG",
+             "reason":"No geographic discrimination pattern detected." if not (zip_code and _is_redlined(zip_code)) else f"Zip code {zip_code} is a historically redlined geography — verify not used as credit factor."}]
+
+
+def _check_udaap_decision(decision: str, ctx: dict) -> list:
+    results = []
+    income_source = _s(ctx.get("income_source", ""))
+    income_weight = _s(ctx.get("income_weight_applied", ctx.get("income_weight_policy", "")))
+    if income_source and _has(income_source, _PROTECTED_INCOME_KW) and _has(income_weight, {"0.","penalt","downweight","50%","40%"}):
+        results.append({"regulation":"CFPB UDAAP","article":"CFPA § 1031 — Unfair, Deceptive, or Abusive Acts","status":"FAIL",
+                        "reason":"Penalty weight on public assistance income causes substantial consumer harm with no legitimate credit justification — unfair practice under UDAAP."})
+
+    open_banking = _s(ctx.get("open_banking_signals",""))
+    if open_banking and _has(open_banking, _DISCOUNT_STORE_KW):
+        results.append({"regulation":"CFPB UDAAP","article":"CFPA § 1031 — Abusive Use of Consumer Financial Data","status":"FLAG",
+                        "reason":"Using discount-store spending patterns as credit signals exploits consumer data in ways consumers would not expect — abusive practice under UDAAP."})
+
+    if not results:
+        results.append({"regulation":"CFPB UDAAP","article":"CFPA § 1031 — Unfair, Deceptive, or Abusive Acts","status":"PASS",
+                        "reason":"No unfair, deceptive, or abusive practice pattern detected."})
+    return results
+
+
+def _check_eu_ai_act_decision(decision: str, ctx: dict) -> list:
+    if not _is_eu(ctx):
+        return [{"regulation":"EU AI Act","article":"Art. 6 — High-Risk AI Classification","status":"PASS",
+                 "reason":"EU AI Act does not apply — no EU/UK applicant location detected."}]
+    results = []
+    conformity = _s(ctx.get("conformity_assessment_status", ctx.get("eu_ai_act_registration","")))
+    if not conformity or _has(conformity, {"not","none","missing","incomplete","not started","not registered"}):
+        results.append({"regulation":"EU AI Act","article":"Art. 6 + Annex III — High-Risk AI","status":"FAIL",
+                        "reason":"AI-assisted credit/employment decisions are high-risk under EU AI Act Annex III. No conformity assessment completed before deployment."})
+    else:
+        results.append({"regulation":"EU AI Act","article":"Art. 6 — High-Risk AI Classification","status":"PASS",
+                        "reason":"Conformity assessment completed."})
+
+    human_review = _s(ctx.get("human_review_offered", ctx.get("human_review_scheduled", ctx.get("human_review_available",""))))
+    if _has(human_review, {"yes","scheduled","available","offered"}):
+        results.append({"regulation":"EU AI Act","article":"Art. 14 — Human Oversight","status":"PASS","reason":"Human review available as required by EU AI Act Art. 14."})
+    else:
+        results.append({"regulation":"EU AI Act","article":"Art. 14 — Human Oversight","status":"FAIL",
+                        "reason":"No human review option offered. EU AI Act Art. 14 requires meaningful human oversight for high-risk AI decisions."})
+
+    transparency = _s(ctx.get("transparency_notice_sent",""))
+    if _has(transparency, {"yes","sent","provided"}):
+        results.append({"regulation":"EU AI Act","article":"Art. 13 — Transparency","status":"PASS","reason":"Applicant informed AI was used in the decision."})
+    else:
+        results.append({"regulation":"EU AI Act","article":"Art. 13 — Transparency","status":"FLAG",
+                        "reason":"Applicant not notified that AI was used. EU AI Act Art. 13 requires disclosure of automated decision-making."})
+    return results
+
+
+def _check_gdpr_decision(decision: str, ctx: dict) -> list:
+    if not _is_eu(ctx): return []
+    disclosure = _s(ctx.get("gdpr_art22_disclosure",""))
+    human_review = _s(ctx.get("right_to_human_review", ctx.get("human_review_offered","")))
+    if not _has(disclosure, {"yes","provided","sent"}) or not _has(human_review, {"yes","offered","available","scheduled"}):
+        return [{"regulation":"GDPR","article":"Art. 22 — Automated Decision-Making","status":"FAIL",
+                 "reason":"GDPR Art. 22 gives EU/UK residents the right to human review and to be informed of automated processing. Neither was satisfied."}]
+    return [{"regulation":"GDPR","article":"Art. 22 — Automated Decision-Making","status":"PASS",
+             "reason":"GDPR Art. 22 rights satisfied — human review offered and processing disclosed."}]
+
+
+def _check_eeoc_decision(decision: str, ctx: dict) -> list:
+    results = []
+    denial = _is_denial(decision, ctx)
+
+    grad_year = ctx.get("graduation_year","")
+    if grad_year and denial:
+        try:
+            age_proxy = 2025 - int(str(grad_year))
+            if age_proxy >= 40:
+                results.append({"regulation":"ADEA — Age Discrimination in Employment Act","article":"29 U.S.C. § 623 — Age Discrimination","status":"FAIL",
+                                 "reason":f"Graduation year {grad_year} implies ~{age_proxy} years of age (protected class 40+). Screening by graduation year is a proxy for age discrimination."})
+        except ValueError: pass
+
+    school = _s(ctx.get("university_attended",""))
+    preferred = _s(ctx.get("preferred_schools_list",""))
+    if school and _has(school, _HBCU_KW) and preferred and school not in preferred:
+        results.append({"regulation":"EEOC Title VII — Civil Rights Act","article":"42 U.S.C. § 2000e-2 — Race Discrimination","status":"FAIL",
+                        "reason":f"'{ctx.get('university_attended')}' is an HBCU. Excluding HBCUs from preferred school lists is a race discrimination proxy under Title VII."})
+
+    gap = ctx.get("employment_gap_years", ctx.get("employment_gap_months",""))
+    gap_reason = _s(ctx.get("gap_reason",""))
+    if gap and denial:
+        status = "FAIL" if _has(gap_reason, {"medical","disability"}) else "FLAG"
+        reason = ("Penalizing a medical/disability gap is ADA discrimination." if status == "FAIL"
+                  else f"Employment gap of {gap} penalized without capturing reason — may screen out applicants on medical or disability leave.")
+        results.append({"regulation":"ADA — Americans with Disabilities Act","article":"42 U.S.C. § 12112 — Disability Discrimination","status":status,"reason":reason})
+
+    bias_audit = _s(ctx.get("bias_audit_on_file",""))
+    if not _has(bias_audit, {"yes","on file","completed"}):
+        results.append({"regulation":"EEOC — Bias Audit (NYC Local Law 144)","article":"Annual Independent Bias Audit Required","status":"FLAG",
+                        "reason":"No bias audit on file. NYC Local Law 144 and several state laws require annual independent audits of automated employment screening tools."})
+
+    if not results:
+        results.append({"regulation":"EEOC Title VII — Civil Rights Act","article":"42 U.S.C. § 2000e-2 — Discrimination in Employment","status":"PASS",
+                        "reason":"No prohibited discrimination pattern detected in this hiring decision."})
+    return results
+
+
+_DECISION_CHECKERS = {
+    "finance": [_check_ecoa_decision, _check_fcra_decision, _check_fha_decision, _check_udaap_decision, _check_eu_ai_act_decision, _check_gdpr_decision],
+    "lending": [_check_ecoa_decision, _check_fcra_decision, _check_fha_decision, _check_udaap_decision, _check_eu_ai_act_decision, _check_gdpr_decision],
+    "hiring":  [_check_eeoc_decision, _check_eu_ai_act_decision],
+    "hr":      [_check_eeoc_decision, _check_eu_ai_act_decision],
+    "other":   [_check_ecoa_decision, _check_fcra_decision],
+}
+
+
+def run_compliance_checks(decision: str, context: dict, category: str = "other") -> list:
+    """
+    Run deterministic per-decision compliance checks for the given category.
+    Always runs — no LLM or API key required.
+    Returns compliance_checks list with PASS/FAIL/FLAG per regulation.
+    """
+    checkers = _DECISION_CHECKERS.get(category.lower(), _DECISION_CHECKERS["other"])
+    results = []
+    for checker in checkers:
+        try:
+            results.extend(checker(decision, context))
+        except Exception:
+            pass
+    return results

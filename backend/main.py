@@ -23,6 +23,7 @@ from .llm_orchestrator import LLMOrchestrator
 from .report_generator import generate_pdf
 from .risk_detector import detect_all_risks
 from .regulations import get_regulatory_refs
+from .compliance_engine import run_compliance_checks
 from . import auth
 from . import database
 from . import questions as questions_module
@@ -713,6 +714,21 @@ def _compute_firewall(risk_flags: list, confidence_score: float, block_threshold
     return {"should_block": should_block, "override_required": override_required, "firewall_action": action}
 
 
+def _merge_compliance_checks(rule_checks: list, llm_checks: list) -> list:
+    """
+    Merge rule-based and LLM compliance checks.
+    Rule-based checks are always included. LLM checks for regulations not
+    already covered by the rule engine are appended as additional context.
+    """
+    if not llm_checks:
+        return rule_checks
+
+    # Index rule-based checks by regulation prefix for dedup
+    rule_regs = {c["regulation"].split("—")[0].strip().lower() for c in rule_checks}
+    extra = [c for c in llm_checks if c.get("regulation", "").split("—")[0].strip().lower() not in rule_regs]
+    return rule_checks + extra
+
+
 def _run_evaluation(decision: str, context: Dict[str, Any], category: str, block_threshold: float = 0.8) -> Dict[str, Any]:
     """Shared evaluation logic used by single and batch endpoints."""
     llm_analysis = orchestrator.evaluate(decision, context, category)
@@ -722,6 +738,11 @@ def _run_evaluation(decision: str, context: Dict[str, Any], category: str, block
     confidence_score = llm_analysis.get("confidence_score", 0.5)
     if not isinstance(confidence_score, (int, float)) or not 0 <= confidence_score <= 1:
         confidence_score = 0.5
+
+    # Always run deterministic rule-based compliance checks
+    rule_checks = run_compliance_checks(decision, context, category)
+    compliance_checks = _merge_compliance_checks(rule_checks, llm_analysis.get("compliance_checks", []))
+
     return {
         "kantian_analysis":      llm_analysis.get("kantian_analysis", ""),
         "utilitarian_analysis":  llm_analysis.get("utilitarian_analysis", ""),
@@ -731,7 +752,7 @@ def _run_evaluation(decision: str, context: Dict[str, Any], category: str, block
         "recommendation":        llm_analysis.get("recommendation", ""),
         "provider":              llm_analysis.get("provider", "unknown"),
         "regulatory_refs":       get_regulatory_refs(risk_flags, category),
-        "compliance_checks":     llm_analysis.get("compliance_checks", []),
+        "compliance_checks":     compliance_checks,
         **_compute_firewall(risk_flags, confidence_score, block_threshold),
     }
 
