@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pragma — AI Compliance Firewall for Lending</title>
+  <meta name="description" content="Every AI lending decision is a regulatory risk. Pragma catches ECOA, FHA, FCRA, and CFPB violations before they become enforcement actions.">
+  <style>
+    /* ── Design tokens ────────────────────────────────────────────────────── */
+    :root {
+      --bg:         #020b18;
+      --surface:    #0c1928;
+      --surface2:   #101f32;
+      --border:     #1a2d44;
+      --border2:    #243d57;
+      --text:       #e8f0fe;
+      --text-muted: #5c7a9e;
+      --text-sub:   #3a5878;
+      --accent:     #f59e0b;
+      --accent-dim: rgba(245,158,11,0.15);
+      --accent2:    #38bdf8;
+      --fail:       #ef4444;
+      --fail-dim:   rgba(239,68,68,0.12);
+      --pass:       #22c55e;
+      --pass-dim:   rgba(34,197,94,0.1);
+      --flag:       #f59e0b;
+      --radius:     10px;
+      --radius-sm:  6px;
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root:not([data-theme="dark"]) {
+        --bg:         #f5f7fc;
+        --surface:    #ffffff;
+        --surface2:   #eef2f9;
+        --border:     #d4dff0;
+        --border2:    #c0d0e8;
+        --text:       #0c1928;
+        --text-muted: #4a6278;
+        --text-sub:   #8ea3b8;
+        --accent:     #b45309;
+        --accent-dim: rgba(180,83,9,0.1);
+        --accent2:    #0284c7;
+        --fail:       #dc2626;
+        --fail-dim:   rgba(220,38,38,0.08);
+        --pass:       #16a34a;
+        --pass-dim:   rgba(22,163,74,0.08);
+      }
+    }
+    :root[data-theme="light"] {
+      --bg:         #f5f7fc;
+      --surface:    #ffffff;
+      --surface2:   #eef2f9;
+      --border:     #d4dff0;
+      --border2:    #c0d0e8;
+      --text:       #0c1928;
+      --text-muted: #4a6278;
+      --text-sub:   #8ea3b8;
+      --accent:     #b45309;
+      --accent-dim: rgba(180,83,9,0.1);
+      --accent2:    #0284c7;
+      --fail:       #dc2626;
+      --fail-dim:   rgba(220,38,38,0.08);
+      --pass:       #16a34a;
+      --pass-dim:   rgba(22,163,74,0.08);
+    }
+
+    /* ── Reset & Base ─────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+    img { max-width: 100%; }
+    @media (prefers-reduced-motion: reduce) {
+      *, ::before, ::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+
+    /* ── Layout ───────────────────────────────────────────────────────────── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 28px; }
+    .section { padding: 88px 0; border-bottom: 1px solid var(--border); }
+    .section:last-of-type { border-bottom: none; }
+    .eyebrow {
+      font-size: 11px; font-weight: 700; letter-spacing: 1.8px; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 14px;
+    }
+
+    /* ── Nav ──────────────────────────────────────────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--bg); border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .nav-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 60px;
+    }
+    .nav-logo {
+      font-size: 16px; font-weight: 700; letter-spacing: -.3px; color: var(--text);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .nav-logo .logo-mark {
+      width: 26px; height: 26px; background: var(--accent);
+      border-radius: 6px; display: flex; align-items: center; justify-content: center;
+      font-size: 13px; color: #000; font-weight: 900;
+    }
+    .nav-tag {
+      font-size: 10px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase;
+      color: var(--text-muted); border: 1px solid var(--border); border-radius: 4px;
+      padding: 2px 7px; margin-left: 4px;
+    }
+    .nav-links { display: flex; align-items: center; gap: 28px; }
+    .nav-link { font-size: 13px; color: var(--text-muted); font-weight: 500; transition: color .15s; }
+    .nav-link:hover { color: var(--text); }
+    .btn-demo {
+      background: var(--accent); color: #000; font-size: 13px; font-weight: 700;
+      padding: 8px 18px; border-radius: var(--radius-sm); border: none; cursor: pointer;
+      transition: opacity .15s;
+    }
+    .btn-demo:hover { opacity: .88; }
+
+    /* ── Hero ─────────────────────────────────────────────────────────────── */
+    .hero { padding: 96px 0 80px; border-bottom: 1px solid var(--border); }
+    .hero-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center;
+    }
+    .hero-kicker {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--fail-dim); border: 1px solid rgba(239,68,68,0.25);
+      border-radius: 20px; padding: 4px 14px 4px 10px;
+      font-size: 12px; font-weight: 600; color: var(--fail); margin-bottom: 24px;
+    }
+    .hero-kicker .dot {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--fail);
+      animation: pulse-red 2s infinite;
+    }
+    @keyframes pulse-red {
+      0%, 100% { opacity: 1; } 50% { opacity: .35; }
+    }
+    .hero h1 {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(34px, 4.5vw, 52px); font-weight: 400; line-height: 1.18;
+      text-wrap: balance; letter-spacing: -.5px; margin-bottom: 22px; color: var(--text);
+    }
+    .hero h1 em { font-style: normal; color: var(--accent); }
+    .hero h1 strong { font-weight: 700; font-style: normal; }
+    .hero-sub {
+      font-size: 17px; line-height: 1.65; color: var(--text-muted);
+      max-width: 440px; margin-bottom: 36px;
+    }
+    .hero-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    .btn-primary {
+      background: var(--accent); color: #000; font-size: 14px; font-weight: 700;
+      padding: 12px 24px; border-radius: var(--radius-sm); border: none; cursor: pointer;
+      transition: opacity .15s; display: inline-block;
+    }
+    .btn-primary:hover { opacity: .88; }
+    .btn-outline {
+      background: transparent; color: var(--text); font-size: 14px; font-weight: 600;
+      padding: 11px 22px; border-radius: var(--radius-sm);
+      border: 1px solid var(--border2); cursor: pointer; transition: border-color .15s;
+      display: inline-block;
+    }
+    .btn-outline:hover { border-color: var(--text-muted); }
+    .hero-note {
+      margin-top: 16px; font-size: 12px; color: var(--text-sub);
+      display: flex; align-items: center; gap: 6px;
+    }
+
+    /* Terminal */
+    .terminal {
+      background: #000d1a; border: 1px solid var(--border2); border-radius: var(--radius);
+      font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+      font-size: 12px; overflow: hidden;
+    }
+    .terminal-bar {
+      background: var(--surface2); border-bottom: 1px solid var(--border);
+      padding: 9px 14px; display: flex; align-items: center; gap: 6px;
+    }
+    .t-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .t-red { background: #ff5f57; }
+    .t-yellow { background: #febc2e; }
+    .t-green { background: #28c840; }
+    .terminal-title {
+      flex: 1; text-align: center; font-size: 11px; color: var(--text-muted);
+      letter-spacing: .3px;
+    }
+    .terminal-body { padding: 18px 20px; min-height: 320px; }
+    .t-line { margin-bottom: 4px; line-height: 1.55; white-space: pre-wrap; word-break: break-all; }
+    .t-prompt { color: #5c7a9e; }
+    .t-decision { color: #e8f0fe; }
+    .t-section { color: #38bdf8; }
+    .t-fail { color: #ef4444; font-weight: 700; }
+    .t-flag { color: #f59e0b; font-weight: 700; }
+    .t-pass { color: #22c55e; }
+    .t-verdict-block { color: #ef4444; font-weight: 700; font-size: 13px; }
+    .t-verdict-pass { color: #22c55e; font-weight: 700; font-size: 13px; }
+    .t-muted { color: #3a5878; }
+    .t-cursor {
+      display: inline-block; width: 8px; height: 13px; background: var(--accent2);
+      animation: blink .9s step-end infinite; vertical-align: middle;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    /* ── Regulation strip ─────────────────────────────────────────────────── */
+    .reg-strip { padding: 28px 0; border-bottom: 1px solid var(--border); overflow-x: auto; }
+    .reg-pills { display: flex; gap: 8px; flex-wrap: nowrap; width: max-content; }
+    .reg-pill {
+      font-size: 11px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase;
+      padding: 5px 12px; border-radius: 4px; white-space: nowrap;
+      border: 1px solid var(--border2); color: var(--text-muted); background: transparent;
+    }
+    .reg-pill.active { border-color: rgba(245,158,11,.4); color: var(--accent); background: var(--accent-dim); }
+
+    /* ── Problem section ──────────────────────────────────────────────────── */
+    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 48px; }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 28px 26px;
+    }
+    .stat-number {
+      font-size: 42px; font-weight: 800; letter-spacing: -1.5px; line-height: 1;
+      margin-bottom: 10px; font-variant-numeric: tabular-nums;
+    }
+    .stat-number.red { color: var(--fail); }
+    .stat-number.amber { color: var(--accent); }
+    .stat-number.blue { color: var(--accent2); }
+    .stat-label { font-size: 14px; color: var(--text-muted); line-height: 1.5; }
+
+    /* ── Violation example ────────────────────────────────────────────────── */
+    .violation-card {
+      background: var(--fail-dim); border: 1px solid rgba(239,68,68,0.25);
+      border-radius: var(--radius); padding: 24px 28px; margin-top: 40px;
+    }
+    .vio-tag {
+      display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+      text-transform: uppercase; color: var(--fail); background: rgba(239,68,68,0.15);
+      border-radius: 3px; padding: 2px 8px; margin-bottom: 12px;
+    }
+    .vio-decision {
+      font-family: "SF Mono", Consolas, monospace; font-size: 13px; color: var(--text);
+      line-height: 1.6; margin-bottom: 16px;
+      padding: 12px 14px; background: rgba(0,0,0,0.2); border-radius: 6px;
+    }
+    .vio-checks { display: flex; flex-direction: column; gap: 8px; }
+    .vio-check { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; }
+    .vio-check .badge {
+      flex-shrink: 0; font-size: 10px; font-weight: 700; padding: 2px 7px;
+      border-radius: 3px; margin-top: 1px; letter-spacing: .5px; text-transform: uppercase;
+    }
+    .badge-fail { background: rgba(239,68,68,0.2); color: var(--fail); }
+    .badge-flag { background: rgba(245,158,11,0.15); color: var(--accent); }
+    .badge-pass { background: rgba(34,197,94,0.12); color: var(--pass); }
+
+    /* ── How it works ─────────────────────────────────────────────────────── */
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin-top: 56px; }
+    .step {
+      padding: 32px 28px; position: relative;
+    }
+    .step:not(:last-child) { border-right: 1px solid var(--border); }
+    .step-num {
+      font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--text-sub); margin-bottom: 18px;
+    }
+    .step-icon {
+      width: 44px; height: 44px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; margin-bottom: 16px;
+    }
+    .step-icon.amber { background: var(--accent-dim); }
+    .step-icon.blue  { background: rgba(56,189,248,0.1); }
+    .step-icon.green { background: var(--pass-dim); }
+    .step h3 { font-size: 17px; font-weight: 700; margin-bottom: 10px; }
+    .step p { font-size: 14px; line-height: 1.65; color: var(--text-muted); }
+    .step-connector {
+      position: absolute; right: -12px; top: 50%;
+      transform: translateY(-50%);
+      width: 23px; height: 23px; background: var(--border2);
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 11px; color: var(--text-muted); z-index: 1;
+    }
+
+    /* ── Features grid ────────────────────────────────────────────────────── */
+    .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 52px; }
+    .feat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 24px 22px;
+      transition: border-color .2s;
+    }
+    .feat-card:hover { border-color: var(--border2); }
+    .feat-icon { font-size: 22px; margin-bottom: 14px; }
+    .feat-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+    .feat-card p { font-size: 13px; line-height: 1.6; color: var(--text-muted); }
+    .feat-tag {
+      display: inline-block; margin-top: 12px; font-size: 10px; font-weight: 700;
+      letter-spacing: .8px; text-transform: uppercase; color: var(--text-sub);
+      border: 1px solid var(--border); border-radius: 3px; padding: 2px 7px;
+    }
+
+    /* ── Use cases ────────────────────────────────────────────────────────── */
+    .clients-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 52px; }
+    .client-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 28px 26px; display: flex; gap: 18px;
+    }
+    .client-icon { font-size: 28px; flex-shrink: 0; margin-top: 2px; }
+    .client-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .client-card p { font-size: 13px; line-height: 1.6; color: var(--text-muted); }
+    .client-regs { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 12px; }
+    .client-reg {
+      font-size: 10px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase;
+      padding: 2px 7px; border-radius: 3px;
+      border: 1px solid var(--border); color: var(--text-sub);
+    }
+
+    /* ── API snippet ──────────────────────────────────────────────────────── */
+    .api-section { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; }
+    .code-block {
+      background: #000d1a; border: 1px solid var(--border2); border-radius: var(--radius);
+      padding: 22px 24px; overflow-x: auto;
+    }
+    .code-block pre {
+      font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
+      font-size: 12.5px; line-height: 1.7; color: #e8f0fe;
+    }
+    .c-comment { color: #3a5878; }
+    .c-key { color: #38bdf8; }
+    .c-str { color: #86efac; }
+    .c-kw { color: #f59e0b; }
+    .c-fn { color: #c084fc; }
+
+    /* ── CTA ──────────────────────────────────────────────────────────────── */
+    .cta-section {
+      padding: 96px 0; text-align: center;
+    }
+    .cta-section h2 {
+      font-family: Georgia, serif; font-size: clamp(28px, 3.5vw, 42px);
+      font-weight: 400; text-wrap: balance; margin-bottom: 18px;
+      line-height: 1.25;
+    }
+    .cta-section h2 em { font-style: normal; color: var(--accent); }
+    .cta-section p { font-size: 16px; color: var(--text-muted); max-width: 480px; margin: 0 auto 36px; }
+    .cta-actions { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; }
+
+    /* ── Footer ───────────────────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border); padding: 40px 0;
+    }
+    .footer-inner {
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;
+    }
+    .footer-left { font-size: 13px; color: var(--text-muted); }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-link { font-size: 12px; color: var(--text-sub); transition: color .15s; }
+    .footer-link:hover { color: var(--text-muted); }
+
+    /* ── Responsive ───────────────────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .hero-grid { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: 1fr; }
+      .steps { grid-template-columns: 1fr; }
+      .step:not(:last-child) { border-right: none; border-bottom: 1px solid var(--border); }
+      .step-connector { display: none; }
+      .features-grid { grid-template-columns: 1fr 1fr; }
+      .clients-grid { grid-template-columns: 1fr; }
+      .api-section { grid-template-columns: 1fr; }
+      .nav-links { display: none; }
+    }
+    @media (max-width: 560px) {
+      .features-grid { grid-template-columns: 1fr; }
+      .section { padding: 60px 0; }
+      .hero { padding: 60px 0 52px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Nav ───────────────────────────────────────────────────────────────── -->
+<nav>
+  <div class="container nav-inner">
+    <a href="https://www.usepragma.co" class="nav-logo">
+      <div class="logo-mark">P</div>
+      Pragma
+      <span class="nav-tag">Lending</span>
+    </a>
+    <div class="nav-links">
+      <a href="#how-it-works" class="nav-link">How it works</a>
+      <a href="#features" class="nav-link">Features</a>
+      <a href="#use-cases" class="nav-link">Use cases</a>
+      <a href="#api" class="nav-link">API</a>
+    </div>
+    <a href="https://www.usepragma.co" class="btn-demo">Get started free →</a>
+  </div>
+</nav>
+
+<!-- ── Hero ──────────────────────────────────────────────────────────────── -->
+<div class="hero">
+  <div class="container">
+    <div class="hero-grid">
+      <div>
+        <div class="hero-kicker">
+          <div class="dot"></div>
+          CFPB enforcement actions up 34% in 2024
+        </div>
+        <h1>
+          Every AI lending decision carries <em>regulatory risk.</em><br>
+          Pragma catches it <strong>before it ships.</strong>
+        </h1>
+        <p class="hero-sub">
+          A real-time compliance firewall that checks every AI decision against ECOA, FHA, FCRA, CFPB UDAAP, and state laws — deterministically, without a human in the loop.
+        </p>
+        <div class="hero-actions">
+          <a href="https://www.usepragma.co" class="btn-primary">Start free trial</a>
+          <a href="https://www.usepragma.co" class="btn-outline">See live demo →</a>
+        </div>
+        <div class="hero-note">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          No AI keys needed for compliance checks — deterministic rule engine
+        </div>
+      </div>
+
+      <!-- Terminal -->
+      <div class="terminal">
+        <div class="terminal-bar">
+          <div class="t-dot t-red"></div>
+          <div class="t-dot t-yellow"></div>
+          <div class="t-dot t-green"></div>
+          <div class="terminal-title">pragma compliance engine · live evaluation</div>
+        </div>
+        <div class="terminal-body" id="terminalBody">
+          <div class="t-line t-muted"># POST /evaluate-decision</div>
+          <div class="t-line" style="height:8px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Regulation strip ───────────────────────────────────────────────────── -->
+<div class="reg-strip">
+  <div class="container">
+    <div class="reg-pills">
+      <div class="reg-pill active">ECOA / Reg B</div>
+      <div class="reg-pill active">Fair Housing Act</div>
+      <div class="reg-pill active">FCRA §615(a)</div>
+      <div class="reg-pill active">CFPB UDAAP</div>
+      <div class="reg-pill">EU AI Act</div>
+      <div class="reg-pill">GDPR Art. 22</div>
+      <div class="reg-pill active">EEOC / ADEA</div>
+      <div class="reg-pill">NYC Local Law 144</div>
+      <div class="reg-pill">CA CPRA / AB-2771</div>
+      <div class="reg-pill">IL AIVIA</div>
+      <div class="reg-pill">NY DFS Circular 1</div>
+      <div class="reg-pill">29 CFR Part 1607</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Problem ────────────────────────────────────────────────────────────── -->
+<section class="section">
+  <div class="container">
+    <div class="eyebrow">The Problem</div>
+    <h2 style="font-size:clamp(22px,3vw,34px);font-weight:700;max-width:560px;text-wrap:balance;line-height:1.3;">
+      AI lending models create compliance exposure at every decision point
+    </h2>
+    <p style="font-size:16px;color:var(--text-muted);max-width:540px;margin-top:16px;line-height:1.7;">
+      Modern underwriting AI uses zip codes, income sources, spending patterns, and employment gaps — all legal proxies for race, national origin, sex, and disability under ECOA and the Fair Housing Act. The CFPB doesn't care if the bias was unintentional.
+    </p>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-number red">$24M</div>
+        <div class="stat-label">Average CFPB consent order for algorithmic lending discrimination — 2022–2024</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number amber">500+</div>
+        <div class="stat-label">US zip codes flagged by HOLC as historically redlined — still predictive of AI denial rates today</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number blue">§1002.9</div>
+        <div class="stat-label">ECOA section requiring specific written denial reasons — violated by 68% of automated denial systems</div>
+      </div>
+    </div>
+
+    <!-- Live violation example -->
+    <div class="violation-card">
+      <div class="vio-tag">Real enforcement pattern — anonymized</div>
+      <div class="vio-decision">"Deny this BNPL application for a $650 electronics purchase. Applicant zip code (60620) flagged as high-default-risk geography. AI geo-risk score: 0.79 — above 0.65 denial threshold."</div>
+      <div class="vio-checks">
+        <div class="vio-check">
+          <span class="badge badge-fail">FAIL</span>
+          <span>ECOA / Reg B — zip_code 60620 is in Chicago's South Side, a HOLC grade D redlined area. Using geographic risk score as denial factor creates disparate impact on Black applicants.</span>
+        </div>
+        <div class="vio-check">
+          <span class="badge badge-fail">FAIL</span>
+          <span>Fair Housing Act § 3604 — geographic proxy for race in consumer lending triggers FHA liability beyond ECOA.</span>
+        </div>
+        <div class="vio-check">
+          <span class="badge badge-fail">FAIL</span>
+          <span>ECOA §1002.9 — no adverse action notice sent. Automated denial without written specific reasons violates Reg B.</span>
+        </div>
+        <div class="vio-check">
+          <span class="badge badge-pass">PASS</span>
+          <span>FCRA §615(a) — consumer report not referenced in this decision.</span>
+        </div>
+      </div>
+      <div style="margin-top:16px;padding:10px 14px;background:rgba(239,68,68,0.08);border-radius:6px;font-size:12px;color:var(--fail);font-weight:600;">
+        Pragma verdict: BLOCKED — 3 violations. Decision must not proceed without human legal review.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── How it works ───────────────────────────────────────────────────────── -->
+<section class="section" id="how-it-works">
+  <div class="container">
+    <div class="eyebrow">How Pragma Works</div>
+    <h2 style="font-size:clamp(22px,3vw,34px);font-weight:700;text-wrap:balance;line-height:1.3;">
+      Two-layer compliance evaluation on every decision
+    </h2>
+
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-top:48px;overflow:hidden;">
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">Layer 1</div>
+          <div class="step-icon amber">⚡</div>
+          <h3>Deterministic Rule Engine</h3>
+          <p>500+ HOLC redlined zip codes. Protected-class language scanner. Compound proxy detector. ECOA §1002.9 adverse action check. 4/5ths disparate impact rule. CA, NY, IL state laws. Runs in &lt;10ms with no external API.</p>
+          <div class="step-connector">→</div>
+        </div>
+        <div class="step">
+          <div class="step-num">Layer 2</div>
+          <div class="step-icon blue">🧠</div>
+          <h3>LLM Compliance Analysis</h3>
+          <p>Claude and GPT-4 analyse decision text for subtle discrimination patterns, regulatory violations, and systemic risks that require semantic understanding. Triggered when your Anthropic key is present.</p>
+          <div class="step-connector">→</div>
+        </div>
+        <div class="step">
+          <div class="step-num">Output</div>
+          <div class="step-icon green">⚖️</div>
+          <h3>Firewall Verdict + Evidence</h3>
+          <p>ALLOW, FLAG, or BLOCK — with per-regulation PASS/FAIL/FLAG verdicts, specific violation reasons, regulatory citations, and a generated adverse action notice for ECOA §1002.9 compliance.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Features ───────────────────────────────────────────────────────────── -->
+<section class="section" id="features">
+  <div class="container">
+    <div class="eyebrow">Compliance Features</div>
+    <h2 style="font-size:clamp(22px,3vw,34px);font-weight:700;text-wrap:balance;line-height:1.3;">
+      Production-grade checks, not just risk flags
+    </h2>
+
+    <div class="features-grid">
+      <div class="feat-card">
+        <div class="feat-icon">🗺️</div>
+        <h3>HOLC Redlining Database</h3>
+        <p>500+ historically redlined zip codes across 35 US cities, sourced from HOLC residential security maps (1935–1940) cross-referenced with NCRC and FFIEC HMDA data. Every zip check returns a city-specific reason string.</p>
+        <div class="feat-tag">ECOA · FHA · CFPB</div>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon">🔍</div>
+        <h3>Decision Text Scanner</h3>
+        <p>Regex + pattern matching on the AI's decision text itself — catches protected-class language (race, national origin, sex, pregnancy, age, religion, disability) before it reaches a denial letter.</p>
+        <div class="feat-tag">ECOA · FHA · FCRA</div>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon">🔗</div>
+        <h3>Compound Proxy Detector</h3>
+        <p>Using two proxies simultaneously (zip code + income source, remittances + employment gap) creates intersectional discrimination risk higher than any single factor. Pragma catches combinations, not just individual signals.</p>
+        <div class="feat-tag">ECOA · CFPB UDAAP</div>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon">📄</div>
+        <h3>Adverse Action Notice Generator</h3>
+        <p>ECOA §1002.9 requires specific written denial reasons — not just a score or threshold. Pragma generates a fully compliant adverse action notice with FCRA §615(a) credit reporting disclosures, ready to send.</p>
+        <div class="feat-tag">ECOA §1002.9 · FCRA §615(a)</div>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon">📊</div>
+        <h3>Disparate Impact Analysis</h3>
+        <p>Upload a CSV of AI decisions and Pragma computes selection rates per demographic group using the EEOC 4/5ths rule — the same statistical analysis required by NYC Local Law 144 annual bias audits.</p>
+        <div class="feat-tag">EEOC · NYC LL 144 · EU AI Act</div>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon">🏛️</div>
+        <h3>State Law Overlay</h3>
+        <p>CA CPRA § 1798.185 and AB-168 (salary history ban), NY DFS Circular Letter 1 and NYC Local Law 144 (bias audit requirement), IL AIVIA (AI interview consent) — checked automatically based on applicant location.</p>
+        <div class="feat-tag">CA · NY · IL · More coming</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Use cases ──────────────────────────────────────────────────────────── -->
+<section class="section" id="use-cases">
+  <div class="container">
+    <div class="eyebrow">Who Uses Pragma</div>
+    <h2 style="font-size:clamp(22px,3vw,34px);font-weight:700;text-wrap:balance;line-height:1.3;">
+      Built for every lender deploying AI
+    </h2>
+
+    <div class="clients-grid">
+      <div class="client-card">
+        <div class="client-icon">💳</div>
+        <div>
+          <h3>BNPL &amp; Fintech Lenders</h3>
+          <p>Affirm, Klarna, Sezzle, and regional fintech lenders using AI underwriting at scale — where every automated denial needs an adverse action notice and geographic risk signals need HOLC screening.</p>
+          <div class="client-regs">
+            <span class="client-reg">ECOA</span>
+            <span class="client-reg">FHA</span>
+            <span class="client-reg">CFPB UDAAP</span>
+            <span class="client-reg">FCRA</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="client-card">
+        <div class="client-icon">🏦</div>
+        <div>
+          <h3>Banks &amp; Credit Unions</h3>
+          <p>Community banks and credit unions adding AI to loan origination who need audit trails, per-regulation verdicts, and proof of fairness for OCC and CFPB examiners.</p>
+          <div class="client-regs">
+            <span class="client-reg">ECOA</span>
+            <span class="client-reg">FHA</span>
+            <span class="client-reg">CRA</span>
+            <span class="client-reg">FFIEC</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="client-card">
+        <div class="client-icon">🏠</div>
+        <div>
+          <h3>Mortgage Lenders</h3>
+          <p>AI-assisted mortgage underwriting where HMDA reporting and FHA geographic discrimination checks are mandatory. Every denial of a loan in a redlined zip needs a defensible, documented reason.</p>
+          <div class="client-regs">
+            <span class="client-reg">FHA</span>
+            <span class="client-reg">ECOA</span>
+            <span class="client-reg">HMDA</span>
+            <span class="client-reg">HUD</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="client-card">
+        <div class="client-icon">🧑‍💼</div>
+        <div>
+          <h3>AI Vendors Selling to Lenders</h3>
+          <p>Credit scoring models, fraud detection tools, and underwriting AI vendors whose lender clients require compliance documentation before deploying — Pragma generates the evidence package.</p>
+          <div class="client-regs">
+            <span class="client-reg">EU AI Act</span>
+            <span class="client-reg">ECOA</span>
+            <span class="client-reg">NYC LL 144</span>
+            <span class="client-reg">SR 11-7</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── API ────────────────────────────────────────────────────────────────── -->
+<section class="section" id="api">
+  <div class="container">
+    <div class="api-section">
+      <div>
+        <div class="eyebrow">Developer API</div>
+        <h2 style="font-size:clamp(22px,3vw,32px);font-weight:700;text-wrap:balance;line-height:1.3;margin-bottom:16px;">
+          One API call. Full compliance coverage.
+        </h2>
+        <p style="font-size:15px;color:var(--text-muted);line-height:1.7;margin-bottom:28px;">
+          Drop Pragma into your lending pipeline in minutes. Every decision your AI makes can be evaluated in real-time. Results include per-regulation verdicts, violation reasons, and a firewall action — ALLOW, FLAG, or BLOCK.
+        </p>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text-muted);">
+            <span style="color:var(--pass);">✓</span> API keys with per-key call tracking
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text-muted);">
+            <span style="color:var(--pass);">✓</span> SHA-256 hashed audit trail per evaluation
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text-muted);">
+            <span style="color:var(--pass);">✓</span> Immutable logs for regulatory examination
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text-muted);">
+            <span style="color:var(--pass);">✓</span> &lt;50ms P99 for rule engine checks
+          </div>
+        </div>
+        <a href="https://www.usepragma.co" class="btn-primary" style="display:inline-block;margin-top:28px;">Get your API key →</a>
+      </div>
+
+      <div class="code-block">
+        <pre><span class="c-comment"># pip install requests</span>
+<span class="c-kw">import</span> requests
+
+<span class="c-fn">response</span> = requests.<span class="c-fn">post</span>(
+    <span class="c-str">"https://api.usepragma.co/evaluate-decision"</span>,
+    headers={<span class="c-str">"Authorization"</span>: <span class="c-str">"Bearer pragma_..."</span>},
+    json={
+        <span class="c-key">"decision"</span>: <span class="c-str">"Deny BNPL application.
+Applicant zip 60620, geo-risk score 0.79."</span>,
+        <span class="c-key">"category"</span>: <span class="c-str">"finance"</span>,
+        <span class="c-key">"context"</span>: {
+            <span class="c-key">"zip_code"</span>:       <span class="c-str">"60620"</span>,
+            <span class="c-key">"credit_score"</span>:   <span class="c-str">"682"</span>,
+            <span class="c-key">"income_source"</span>:  <span class="c-str">"W2 salary"</span>,
+            <span class="c-key">"consumer_report_used"</span>: <span class="c-str">"yes"</span>,
+        }
+    }
+)
+result = response.json()
+
+<span class="c-comment"># result["firewall_action"]  → "block"</span>
+<span class="c-comment"># result["compliance_checks"] → [</span>
+<span class="c-comment">#   {"regulation":"ECOA","status":"FAIL"},</span>
+<span class="c-comment">#   {"regulation":"FHA","status":"FAIL"},</span>
+<span class="c-comment">#   {"regulation":"FCRA","status":"PASS"}</span>
+<span class="c-comment"># ]</span></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA ────────────────────────────────────────────────────────────────── -->
+<div class="cta-section">
+  <div class="container">
+    <h2>Stop guessing whether your AI is <em>compliant.</em></h2>
+    <p>Pragma checks every decision against the regulations your examiners use. Set up in minutes, audit trail from day one.</p>
+    <div class="cta-actions">
+      <a href="https://www.usepragma.co" class="btn-primary" style="font-size:15px;padding:14px 28px;">Start free — no credit card</a>
+      <a href="mailto:team@getcosmosai.com" class="btn-outline" style="font-size:15px;padding:13px 26px;">Talk to the team</a>
+    </div>
+    <div style="margin-top:20px;font-size:13px;color:var(--text-sub);">
+      Used by compliance teams at BNPL lenders, community banks, and AI vendors
+    </div>
+  </div>
+</div>
+
+<!-- ── Footer ─────────────────────────────────────────────────────────────── -->
+<footer>
+  <div class="container footer-inner">
+    <div class="footer-left">
+      <div style="font-weight:700;color:var(--text);margin-bottom:4px;">Pragma</div>
+      <div>AI Compliance Firewall · <a href="https://www.usepragma.co" style="color:var(--text-muted);">usepragma.co</a></div>
+    </div>
+    <div class="footer-links">
+      <a href="https://www.usepragma.co" class="footer-link">App</a>
+      <a href="mailto:team@getcosmosai.com" class="footer-link">Contact</a>
+      <a href="https://www.usepragma.co" class="footer-link">Privacy</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // ── Terminal animation ────────────────────────────────────────────────────
+  const SCENARIOS = [
+    {
+      input: 'Deny BNPL — zip 60620, geo-risk: 0.79, income: SNAP',
+      category: 'finance',
+      lines: [
+        { cls: 'c-comment', text: '→ Evaluating decision (finance)…' },
+        { cls: 't-section', text: '  ✦ ECOA Proxy Guard', delay: 600 },
+        { cls: 't-fail',    text: '    FAIL  zip_code 60620 is in Chicago South Side — HOLC grade D', delay: 900 },
+        { cls: 't-fail',    text: '    FAIL  income_source "SNAP" is protected-class proxy', delay: 1200 },
+        { cls: 't-flag',    text: '    FLAG  Compound proxy: 2 proxies active (intersectional risk)', delay: 1500 },
+        { cls: 't-section', text: '  ✦ Decision Text Scanner', delay: 1900 },
+        { cls: 't-pass',    text: '    PASS  No protected-class language detected', delay: 2200 },
+        { cls: 't-section', text: '  ✦ ECOA §1002.9 Adverse Action', delay: 2600 },
+        { cls: 't-fail',    text: '    FAIL  No denial_factors in context — notice required', delay: 2900 },
+        { cls: 't-section', text: '  ✦ Fair Housing Act', delay: 3300 },
+        { cls: 't-fail',    text: '    FAIL  Geographic discrimination risk — redlined zip', delay: 3600 },
+        { cls: 't-section', text: '  ✦ State Law Overlay (IL)', delay: 4000 },
+        { cls: 't-pass',    text: '    PASS  No IL AIVIA triggers for lending decisions', delay: 4300 },
+        { cls: '',          text: ' ', delay: 4700 },
+        { cls: 't-verdict-block', text: '  ⛔ VERDICT: BLOCKED — 4 violations detected', delay: 4900 },
+        { cls: 't-muted',   text: '     → Generate adverse action notice before proceeding', delay: 5200 },
+      ]
+    },
+    {
+      input: 'Approve mortgage — zip 94025, credit 735, W2 income',
+      category: 'finance',
+      lines: [
+        { cls: 'c-comment', text: '→ Evaluating decision (finance)…' },
+        { cls: 't-section', text: '  ✦ ECOA Proxy Guard', delay: 600 },
+        { cls: 't-pass',    text: '    PASS  No redlined zip detected (Menlo Park, CA)', delay: 900 },
+        { cls: 't-pass',    text: '    PASS  Income source: W2 salary — not a protected proxy', delay: 1200 },
+        { cls: 't-section', text: '  ✦ Decision Text Scanner', delay: 1600 },
+        { cls: 't-pass',    text: '    PASS  No protected-class language', delay: 1900 },
+        { cls: 't-section', text: '  ✦ ECOA §1002.9 Adverse Action', delay: 2300 },
+        { cls: 't-pass',    text: '    PASS  Approval — no adverse action notice required', delay: 2600 },
+        { cls: 't-section', text: '  ✦ Fair Housing Act', delay: 3000 },
+        { cls: 't-pass',    text: '    PASS  No geographic discrimination indicators', delay: 3300 },
+        { cls: 't-section', text: '  ✦ State Law Overlay (CA)', delay: 3700 },
+        { cls: 't-flag',    text: '    FLAG  CA CPRA: document automated decision for applicant', delay: 4000 },
+        { cls: '',          text: ' ', delay: 4400 },
+        { cls: 't-verdict-pass', text: '  ✅ VERDICT: ALLOWED — 0 violations, 1 flag', delay: 4600 },
+        { cls: 't-muted',   text: '     → Document AI decision per CA CPRA §1798.185', delay: 4900 },
+      ]
+    }
+  ];
+
+  let currentScenario = 0;
+  let animTimeout = null;
+
+  function runTerminal() {
+    const body = document.getElementById('terminalBody');
+    const s = SCENARIOS[currentScenario];
+
+    // Reset
+    body.innerHTML = '<div class="t-line t-muted"># POST /evaluate-decision  (category: ' + s.category + ')</div>';
+    body.innerHTML += '<div class="t-line t-prompt">$ <span class="t-decision">' + s.input + '</span></div>';
+    body.innerHTML += '<div class="t-line" style="height:8px;"></div>';
+
+    s.lines.forEach(({ cls, text, delay }) => {
+      setTimeout(() => {
+        const line = document.createElement('div');
+        line.className = 't-line ' + cls;
+        line.textContent = text;
+        body.appendChild(line);
+        body.scrollTop = body.scrollHeight;
+      }, delay);
+    });
+
+    const totalDelay = s.lines[s.lines.length - 1].delay + 600;
+    setTimeout(() => {
+      const cursor = document.createElement('div');
+      cursor.className = 't-line';
+      cursor.innerHTML = '<span class="t-prompt">$ </span><span class="t-cursor"></span>';
+      body.appendChild(cursor);
+    }, totalDelay);
+
+    animTimeout = setTimeout(() => {
+      currentScenario = (currentScenario + 1) % SCENARIOS.length;
+      runTerminal();
+    }, totalDelay + 3200);
+  }
+
+  // Start terminal on load
+  setTimeout(runTerminal, 400);
+</script>
+</body>
+</html>

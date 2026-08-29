@@ -1557,6 +1557,186 @@ async def gemini_chat_demo(request: GeminiScenarioRequest, user: dict = Depends(
     }
 
 
+# ── Adverse Action Notice Generator ───────────────────────────────────────────
+
+class AdverseActionRequest(BaseModel):
+    applicant_name: str
+    applicant_address: Optional[str] = ""
+    creditor_name: str
+    creditor_address: Optional[str] = ""
+    denial_date: str
+    denial_reasons: List[str]
+    consumer_report_used: bool = False
+    cra_name: Optional[str] = ""
+    cra_address: Optional[str] = ""
+    cra_phone: Optional[str] = ""
+    # Pre-populated from compliance check output
+    ecoa_violations: Optional[List[str]] = []
+
+
+@app.post("/adverse-action-notice", dependencies=[Depends(get_current_user)])
+async def adverse_action_notice(request: AdverseActionRequest):
+    """
+    Generate a legally compliant Adverse Action Notice per ECOA §1002.9 and FCRA §615(a).
+
+    Required elements (ECOA §1002.9):
+      - Statement of action taken and date
+      - Specific reasons for the action (up to 4-5 principal reasons)
+      - Creditor's name and address
+      - Federal supervisory agency
+
+    Additional elements if consumer report used (FCRA §615(a)):
+      - CRA name, address, and phone number
+      - Right to free copy within 60 days
+      - Right to dispute accuracy
+    """
+    reasons_html = "".join(
+        f'<li style="margin-bottom:6px;">{r}</li>'
+        for r in request.denial_reasons[:5]  # ECOA recommends no more than 5
+    )
+    if not reasons_html:
+        reasons_html = '<li>Insufficient creditworthiness based on credit history and financial profile</li>'
+
+    fcra_section = ""
+    if request.consumer_report_used:
+        cra_name = request.cra_name or "the consumer reporting agency that provided the report"
+        cra_addr = request.cra_address or ""
+        cra_phone = request.cra_phone or ""
+        fcra_section = f"""
+        <div style="margin-top:28px;padding:18px 22px;border:1px solid #d4a017;border-radius:6px;background:#fffbee;">
+          <h3 style="margin:0 0 12px;font-size:14px;font-weight:700;color:#7a5c00;text-transform:uppercase;letter-spacing:.5px;">
+            Fair Credit Reporting Act Disclosure (FCRA §615(a))
+          </h3>
+          <p style="margin:0 0 10px;font-size:13px;line-height:1.6;">
+            Our credit decision was based in whole or in part on information obtained from a consumer reporting agency:
+          </p>
+          <table style="font-size:13px;margin-bottom:14px;border-collapse:collapse;">
+            <tr><td style="padding:2px 12px 2px 0;font-weight:600;white-space:nowrap;">Agency Name:</td><td>{cra_name}</td></tr>
+            {"<tr><td style='padding:2px 12px 2px 0;font-weight:600;'>Address:</td><td>"+cra_addr+"</td></tr>" if cra_addr else ""}
+            {"<tr><td style='padding:2px 12px 2px 0;font-weight:600;'>Phone:</td><td>"+cra_phone+"</td></tr>" if cra_phone else ""}
+          </table>
+          <p style="margin:0 0 8px;font-size:13px;line-height:1.6;">
+            <strong>The consumer reporting agency did not make this decision</strong> and is unable to provide you with specific reasons why we took this action.
+          </p>
+          <p style="margin:0 0 8px;font-size:13px;line-height:1.6;">
+            You have the right, under the Fair Credit Reporting Act, to <strong>obtain a free copy</strong> of your consumer report
+            from the agency named above within 60 days of receiving this notice.
+          </p>
+          <p style="margin:0;font-size:13px;line-height:1.6;">
+            You also have the right to <strong>dispute with the consumer reporting agency</strong> the accuracy or completeness
+            of any information in your consumer report.
+          </p>
+        </div>"""
+
+    ecoa_section = ""
+    if request.ecoa_violations:
+        violations_text = "; ".join(request.ecoa_violations[:3])
+        ecoa_section = f"""
+        <div style="margin-top:16px;padding:12px 16px;border-left:3px solid #ef4444;background:#fff5f5;border-radius:0 6px 6px 0;font-size:12px;color:#7f1d1d;">
+          <strong>Compliance Note (Internal):</strong> Pragma detected potential ECOA exposure: {violations_text}.
+          This notice has been generated to satisfy §1002.9 requirements. Consult legal counsel before sending.
+        </div>"""
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Adverse Action Notice — {request.applicant_name}</title>
+  <style>
+    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    body {{ font-family: "Times New Roman", Times, serif; font-size: 13px; color: #111; background: #fff; padding: 0; }}
+    .page {{ max-width: 720px; margin: 0 auto; padding: 48px 56px; }}
+    h1 {{ font-size: 18px; font-weight: 700; text-align: center; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }}
+    .subtitle {{ text-align: center; font-size: 11px; color: #666; margin-bottom: 28px; letter-spacing: .5px; }}
+    .section {{ margin-bottom: 20px; }}
+    .section h2 {{ font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid #ccc; padding-bottom: 4px; margin-bottom: 10px; }}
+    .label-row {{ display: flex; margin-bottom: 6px; }}
+    .label {{ font-weight: 700; min-width: 160px; flex-shrink: 0; }}
+    .value {{ color: #333; }}
+    ul {{ padding-left: 18px; margin: 0; }}
+    .legal {{ font-size: 11px; line-height: 1.7; color: #555; margin-top: 28px; padding-top: 14px; border-top: 1px solid #ddd; }}
+    .pragma-badge {{ margin-top: 32px; padding: 10px 14px; background: #f5f3ff; border: 1px solid #c4b5fd; border-radius: 6px; font-size: 11px; color: #5b21b6; text-align: center; }}
+    @media print {{ .pragma-badge {{ display: none; }} body {{ padding: 0; }} .page {{ padding: 32px 40px; }} }}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>Notice of Adverse Action</h1>
+    <div class="subtitle">ECOA §1002.9 &bull; FCRA §615(a)</div>
+
+    <div class="section">
+      <div class="label-row"><span class="label">Date of Notice:</span><span class="value">{request.denial_date}</span></div>
+      <div class="label-row"><span class="label">Applicant:</span><span class="value">{request.applicant_name}</span></div>
+      {"<div class='label-row'><span class='label'>Applicant Address:</span><span class='value'>" + request.applicant_address + "</span></div>" if request.applicant_address else ""}
+      <div class="label-row" style="margin-top:10px;"><span class="label">Creditor:</span><span class="value">{request.creditor_name}</span></div>
+      {"<div class='label-row'><span class='label'>Creditor Address:</span><span class='value'>" + request.creditor_address + "</span></div>" if request.creditor_address else ""}
+    </div>
+
+    <div class="section">
+      <h2>Action Taken</h2>
+      <p style="line-height:1.6;">
+        We regret to inform you that your application for credit has been <strong>denied</strong>.
+        The Equal Credit Opportunity Act (ECOA) requires us to provide you with the specific reasons for this decision.
+      </p>
+    </div>
+
+    <div class="section">
+      <h2>Principal Reasons for Denial</h2>
+      <ul style="line-height:1.8;">{reasons_html}</ul>
+    </div>
+
+    {fcra_section}
+    {ecoa_section}
+
+    <div class="section" style="margin-top:28px;">
+      <h2>Your Rights Under the Equal Credit Opportunity Act</h2>
+      <p style="line-height:1.7;">
+        The federal Equal Credit Opportunity Act prohibits creditors from discriminating against credit applicants
+        on the basis of race, color, religion, national origin, sex, marital status, age (provided the applicant has
+        the capacity to enter into a binding contract); because all or part of the applicant's income derives from
+        any public assistance program; or because the applicant has in good faith exercised any right under the
+        Consumer Credit Protection Act.
+      </p>
+      <p style="margin-top:10px;line-height:1.7;">
+        If you believe you have been discriminated against, you may contact:
+        <strong>Consumer Financial Protection Bureau (CFPB)</strong>, 1700 G Street NW, Washington, DC 20552.
+        Phone: 1-855-411-2372 &bull; <em>consumerfinance.gov</em>
+      </p>
+    </div>
+
+    <div class="pragma-badge">
+      ⚡ Generated by <strong>Pragma</strong> — AI Compliance Firewall &bull; usepragma.co &bull;
+      ECOA §1002.9 compliant notice &bull; {request.denial_date}
+    </div>
+
+    <div class="legal">
+      <strong>Legal Disclaimer:</strong> This adverse action notice template is generated by Pragma for compliance
+      assistance purposes. It does not constitute legal advice. Lenders should review this notice with qualified
+      legal counsel before sending to applicants. Specific regulatory requirements may vary based on loan type,
+      state law, and applicable federal regulations.
+    </div>
+  </div>
+</body>
+</html>"""
+
+    logger.info("Adverse action notice generated — applicant=%s creditor=%s",
+                request.applicant_name[:20], request.creditor_name[:20])
+    return Response(
+        content=html,
+        media_type="text/html",
+        headers={"Content-Disposition": f'attachment; filename="adverse-action-notice-{request.applicant_name.replace(" ","_")}.html"'},
+    )
+
+
+@app.get("/lending")
+async def lending_landing():
+    """Serve the lending-focused landing page."""
+    page = Path(__file__).parent.parent / "frontend" / "lending.html"
+    if page.exists():
+        return FileResponse(page)
+    raise HTTPException(status_code=404, detail="Landing page not found")
+
+
 @app.get("/")
 async def root():
     """Serve frontend UI."""

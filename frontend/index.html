@@ -1314,6 +1314,7 @@
             <!-- Download + Feedback -->
             <div class="download-section" id="dlSection">
               <button class="btn btn-download" id="btnDownload">⬇&nbsp; Download PDF Report</button>
+              <button class="btn" id="btnAdverseAction" onclick="openAdverseActionModal()" style="display:none;background:rgba(245,158,11,0.12);border-color:rgba(245,158,11,0.35);color:#fbbf24;font-size:13px;padding:10px 18px;border-radius:8px;cursor:pointer;font-weight:600;">📄&nbsp; Generate Adverse Action Notice</button>
               <div class="feedback-row">
                 <span class="feedback-label">Was this analysis helpful?</span>
                 <button class="thumb-btn" id="thumbUp" title="Thumbs up">👍</button>
@@ -1347,6 +1348,46 @@
             </div>
             <input type="file" id="batchFile" accept=".csv" style="display:none;" onchange="handleBatchFile(this.files[0])">
             <div class="batch-results" id="batchResults"></div>
+          </div>
+
+          <!-- Disparate Impact Analysis -->
+          <div class="card" style="margin-top:16px;">
+            <div class="card-title">📊 Disparate Impact Analysis — EEOC 4/5ths Rule</div>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">Upload a CSV of AI decisions with a demographic column. Pragma computes selection rates per group and flags any group below the EEOC 80% threshold — the same analysis required by NYC Local Law 144 annual bias audits.</p>
+
+            <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
+              <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <div style="flex:1;min-width:140px;">
+                  <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">Demographic Column</label>
+                  <input type="text" id="diaDemo" placeholder="e.g. race, gender, age_group" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;padding:8px 12px;color:var(--text-primary);font-size:13px;">
+                </div>
+                <div style="flex:1;min-width:140px;">
+                  <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">Outcome Column</label>
+                  <input type="text" id="diaOutcome" placeholder="e.g. decision, result, ai_verdict" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;padding:8px 12px;color:var(--text-primary);font-size:13px;">
+                </div>
+                <div style="flex:1;min-width:140px;">
+                  <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">Positive Outcome Value</label>
+                  <input type="text" id="diaPositive" placeholder="e.g. hired, approve, pass" value="advance" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;padding:8px 12px;color:var(--text-primary);font-size:13px;">
+                </div>
+              </div>
+            </div>
+
+            <div class="batch-drop" id="diaDrop" onclick="document.getElementById('diaFile').click()">
+              <div class="batch-icon">📊</div>
+              <strong>Click to upload CSV for disparity analysis</strong>
+              <p>Needs at least one demographic column and one outcome column · Up to 5,000 rows</p>
+            </div>
+            <input type="file" id="diaFile" accept=".csv" style="display:none;" onchange="handleDiaFile(this.files[0])">
+            <div id="diaResults" style="margin-top:12px;"></div>
+
+            <div style="margin-top:14px;padding:10px 14px;background:rgba(99,85,212,0.06);border-radius:8px;border:1px solid rgba(99,85,212,0.15);">
+              <div style="font-size:11px;font-weight:600;color:var(--accent2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">Sample CSV Format</div>
+              <code style="font-size:11px;color:var(--text-muted);display:block;white-space:pre-wrap;line-height:1.6;">applicant_id,race,gender,decision
+1001,White,Female,advance
+1002,Black,Male,decline
+1003,Hispanic,Female,advance
+...</code>
+            </div>
           </div>
         </div>
 
@@ -2368,6 +2409,12 @@ if verdict["firewall_action"] == "block":
       } else {
         hitlSection.style.display = 'none';
       }
+
+      // Adverse Action Notice button — show for finance denials
+      const aanBtn = document.getElementById('btnAdverseAction');
+      const isDenial = data.firewall_action === 'block' || data.firewall_action === 'override_required';
+      const isFinance = (selectedCategory || '').toLowerCase() === 'finance';
+      aanBtn.style.display = (isDenial && isFinance) ? 'inline-flex' : 'none';
 
       const resultsEl = document.getElementById('resultsSection');
       resultsEl.style.display = 'block';
@@ -3839,5 +3886,268 @@ if verdict["firewall_action"] == "block":
       <div id="interviewModalBody"></div>
     </div>
   </div>
+
+  <!-- ── Adverse Action Notice Modal ── -->
+  <div id="aanModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:2100;align-items:flex-start;justify-content:center;overflow-y:auto;padding:40px 16px;">
+    <div style="background:#111318;border:1px solid #1e2232;border-radius:12px;padding:28px;max-width:560px;width:100%;margin:auto;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <div>
+          <div style="font-size:16px;font-weight:700;color:var(--text);">Generate Adverse Action Notice</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">ECOA §1002.9 · FCRA §615(a) compliant</div>
+        </div>
+        <button onclick="closeAanModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:20px;padding:0;">✕</button>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:180px;">
+            <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">Applicant Name *</label>
+            <input type="text" id="aanApplicantName" placeholder="Jane Smith" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;padding:8px 12px;color:var(--text-primary);font-size:13px;">
+          </div>
+          <div style="flex:1;min-width:180px;">
+            <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">Denial Date *</label>
+            <input type="date" id="aanDate" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;padding:8px 12px;color:var(--text-primary);font-size:13px;">
+          </div>
+        </div>
+
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">Applicant Address</label>
+          <input type="text" id="aanApplicantAddr" placeholder="123 Main St, Chicago, IL 60620" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;padding:8px 12px;color:var(--text-primary);font-size:13px;">
+        </div>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:180px;">
+            <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">Creditor Name *</label>
+            <input type="text" id="aanCreditorName" placeholder="Acme Lending Co." style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;padding:8px 12px;color:var(--text-primary);font-size:13px;">
+          </div>
+          <div style="flex:1;min-width:180px;">
+            <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">Creditor Address</label>
+            <input type="text" id="aanCreditorAddr" placeholder="100 Finance Ave, New York, NY" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;padding:8px 12px;color:var(--text-primary);font-size:13px;">
+          </div>
+        </div>
+
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">Denial Reasons (one per line — up to 5)</label>
+          <textarea id="aanReasons" rows="4" placeholder="Derogatory credit history&#10;Insufficient income relative to debt obligations&#10;High debt-to-income ratio" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;padding:8px 12px;color:var(--text-primary);font-size:13px;resize:vertical;font-family:inherit;"></textarea>
+        </div>
+
+        <div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-muted);cursor:pointer;">
+            <input type="checkbox" id="aanCraUsed" onchange="toggleCraFields()" style="width:14px;height:14px;">
+            Consumer report (credit report) was used in this decision
+          </label>
+        </div>
+
+        <div id="aanCraFields" style="display:none;padding:14px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:8px;">
+          <div style="font-size:11px;font-weight:600;color:#fbbf24;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;">FCRA §615(a) — Credit Reporting Agency Details</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <input type="text" id="aanCraName" placeholder="CRA Name (e.g. Experian, Equifax, TransUnion)" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;padding:8px 12px;color:var(--text-primary);font-size:13px;">
+            <input type="text" id="aanCraAddr" placeholder="CRA Address" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;padding:8px 12px;color:var(--text-primary);font-size:13px;">
+            <input type="text" id="aanCraPhone" placeholder="CRA Phone (e.g. 1-888-397-3742)" style="width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;padding:8px 12px;color:var(--text-primary);font-size:13px;">
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:20px;">
+        <button class="btn btn-primary" onclick="generateAAN()" id="aanSubmitBtn">Generate Notice</button>
+        <button class="btn" onclick="closeAanModal()">Cancel</button>
+      </div>
+      <div id="aanError" style="margin-top:8px;font-size:12px;color:#f87171;display:none;"></div>
+    </div>
+  </div>
+
+  <script>
+    // ── Adverse Action Notice ──────────────────────────────────────────────────
+    function openAdverseActionModal() {
+      // Pre-fill denial date with today
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('aanDate').value = today;
+
+      // Pre-populate denial reasons from compliance check FAIL/FLAG reasons
+      if (lastAnalysis && lastAnalysis.compliance_checks) {
+        const reasons = lastAnalysis.compliance_checks
+          .filter(c => c.status === 'FAIL' || c.status === 'FLAG')
+          .map(c => c.reason || c.regulation)
+          .slice(0, 5);
+        if (reasons.length > 0) {
+          document.getElementById('aanReasons').value = reasons.join('\n');
+        }
+      }
+
+      const modal = document.getElementById('aanModal');
+      modal.style.display = 'flex';
+    }
+
+    function closeAanModal() {
+      document.getElementById('aanModal').style.display = 'none';
+      document.getElementById('aanError').style.display = 'none';
+    }
+
+    function toggleCraFields() {
+      const show = document.getElementById('aanCraUsed').checked;
+      document.getElementById('aanCraFields').style.display = show ? 'block' : 'none';
+    }
+
+    async function generateAAN() {
+      const applicantName = document.getElementById('aanApplicantName').value.trim();
+      const creditorName  = document.getElementById('aanCreditorName').value.trim();
+      const denialDate    = document.getElementById('aanDate').value;
+      const rawReasons    = document.getElementById('aanReasons').value.trim();
+      const errEl         = document.getElementById('aanError');
+
+      if (!applicantName || !creditorName || !denialDate) {
+        errEl.textContent = 'Applicant name, creditor name, and denial date are required.';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      const reasons = rawReasons.split('\n').map(r => r.trim()).filter(Boolean).slice(0, 5);
+      const craUsed = document.getElementById('aanCraUsed').checked;
+
+      const body = {
+        applicant_name:    applicantName,
+        applicant_address: document.getElementById('aanApplicantAddr').value.trim(),
+        creditor_name:     creditorName,
+        creditor_address:  document.getElementById('aanCreditorAddr').value.trim(),
+        denial_date:       denialDate,
+        denial_reasons:    reasons,
+        consumer_report_used: craUsed,
+        cra_name:          craUsed ? document.getElementById('aanCraName').value.trim() : '',
+        cra_address:       craUsed ? document.getElementById('aanCraAddr').value.trim() : '',
+        cra_phone:         craUsed ? document.getElementById('aanCraPhone').value.trim() : '',
+        ecoa_violations:   (lastAnalysis?.compliance_checks || []).filter(c => c.status === 'FAIL' && c.regulation?.includes('ECOA')).map(c => c.reason || c.regulation).slice(0, 3),
+      };
+
+      const btn = document.getElementById('aanSubmitBtn');
+      btn.textContent = '⏳ Generating…';
+      btn.disabled = true;
+      errEl.style.display = 'none';
+
+      try {
+        const res = await fetch(`${API}/adverse-action-notice`, {
+          method: 'POST', headers: authHeaders(),
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error('Generation failed: ' + res.status);
+        const blob = await res.blob();
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url;
+        a.download = `adverse-action-notice-${applicantName.replace(/\s+/g,'-')}.html`;
+        a.click();
+        URL.revokeObjectURL(url);
+        closeAanModal();
+      } catch (e) {
+        errEl.textContent = 'Could not generate notice: ' + e.message;
+        errEl.style.display = 'block';
+      } finally {
+        btn.textContent = 'Generate Notice';
+        btn.disabled = false;
+      }
+    }
+
+    // ── Disparate Impact Analysis ─────────────────────────────────────────────
+    const diaDrop = document.getElementById('diaDrop');
+    diaDrop.addEventListener('dragover', e => { e.preventDefault(); diaDrop.classList.add('drag-over'); });
+    diaDrop.addEventListener('dragleave', () => diaDrop.classList.remove('drag-over'));
+    diaDrop.addEventListener('drop', e => {
+      e.preventDefault(); diaDrop.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (file) { document.getElementById('diaFile').files; handleDiaFile(file); }
+    });
+
+    async function handleDiaFile(file) {
+      const el = document.getElementById('diaResults');
+      const demoField = document.getElementById('diaDemo').value.trim();
+      const outcomeField = document.getElementById('diaOutcome').value.trim();
+      const positiveOutcome = document.getElementById('diaPositive').value.trim() || 'advance';
+
+      if (!demoField || !outcomeField) {
+        el.innerHTML = '<div style="color:#f87171;font-size:13px;padding:10px;">Please fill in the Demographic Column and Outcome Column fields above before uploading.</div>';
+        return;
+      }
+
+      el.innerHTML = '<div style="font-size:13px;color:var(--text-muted);padding:10px;">⏳ Analysing disparate impact…</div>';
+
+      const form = new FormData();
+      form.append('file', file);
+      form.append('demographic_field', demoField);
+      form.append('outcome_field', outcomeField);
+      form.append('positive_outcome', positiveOutcome);
+
+      try {
+        const res = await fetch(`${API}/disparity-analysis`, {
+          method: 'POST',
+          headers: { Authorization: authHeaders().Authorization },
+          body: form,
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || res.status);
+        renderDiaResults(data);
+      } catch (e) {
+        el.innerHTML = `<div style="color:#f87171;font-size:13px;padding:10px;">Error: ${e.message}</div>`;
+      }
+    }
+
+    function renderDiaResults(d) {
+      const el = document.getElementById('diaResults');
+      const found = d.adverse_impact_found;
+      const highRate = (d.highest_selection_rate * 100).toFixed(1);
+
+      const banner = found
+        ? `<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:12px 16px;margin-bottom:14px;">
+             <div style="font-size:14px;font-weight:700;color:#f87171;">⚠️ Adverse Impact Detected</div>
+             <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">${d.violations.length} group(s) fall below the EEOC 80% threshold. Highest rate: ${d.highest_rate_group} at ${highRate}%.</div>
+           </div>`
+        : `<div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:8px;padding:12px 16px;margin-bottom:14px;">
+             <div style="font-size:14px;font-weight:700;color:#4ade80;">✅ No Adverse Impact Detected</div>
+             <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">All groups are within the EEOC 80% threshold. Highest rate: ${d.highest_rate_group} at ${highRate}%.</div>
+           </div>`;
+
+      const rows = d.groups.map(g => {
+        const pct = (g.selection_rate * 100).toFixed(1);
+        const ratio = (g.disparity_ratio * 100).toFixed(1);
+        const isViolation = g.status === 'ADVERSE IMPACT';
+        const barColor = isViolation ? '#f87171' : '#4ade80';
+        return `<tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:8px 10px;font-weight:600;color:var(--text);">${g.group}</td>
+          <td style="padding:8px 10px;color:var(--text-muted);text-align:right;">${g.selected}/${g.total}</td>
+          <td style="padding:8px 10px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="width:80px;height:6px;border-radius:3px;background:rgba(255,255,255,0.08);flex-shrink:0;">
+                <div style="width:${pct}%;height:6px;border-radius:3px;background:${barColor};transition:width .4s;"></div>
+              </div>
+              <span style="color:${barColor};font-weight:600;font-size:13px;">${pct}%</span>
+            </div>
+          </td>
+          <td style="padding:8px 10px;text-align:right;">
+            <span style="font-size:12px;font-weight:700;padding:2px 8px;border-radius:4px;background:${isViolation ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.1)'};color:${isViolation ? '#f87171' : '#4ade80'};">
+              ${isViolation ? '⚠️ ' : '✓ '}${ratio}%
+            </span>
+          </td>
+        </tr>`;
+      }).join('');
+
+      const refsHtml = (d.regulatory_refs || []).map(r =>
+        `<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;"><span style="font-weight:600;color:var(--text);">${r.law}</span> <span style="color:var(--text-muted);margin-left:6px;">${r.jurisdiction}</span><div style="color:var(--text-muted);margin-top:2px;">${r.citation}</div></div>`
+      ).join('');
+
+      el.innerHTML = `
+        ${banner}
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">${d.total_decisions} decisions · ${d.total_groups} groups · ${d.demographic_field} field</div>
+        <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead><tr style="border-bottom:1px solid var(--border);">
+            <th style="text-align:left;font-size:10px;color:var(--text-muted);padding:4px 10px 6px 10px;font-weight:600;text-transform:uppercase;">Group</th>
+            <th style="text-align:right;font-size:10px;color:var(--text-muted);padding:4px 10px 6px;font-weight:600;text-transform:uppercase;">Selected/Total</th>
+            <th style="text-align:left;font-size:10px;color:var(--text-muted);padding:4px 10px 6px;font-weight:600;text-transform:uppercase;">Selection Rate</th>
+            <th style="text-align:right;font-size:10px;color:var(--text-muted);padding:4px 10px 6px;font-weight:600;text-transform:uppercase;">vs. Highest (4/5ths)</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>
+        ${refsHtml ? `<div style="margin-top:14px;"><div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">Regulatory References</div>${refsHtml}</div>` : ''}
+        <div style="margin-top:12px;font-size:11px;color:var(--text-subtle);">4/5ths rule: a group is flagged when its selection rate is less than 80% of the highest group's rate (EEOC 29 CFR Part 1607).</div>`;
+    }
+  </script>
 </body>
 </html>
