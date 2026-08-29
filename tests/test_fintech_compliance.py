@@ -367,3 +367,201 @@ class TestProxyVariableReportEndpoint:
         r = client.post("/proxy-variable-report",
                         json={"context": {"zip_code": "60620"}})
         assert r.status_code in (401, 403)
+
+
+# ── New compliance engine checks ───────────────────────────────────────────────
+
+from backend.compliance_engine import (
+    run_compliance_checks, _check_decision_text, _check_compound_proxies,
+    _check_ecoa_adverse_action_reasons, _check_disparate_impact_risk,
+    _check_state_laws,
+)
+from backend.geo_data import is_redlined, get_redlined_count, REDLINED_ZIPS
+
+
+class TestGeoData:
+    def test_redlined_zip_count_is_large(self):
+        assert get_redlined_count() > 400
+
+    def test_chicago_south_side_redlined(self):
+        flagged, reason = is_redlined("60620")
+        assert flagged
+        assert "Chicago" in reason
+
+    def test_detroit_redlined(self):
+        flagged, _ = is_redlined("48227")
+        assert flagged
+
+    def test_clean_suburban_zip_not_redlined(self):
+        flagged, _ = is_redlined("94025")  # Menlo Park, CA
+        assert not flagged
+
+    def test_empty_zip_returns_false(self):
+        flagged, _ = is_redlined("")
+        assert not flagged
+
+    def test_prefix_match_chicago(self):
+        # 60601 is downtown Chicago — not in the HOLC redlined set but prefix 606 matches
+        flagged, reason = is_redlined("60699")
+        assert flagged
+
+    def test_reason_string_is_nonempty(self):
+        flagged, reason = is_redlined("60620")
+        assert flagged and len(reason) > 10
+
+
+class TestDecisionTextScanner:
+    def test_catches_black_neighborhood_in_denial(self):
+        decision = "Deny — applicant lives in a predominantly Black neighborhood with high default rates."
+        results = _check_decision_text(decision, {})
+        assert any(r["status"] in ("FAIL","FLAG") for r in results)
+
+    def test_catches_elderly_in_denial(self):
+        decision = "Reject this applicant. Elderly applicants nearing retirement age present repayment risk."
+        results = _check_decision_text(decision, {"denial_decision": "reject"})
+        assert any("Age" in r["article"] for r in results)
+
+    def test_catches_immigrant_language(self):
+        decision = "Deny — foreign-born applicant, immigration status unclear."
+        results = _check_decision_text(decision, {})
+        assert any(r["status"] in ("FAIL","FLAG") for r in results)
+
+    def test_clean_decision_no_flags(self):
+        decision = "Approve. Credit score 720, DTI 28%, strong payment history."
+        results = _check_decision_text(decision, {})
+        assert all(r["status"] == "PASS" for r in results) or results == []
+
+    def test_denial_context_gives_fail_not_flag(self):
+        decision = "Deny this applicant. They are pregnant and may leave employment."
+        results = _check_decision_text(decision, {"denial_decision": "deny"})
+        fails = [r for r in results if r["status"] == "FAIL"]
+        assert len(fails) > 0
+
+
+class TestCompoundProxies:
+    def test_two_proxies_gives_flag(self):
+        ctx = {
+            "zip_code": "60620",
+            "income_source": "SNAP benefits",
+        }
+        results = _check_compound_proxies("Deny this application.", ctx)
+        assert len(results) == 1
+        assert results[0]["status"] == "FLAG"
+
+    def test_three_proxies_gives_fail(self):
+        ctx = {
+            "zip_code": "60620",
+            "income_source": "public assistance",
+            "bank_behavior": "monthly international wire transfers",
+        }
+        results = _check_compound_proxies("Deny.", ctx)
+        assert results[0]["status"] == "FAIL"
+
+    def test_zero_proxies_no_result(self):
+        ctx = {"credit_score": "720", "income": "$80,000"}
+        results = _check_compound_proxies("Approve.", ctx)
+        assert results == []
+
+    def test_one_proxy_no_compound_flag(self):
+        ctx = {"zip_code": "60620"}
+        results = _check_compound_proxies("Deny.", ctx)
+        assert results == []
+
+
+class TestEcoaAdverseActionReasons:
+    def test_denial_no_reasons_fails(self):
+        results = _check_ecoa_adverse_action_reasons("Deny this application.", {})
+        assert results[0]["status"] == "FAIL"
+
+    def test_denial_with_specific_reasons_passes(self):
+        ctx = {"denial_factors": "derogatory credit history, insufficient income, excessive debt obligations"}
+        results = _check_ecoa_adverse_action_reasons("Reject.", ctx)
+        assert results[0]["status"] in ("PASS", "FLAG")
+
+    def test_vague_reason_flagged(self):
+        ctx = {"denial_reason_candidate": "risk score below threshold"}
+        results = _check_ecoa_adverse_action_reasons("Deny.", ctx)
+        assert results[0]["status"] == "FLAG"
+        assert "vague" in results[0]["reason"].lower()
+
+    def test_approval_passes(self):
+        results = _check_ecoa_adverse_action_reasons("Approve this loan application.", {})
+        assert results[0]["status"] == "PASS"
+
+
+class TestDisparateImpactRisk:
+    def test_no_proxies_passes(self):
+        results = _check_disparate_impact_risk("Approve.", {"credit_score": "720"})
+        assert results[0]["status"] == "PASS"
+
+    def test_redlined_zip_denial_flags(self):
+        ctx = {"zip_code": "60620", "geo_risk_score": "0.8"}
+        results = _check_disparate_impact_risk("Deny.", ctx)
+        assert results[0]["status"] in ("FAIL","FLAG")
+
+    def test_three_proxies_fails(self):
+        ctx = {
+            "zip_code": "60620",
+            "income_source": "SNAP benefits",
+            "bank_behavior": "international wire transfers",
+        }
+        results = _check_disparate_impact_risk("Deny.", ctx)
+        assert results[0]["status"] == "FAIL"
+
+
+class TestStateLaws:
+    def test_california_cpra_no_human_review(self):
+        ctx = {"applicant_location": "Los Angeles, California", "model_used": "AI credit scorer"}
+        results = _check_state_laws("Deny.", ctx)
+        assert any("California" in r["regulation"] or "CPRA" in r["regulation"] for r in results)
+
+    def test_nyc_local_law_144_no_audit(self):
+        ctx = {"applicant_location": "New York, NY", "screening_tool": "Workday AI Recruiting"}
+        results = _check_state_laws("Reject.", ctx)
+        assert any("144" in r["regulation"] or "NYC" in r["regulation"] for r in results)
+
+    def test_illinois_aivia_no_consent(self):
+        ctx = {"applicant_location": "Chicago, Illinois", "interview_method": "HireVue AI video interview"}
+        results = _check_state_laws("Reject.", ctx)
+        assert any("AIVIA" in r["regulation"] or "Illinois" in r["regulation"] for r in results)
+
+    def test_unknown_state_no_results(self):
+        ctx = {"applicant_location": "Austin, Texas"}
+        results = _check_state_laws("Deny.", ctx)
+        # Texas has no specific state overlay yet
+        assert all("Texas" not in r.get("regulation","") for r in results)
+
+    def test_zip_code_detects_ca(self):
+        ctx = {"zip_code": "90210", "model_used": "AI scorer"}  # Beverly Hills
+        results = _check_state_laws("Deny.", ctx)
+        assert any("California" in r.get("regulation","") or "CPRA" in r.get("regulation","") for r in results)
+
+
+class TestRunComplianceChecksIntegration:
+    def test_finance_category_runs_all_major_checks(self):
+        ctx = {
+            "zip_code": "60620", "credit_score": "682",
+            "adverse_action_notice": "not sent",
+            "consumer_report_used": "yes",
+        }
+        results = run_compliance_checks("Deny this loan.", ctx, "finance")
+        regs = [r["regulation"] for r in results]
+        assert any("ECOA" in r for r in regs)
+        assert any("FCRA" in r for r in regs)
+        assert any("Fair Housing" in r for r in regs)
+
+    def test_hiring_category_runs_eeoc(self):
+        ctx = {"graduation_year": "1979", "role_applied": "Engineer"}
+        results = run_compliance_checks("Reject this candidate.", ctx, "hiring")
+        assert any("ADEA" in r["regulation"] or "EEOC" in r["regulation"] for r in results)
+
+    def test_clean_finance_decision_mostly_passes(self):
+        ctx = {
+            "zip_code": "94025", "credit_score": "735",
+            "annual_income": "$92,000", "income_source": "W2 salary",
+            "adverse_action_notice": "process in place",
+            "denial_factors": "not applicable — approval",
+        }
+        results = run_compliance_checks("Approve this loan application.", ctx, "finance")
+        fails = [r for r in results if r["status"] == "FAIL"]
+        assert len(fails) == 0

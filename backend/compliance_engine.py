@@ -506,20 +506,8 @@ def compute_compliance(system: Dict, stats: Dict) -> Dict[str, Any]:
 # No LLM required — always runs, always deterministic.
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# ── Geography ──────────────────────────────────────────────────────────────────
-_REDLINED_ZIPS: set = {
-    "60620","60621","60628","60636","60637","60619","60649",
-    "48227","48228","48235","48238",
-    "21213","21216","21223","21217",
-    "44103","44104","44105","44108",
-    "63106","63107","63108","63113",
-    "90001","90002","90011","90059",
-    "77020","77026",
-    "30314","30318",
-    "19132","19134","19140",
-    "10037","10039","11212",
-}
-_REDLINED_PREFIXES: set = {"606","482","211","441","631","900","770","303"}
+# ── Geography — use comprehensive HOLC dataset ─────────────────────────────────
+from .geo_data import is_redlined as _geo_is_redlined
 
 _PROTECTED_INCOME_KW: set = {
     "snap","food stamp","ebt","welfare","public assistance",
@@ -562,9 +550,9 @@ def _is_denial(decision: str, context: dict) -> bool:
     return _has(decision, _DENIAL_KW) or _has(context.get("denial_decision", ""), _DENIAL_KW)
 
 
-def _is_redlined(zip_code: str) -> bool:
-    z = zip_code.strip()
-    return z in _REDLINED_ZIPS or any(z.startswith(p) for p in _REDLINED_PREFIXES)
+def _is_redlined(zip_code: str) -> tuple:
+    """Returns (bool, reason_string) using full HOLC dataset."""
+    return _geo_is_redlined(zip_code)
 
 
 def _is_eu(context: dict) -> bool:
@@ -581,14 +569,15 @@ def _check_ecoa_decision(decision: str, ctx: dict) -> list:
     denial_reason = _s(ctx.get("denial_reason_candidate", ""))
     geo_used = _has(denial_reason, {"geo","zip","geographic","geography"}) or bool(geo_risk)
 
-    if zip_code and _is_redlined(zip_code):
+    redlined, geo_reason = _is_redlined(zip_code) if zip_code else (False, "")
+    if redlined:
         if denial or geo_used:
             results.append({
                 "regulation": "ECOA — Equal Credit Opportunity Act",
                 "article": "Regulation B, 12 CFR § 1002.6 — Prohibited Basis (Race)",
                 "status": "FAIL",
                 "reason": (
-                    f"Zip code {zip_code} is in a historically redlined geography. "
+                    f"{geo_reason}. "
                     "Using geographic risk scores as a denial factor is a proxy for race — "
                     "prohibited under ECOA Regulation B § 1002.6."
                 ),
@@ -598,7 +587,7 @@ def _check_ecoa_decision(decision: str, ctx: dict) -> list:
                 "regulation": "ECOA — Equal Credit Opportunity Act",
                 "article": "Regulation B, 12 CFR § 1002.6 — Prohibited Basis",
                 "status": "FLAG",
-                "reason": f"Zip code {zip_code} is a historically redlined geography. Verify it was not used as a credit factor.",
+                "reason": f"{geo_reason}. Verify it was not used as a credit factor.",
             })
     else:
         results.append({
@@ -723,11 +712,13 @@ def _check_fha_decision(decision: str, ctx: dict) -> list:
     zip_code = _s(ctx.get("zip_code", ""))
     geo_risk = ctx.get("geo_risk_score", "")
     denial = _is_denial(decision, ctx)
-    if zip_code and _is_redlined(zip_code) and (denial or geo_risk):
+    redlined, geo_reason = _is_redlined(zip_code) if zip_code else (False, "")
+    if redlined and (denial or geo_risk):
         return [{"regulation":"Fair Housing Act","article":"42 U.S.C. § 3605 — Discrimination in Residential Real Estate","status":"FAIL",
-                 "reason":f"Zip code {zip_code} is in a historically redlined area. Geographic risk scoring violates the Fair Housing Act."}]
-    return [{"regulation":"Fair Housing Act","article":"42 U.S.C. § 3605 — Geographic Discrimination","status":"PASS" if not (zip_code and _is_redlined(zip_code)) else "FLAG",
-             "reason":"No geographic discrimination pattern detected." if not (zip_code and _is_redlined(zip_code)) else f"Zip code {zip_code} is a historically redlined geography — verify not used as credit factor."}]
+                 "reason":f"{geo_reason}. Geographic risk scoring violates the Fair Housing Act's prohibition on race-based geographic discrimination."}]
+    return [{"regulation":"Fair Housing Act","article":"42 U.S.C. § 3605 — Geographic Discrimination",
+             "status":"FLAG" if redlined else "PASS",
+             "reason":f"{geo_reason} — verify not used as credit factor." if redlined else "No geographic discrimination pattern detected."}]
 
 
 def _check_udaap_decision(decision: str, ctx: dict) -> list:
@@ -827,18 +818,390 @@ def _check_eeoc_decision(decision: str, ctx: dict) -> list:
     return results
 
 
+# ── 2. Decision text scanner — protected class language ────────────────────────
+
+import re as _re
+
+_PROTECTED_CLASS_PATTERNS = [
+    # Race / Color
+    (_re.compile(r'\b(black|white|asian|hispanic|latino|latina|african[\s-]american|minority|minorities|ethnic\s+neighbor|racial\s+compos|racial\s+demog|predominantly\s+\w+\s+neighbor)\b', _re.I), "race", "Race / Color"),
+    # National Origin
+    (_re.compile(r'\b(immigrant|foreign[\s-]born|national\s+origin|country\s+of\s+origin|citizenship\s+status|visa\s+holder|undocumented|remittance\s+to|wire\s+to\s+\w+)\b', _re.I), "national_origin", "National Origin"),
+    # Sex / Gender
+    (_re.compile(r'\b(pregnant|pregnancy|maternity|paternity\s+leave|gender\s+gap|female\s+applicant|male\s+applicant)\b', _re.I), "sex", "Sex / Pregnancy"),
+    # Age
+    (_re.compile(r'\b(elderly|senior\s+citizen|retirement\s+age|too\s+old|older\s+worker|nearing\s+retirement)\b', _re.I), "age", "Age"),
+    # Religion
+    (_re.compile(r'\b(muslim|jewish|christian\s+applicant|religious\s+observance|sabbath|halal|kosher)\b', _re.I), "religion", "Religion"),
+    # Disability
+    (_re.compile(r'\b(disability|disabled\s+applicant|medical\s+condition\s+affect|health\s+condition\s+limit|handicap)\b', _re.I), "disability", "Disability"),
+    # Familial Status
+    (_re.compile(r'\b(single\s+mother|single\s+parent|familial\s+status|children\s+present|expecting\s+child)\b', _re.I), "familial_status", "Familial Status"),
+    # Public Assistance (already caught in context, but catch in text too)
+    (_re.compile(r'\b(receives?\s+welfare|on\s+food\s+stamps|snap\s+recipient|public\s+housing)\b', _re.I), "public_assistance", "Receipt of Public Assistance"),
+]
+
+
+def _check_decision_text(decision: str, ctx: dict) -> list:
+    """Scan the AI decision text for explicit protected class language."""
+    if not decision:
+        return []
+    results = []
+    denial = _is_denial(decision, ctx)
+    for pattern, key, label in _PROTECTED_CLASS_PATTERNS:
+        matches = pattern.findall(decision)
+        if matches:
+            # Only FAIL if in a denial context — otherwise FLAG for review
+            status = "FAIL" if denial else "FLAG"
+            results.append({
+                "regulation": "ECOA — Equal Credit Opportunity Act",
+                "article": f"Regulation B, 12 CFR § 1002.6 — Prohibited Basis ({label})",
+                "status": status,
+                "reason": (
+                    f"Decision text explicitly references a protected characteristic: "
+                    f"'{matches[0]}'. ECOA prohibits using {label} as a factor in credit decisions. "
+                    f"{'This was in the context of a denial — high violation risk.' if denial else 'Flag for human review.'}"
+                ),
+            })
+    return results
+
+
+# ── 3. Compound proxy detector ─────────────────────────────────────────────────
+
+def _detect_active_proxies(decision: str, ctx: dict) -> list[str]:
+    """Return list of proxy types that are active in this evaluation."""
+    active = []
+    zip_code = _s(ctx.get("zip_code", ""))
+    if zip_code:
+        redlined, _ = _is_redlined(zip_code)
+        if redlined:
+            active.append("geographic redlining (zip code)")
+    if _has(ctx.get("income_source", ""), _PROTECTED_INCOME_KW):
+        active.append("protected income source (public assistance)")
+    if _has(ctx.get("bank_behavior", ctx.get("bank_signals_used", "")), _REMITTANCE_KW):
+        active.append("remittances (national origin proxy)")
+    gap = ctx.get("employment_gap_months", ctx.get("employment_gap_years", ""))
+    gap_reason = _s(ctx.get("gap_reason", ""))
+    if gap and (not gap_reason or _has(gap_reason, {"not captured", "unknown"})):
+        active.append("unexplained employment gap (sex/disability proxy)")
+    if _has(ctx.get("open_banking_signals", ""), _DISCOUNT_STORE_KW):
+        active.append("discount-store spending (race proxy)")
+    if ctx.get("prior_compensation"):
+        active.append("prior compensation (sex/race proxy)")
+    geo_risk = ctx.get("geo_risk_score", "")
+    if geo_risk and not zip_code:
+        active.append("geographic risk score (anonymous redlining)")
+    return active
+
+
+def _check_compound_proxies(decision: str, ctx: dict) -> list:
+    """Flag when multiple proxies are used simultaneously — compound discrimination risk."""
+    proxies = _detect_active_proxies(decision, ctx)
+    if len(proxies) < 2:
+        return []
+    status = "FAIL" if len(proxies) >= 3 else "FLAG"
+    proxy_list = "; ".join(f"({i+1}) {p}" for i, p in enumerate(proxies))
+    return [{
+        "regulation": "ECOA — Equal Credit Opportunity Act",
+        "article": "Regulation B, 12 CFR § 1002.6 — Intersectional / Compound Discrimination",
+        "status": status,
+        "reason": (
+            f"{len(proxies)} proxy variables detected simultaneously — compound discrimination risk. "
+            f"Proxies: {proxy_list}. "
+            "Intersectional use of multiple protected-class proxies substantially increases ECOA violation exposure, "
+            "even if each factor appears neutral in isolation."
+        ),
+    }]
+
+
+# ── 4. ECOA § 1002.9 — adverse action specific reasons ───────────────────────
+
+_VAGUE_REASON_KW = {
+    "risk score","ai score","model score","algorithm","below threshold",
+    "does not meet criteria","not qualified","insufficient","risk level",
+}
+
+def _check_ecoa_adverse_action_reasons(decision: str, ctx: dict) -> list:
+    """
+    ECOA § 1002.9 requires specific written reasons for credit denial —
+    not just a score or vague model output.
+    """
+    denial = _is_denial(decision, ctx)
+    if not denial:
+        return [{
+            "regulation": "ECOA — Equal Credit Opportunity Act",
+            "article": "§ 1002.9 — Adverse Action Notice (Specific Reasons)",
+            "status": "PASS",
+            "reason": "No denial detected — adverse action reason requirement not triggered.",
+        }]
+
+    denial_factors = _s(ctx.get("denial_factors", ctx.get("denial_reason_candidate", "")))
+    adverse_notice = _s(ctx.get("adverse_action_notice", ""))
+    notice_sent = _has(adverse_notice, {"sent","provided","yes","in place","process"})
+
+    # Check if denial reasons are specific vs. vague
+    if not denial_factors:
+        return [{
+            "regulation": "ECOA — Equal Credit Opportunity Act",
+            "article": "§ 1002.9 — Adverse Action Notice (Specific Reasons)",
+            "status": "FAIL",
+            "reason": (
+                "Credit was denied but no specific denial reasons are documented in context. "
+                "ECOA § 1002.9 requires creditors to provide applicants with specific principal reasons "
+                "for adverse action (e.g., 'derogatory credit history', 'insufficient income') — "
+                "not just a model score or threshold breach."
+            ),
+        }]
+
+    if _has(denial_factors, _VAGUE_REASON_KW):
+        return [{
+            "regulation": "ECOA — Equal Credit Opportunity Act",
+            "article": "§ 1002.9 — Adverse Action Notice (Specific Reasons)",
+            "status": "FLAG",
+            "reason": (
+                f"Denial reason appears to be vague or model-based: '{denial_factors[:100]}'. "
+                "ECOA § 1002.9 requires specific, principal reasons (up to 4) that the applicant can act on — "
+                "not algorithmic scores or threshold references. CFPB has cited lenders for AI-generated vague reasons."
+            ),
+        }]
+
+    return [{
+        "regulation": "ECOA — Equal Credit Opportunity Act",
+        "article": "§ 1002.9 — Adverse Action Notice (Specific Reasons)",
+        "status": "PASS" if notice_sent else "FLAG",
+        "reason": (
+            f"Denial reasons documented: '{denial_factors[:100]}'. "
+            + ("Adverse action notice process confirmed." if notice_sent
+               else "Verify that a written notice with these reasons was sent to the applicant.")
+        ),
+    }]
+
+
+# ── 5. Disparate impact risk flag ──────────────────────────────────────────────
+
+def _check_disparate_impact_risk(decision: str, ctx: dict) -> list:
+    """
+    Flag decisions where the combination of factors creates high disparate impact risk.
+    Single-decision proxy for the 4/5ths rule — full statistical analysis requires batch data.
+    """
+    proxies = _detect_active_proxies(decision, ctx)
+    if not proxies:
+        return [{
+            "regulation": "ECOA — Disparate Impact",
+            "article": "Regulation B, 12 CFR § 1002.6 — Effects Test",
+            "status": "PASS",
+            "reason": "No disparate impact proxy factors detected in this decision.",
+        }]
+
+    proxy_count = len(proxies)
+    # High risk: 3+ proxies or any single high-severity proxy (redlining + denial)
+    zip_code = _s(ctx.get("zip_code", ""))
+    has_geo = zip_code and _is_redlined(zip_code)[0]
+    has_income = _has(ctx.get("income_source", ""), _PROTECTED_INCOME_KW)
+    denial = _is_denial(decision, ctx)
+
+    if proxy_count >= 3 or (has_geo and denial and has_income):
+        status = "FAIL"
+        severity = "HIGH — multiple protected-class factors compound risk significantly"
+    elif proxy_count >= 2 or (has_geo and denial):
+        status = "FLAG"
+        severity = "MODERATE — run batch disparate impact analysis across similar decisions"
+    else:
+        status = "FLAG"
+        severity = "LOW — monitor trend across decision volume"
+
+    return [{
+        "regulation": "ECOA — Disparate Impact",
+        "article": "Regulation B, 12 CFR § 1002.6 — Effects Test (4/5ths Rule)",
+        "status": status,
+        "reason": (
+            f"Disparate impact risk: {severity}. "
+            f"{proxy_count} proxy factor(s) detected: {', '.join(proxies)}. "
+            "ECOA prohibits practices with a discriminatory effect regardless of intent. "
+            "Run the batch Disparate Impact Analysis to calculate the 4/5ths rule across your applicant population."
+        ),
+    }]
+
+
+# ── 6. State law overlay — CA, NY, IL ──────────────────────────────────────────
+
+_CA_ZIPS = {str(z) for z in range(90001, 96200)}  # California zip range
+_NY_ZIPS = {str(z) for z in range(10001, 14976)}   # New York zip range
+_IL_ZIPS = {str(z) for z in range(60001, 62999)}   # Illinois zip range
+
+def _detect_state(ctx: dict) -> str | None:
+    """Infer applicant state from context fields."""
+    loc = _s(ctx.get("applicant_location", ctx.get("applicant_state", ctx.get("state", ""))))
+    if any(kw in loc for kw in ["california", " ca", "ca ", "los angeles", "san francisco", "san diego", "sacramento"]):
+        return "CA"
+    if any(kw in loc for kw in ["new york", " ny", "ny ", "nyc", "brooklyn", "bronx", "manhattan", "queens"]):
+        return "NY"
+    if any(kw in loc for kw in ["illinois", " il", "il ", "chicago"]):
+        return "IL"
+    zip_code = _s(ctx.get("zip_code", ""))
+    if zip_code:
+        if zip_code.startswith(("900","901","902","903","904","905","906","907","908","909","910","911","912","913","914","915","916","917","918","919","920","921","922","923","924","925","926","927","928","929","930","931","932","933","934","935","936","937","938","939","940","941","942","943","944","945","946","947","948","949","950","951","952","953","954","955","956","957","958","959","960","961")):
+            return "CA"
+        if zip_code.startswith(("100","101","102","103","104","105","106","107","108","109","110","111","112","113","114","115","116","117","118","119","120","121","122","123","124","125","126","127","128","129","130","131","132","133","134","135","136","137","138","139","140","141","142","143","144","145","146","147","148","149")):
+            return "NY"
+        if zip_code.startswith(("600","601","602","603","604","605","606","607","608","609","610","611","612","613","614","615","616","617","618","619","620","621","622","623","624","625","626","627","628","629")):
+            return "IL"
+    return None
+
+
+def _check_state_laws(decision: str, ctx: dict) -> list:
+    """Apply state-specific compliance rules on top of federal baseline."""
+    state = _detect_state(ctx)
+    if not state:
+        return []
+
+    results = []
+    denial = _is_denial(decision, ctx)
+    category = _s(ctx.get("category", ""))
+
+    if state == "CA":
+        # California DFPI — stricter UDAAP, AB-2771 (automated employment tools)
+        # CPRA Art. 22 equivalent — right to opt out of automated decisions
+        automated = _s(ctx.get("model_used", ctx.get("screening_tool", ctx.get("ai_model", ""))))
+        human_review = _s(ctx.get("human_review_offered", ctx.get("human_review_available", "")))
+        if automated and not _has(human_review, {"yes","offered","available","scheduled"}):
+            results.append({
+                "regulation": "California CPRA / AB-2771",
+                "article": "Cal. Civ. Code § 1798.185 — Automated Decision-Making",
+                "status": "FLAG",
+                "reason": (
+                    "California applicants have the right to opt out of automated decision-making "
+                    "under CPRA § 1798.185. No human review option is documented. "
+                    "California DFPI also applies stricter UDAAP standards than federal baseline."
+                ),
+            })
+        # California salary history ban (AB-168) — don't use prior comp
+        if ctx.get("prior_compensation") and denial:
+            results.append({
+                "regulation": "California AB-168 — Salary History Ban",
+                "article": "Cal. Lab. Code § 432.3",
+                "status": "FAIL",
+                "reason": (
+                    "California law (AB-168) prohibits employers and creditors from relying on "
+                    "salary history in compensation or credit decisions. Prior compensation was used "
+                    "as a factor in this denial."
+                ),
+            })
+
+    elif state == "NY":
+        # NYC Local Law 144 — automated employment decision tools
+        bias_audit = _s(ctx.get("bias_audit_on_file", ""))
+        screening_tool = ctx.get("screening_tool", "")
+        if screening_tool and not _has(bias_audit, {"yes","completed","on file"}):
+            results.append({
+                "regulation": "NYC Local Law 144 — Automated Employment Decisions",
+                "article": "NYC Admin. Code § 20-871 — Annual Bias Audit",
+                "status": "FAIL",
+                "reason": (
+                    "New York City Local Law 144 requires an annual independent bias audit for any "
+                    "automated employment decision tool used for NYC candidates. "
+                    f"Tool '{screening_tool}' is in use but no bias audit is on file. "
+                    "Violations carry civil penalties up to $1,500/day."
+                ),
+            })
+        # NY DFS Insurance Circular Letter 1 — AI fairness in insurance/lending
+        results.append({
+            "regulation": "NY DFS — AI Fairness Guidance",
+            "article": "NY DFS Circular Letter No. 1 (2019) — Unfair Discrimination",
+            "status": "FLAG",
+            "reason": (
+                "New York DFS requires that AI/ML models used in financial decisions be tested "
+                "for unfair discrimination before deployment and monitored on an ongoing basis. "
+                "Document your model fairness testing to satisfy NY DFS examination requests."
+            ),
+        })
+
+    elif state == "IL":
+        # Illinois Artificial Intelligence Video Interview Act (AIVIA)
+        video_interview = _s(ctx.get("interview_method", ctx.get("assessment_method", "")))
+        if _has(video_interview, {"video","ai interview","automated interview","hirevue","pymetrics"}):
+            consent = _s(ctx.get("aivia_consent", ""))
+            if not _has(consent, {"yes","obtained","confirmed"}):
+                results.append({
+                    "regulation": "Illinois AIVIA — AI Video Interview Act",
+                    "article": "820 ILCS 42 — Consent and Disclosure Requirements",
+                    "status": "FAIL",
+                    "reason": (
+                        "Illinois AIVIA requires employers to: (1) notify applicants before using AI "
+                        "video interview analysis, (2) obtain consent, and (3) explain how the AI works. "
+                        "No AIVIA consent is documented for this AI-assessed video interview."
+                    ),
+                })
+        # Illinois Human Rights Act — broader protected classes than federal
+        results.append({
+            "regulation": "Illinois Human Rights Act",
+            "article": "775 ILCS 5 — Broader Protected Classes",
+            "status": "FLAG",
+            "reason": (
+                "The Illinois Human Rights Act covers additional protected classes beyond federal law, "
+                "including order of protection status, military status, and sexual orientation. "
+                "Verify the decision criteria do not implicate any Illinois-specific protected class."
+            ),
+        })
+
+    return results
+
+
+# ── Updated checkers map with all new checks ───────────────────────────────────
+
 _DECISION_CHECKERS = {
-    "finance": [_check_ecoa_decision, _check_fcra_decision, _check_fha_decision, _check_udaap_decision, _check_eu_ai_act_decision, _check_gdpr_decision],
-    "lending": [_check_ecoa_decision, _check_fcra_decision, _check_fha_decision, _check_udaap_decision, _check_eu_ai_act_decision, _check_gdpr_decision],
-    "hiring":  [_check_eeoc_decision, _check_eu_ai_act_decision],
-    "hr":      [_check_eeoc_decision, _check_eu_ai_act_decision],
-    "other":   [_check_ecoa_decision, _check_fcra_decision],
+    "finance": [
+        _check_decision_text,
+        _check_ecoa_decision,
+        _check_fcra_decision,
+        _check_fha_decision,
+        _check_udaap_decision,
+        _check_eu_ai_act_decision,
+        _check_gdpr_decision,
+        _check_compound_proxies,
+        _check_ecoa_adverse_action_reasons,
+        _check_disparate_impact_risk,
+        _check_state_laws,
+    ],
+    "lending": [
+        _check_decision_text,
+        _check_ecoa_decision,
+        _check_fcra_decision,
+        _check_fha_decision,
+        _check_udaap_decision,
+        _check_eu_ai_act_decision,
+        _check_gdpr_decision,
+        _check_compound_proxies,
+        _check_ecoa_adverse_action_reasons,
+        _check_disparate_impact_risk,
+        _check_state_laws,
+    ],
+    "hiring": [
+        _check_decision_text,
+        _check_eeoc_decision,
+        _check_eu_ai_act_decision,
+        _check_compound_proxies,
+        _check_state_laws,
+    ],
+    "hr": [
+        _check_decision_text,
+        _check_eeoc_decision,
+        _check_eu_ai_act_decision,
+        _check_compound_proxies,
+        _check_state_laws,
+    ],
+    "other": [
+        _check_decision_text,
+        _check_ecoa_decision,
+        _check_fcra_decision,
+        _check_compound_proxies,
+    ],
 }
 
 
 def run_compliance_checks(decision: str, context: dict, category: str = "other") -> list:
     """
-    Run deterministic per-decision compliance checks for the given category.
+    Run all deterministic compliance checks for the given category.
     Always runs — no LLM or API key required.
     Returns compliance_checks list with PASS/FAIL/FLAG per regulation.
     """
