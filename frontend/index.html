@@ -1714,6 +1714,18 @@
               Loading dashboard…
             </div>
           </div>
+          <div id="adminAnalyticsPanel" style="display:none;margin-top:24px;">
+            <div class="card" style="margin-bottom:16px;">
+              <div class="card-title" style="margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+                <span style="font-size:15px;font-weight:700;">Admin Analytics</span>
+                <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.25);">ADMIN ONLY</span>
+                <button class="btn-sm" style="margin-left:auto;" onclick="loadAdminAnalytics()">Refresh</button>
+              </div>
+              <div id="adminAnalyticsContent">
+                <div style="color:var(--text-muted);font-size:13px;">Loading…</div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- ── Demo / Scenarios tab ── -->
@@ -1833,6 +1845,50 @@ if verdict["firewall_action"] == "block":
   <script>
     const API = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:8000' : window.location.origin;
 
+    // ── Analytics (PostHog + internal /track) ──────────────────────────────
+    let _sessionId = (() => {
+      try {
+        let s = sessionStorage.getItem('pragma_sid');
+        if (!s) { s = crypto.randomUUID(); sessionStorage.setItem('pragma_sid', s); }
+        return s;
+      } catch(_) { return 'unknown'; }
+    })();
+    let _phReady = false;
+    let _isAdmin = false;
+
+    // Load PostHog key from backend, init if present
+    (async () => {
+      try {
+        const cfg = await fetch(`${API}/config/public`).then(r => r.json());
+        if (cfg.posthog_key) {
+          !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+" (stub)"},o="init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty toString opt_in_capturing opt_out_capturing has_opted_out_capturing clear_opt_in_out_capturing debug".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+          posthog.init(cfg.posthog_key, { api_host: cfg.posthog_host, person_profiles: 'identified_only', capture_pageview: true });
+          _phReady = true;
+        }
+      } catch(_) {}
+    })();
+
+    function pragmaTrack(eventName, props = {}) {
+      const payload = { ...props, session_id: _sessionId };
+      // PostHog
+      if (_phReady && window.posthog) {
+        try { posthog.capture(eventName, payload); } catch(_) {}
+      }
+      // Internal /track (fire-and-forget, auth required)
+      if (sessionToken) {
+        fetch(`${API}/track`, {
+          method: 'POST', headers: authHeaders(),
+          body: JSON.stringify({ event_name: eventName, properties: payload, session_id: _sessionId }),
+        }).catch(() => {});
+      }
+    }
+
+    function pragmaIdentify(distinctId, props = {}) {
+      if (_phReady && window.posthog) {
+        try { posthog.identify(distinctId, props); } catch(_) {}
+      }
+    }
+
     // XSS-safe escaping — always use esc() before inserting server strings into innerHTML
     function esc(s) {
       const d = document.createElement('div');
@@ -1928,9 +1984,12 @@ if verdict["firewall_action"] == "block":
         sessionToken = data.token;
         sessionName  = data.name;
         sessionPic   = data.picture;
+        _isAdmin     = !!data.is_admin;
         localStorage.setItem('token', sessionToken);
         localStorage.setItem('userName', sessionName);
         localStorage.setItem('userPic', sessionPic);
+        pragmaIdentify('google_user', { login_method: 'google', is_admin: _isAdmin });
+        pragmaTrack('user_logged_in', { method: 'google' });
         showMainApp();
       } catch (e) {
         errEl.textContent = 'Cannot connect to server.';
@@ -1971,6 +2030,7 @@ if verdict["firewall_action"] == "block":
         localStorage.setItem('userName', sessionName);
         localStorage.setItem('userPic',  '');
         localStorage.setItem('isGuest',  'true');
+        pragmaTrack('user_logged_in', { method: 'guest' });
         showMainApp();
       } catch (e) {
         const errEl = document.getElementById('authError');
@@ -2191,6 +2251,12 @@ if verdict["firewall_action"] == "block":
         lastDecision = decision; lastContext = context; lastAnalysis = data; lastCategory = selectedCategory;
         ['thumbUp','thumbDown'].forEach(id => document.getElementById(id).className = 'thumb-btn');
         document.getElementById('feedbackThanks').style.display = 'none';
+        pragmaTrack('decision_evaluated', {
+          category: selectedCategory,
+          firewall_action: data.firewall_action,
+          fail_count: (data.compliance_checks||[]).filter(c=>c.status==='FAIL').length,
+          flag_count: (data.compliance_checks||[]).filter(c=>c.status==='FLAG').length,
+        });
         renderResults(data);
       } catch (e) {
         showError(e.message);
@@ -2465,6 +2531,7 @@ if verdict["firewall_action"] == "block":
         const a    = document.createElement('a');
         a.href = url; a.download = 'pragma-compliance-report.pdf'; a.click();
         URL.revokeObjectURL(url);
+        pragmaTrack('report_downloaded', { category: lastCategory });
       } catch (e) {
         showError('Could not generate PDF: ' + e.message);
       } finally {
@@ -3054,6 +3121,7 @@ if verdict["firewall_action"] == "block":
           });
           if (!res.ok) throw new Error(await res.text());
           const data = await res.json();
+          pragmaTrack('scenario_run', { scenario_id: sc.id, use_case: 'gemini' });
           renderScenarioResult(idx, data.compliance, data.gemini_response);
         } else {
           const uc = DEMO_USE_CASES[_demoUC];
@@ -3064,6 +3132,7 @@ if verdict["firewall_action"] == "block":
           });
           if (!res.ok) throw new Error(await res.text());
           const data = await res.json();
+          pragmaTrack('scenario_run', { scenario_id: sc.id, use_case: _demoUC });
           renderScenarioResult(idx, data);
         }
       } catch(e) {
@@ -3186,12 +3255,14 @@ if verdict["firewall_action"] == "block":
       document.getElementById(`tab-${name}`).classList.add('active');
       document.getElementById('pageTitle').textContent = PAGE_TITLES[name] || name;
       window.scrollTo(0, 0);
+      pragmaTrack('tab_viewed', { tab: name });
       if (name === 'history') loadHistory();
       if (name === 'audit') loadAuditLog();
       if (name === 'demo') { renderDemoScenarios(); }
       if (name === 'compliance') loadComplianceTab();
       if (name === 'dashboard') loadDashboard();
       if (name === 'settings') { loadOrgs(); loadAPIKeys(); loadBilling(); }
+      if (name === 'dashboard' && _isAdmin) loadAdminAnalytics();
     }
 
     // ── History ────────────────────────────────────────────────────────────
@@ -3301,6 +3372,7 @@ if verdict["firewall_action"] == "block":
         const a    = document.createElement('a');
         a.href = url; a.download = 'pragma-batch-results.csv'; a.click();
         URL.revokeObjectURL(url);
+        pragmaTrack('batch_uploaded', { row_count: file.name });
         el.innerHTML = '<div class="batch-summary">✅ Done! Results CSV downloaded.</div>';
       } catch (e) {
         el.innerHTML = `<div style="color:#fca5a5;font-size:13px;">${e.message}</div>`;
@@ -3387,6 +3459,7 @@ if verdict["firewall_action"] == "block":
         box.innerHTML = `<strong>Your new API key (copy now — shown once only):</strong><br><br>${data.key}`;
         msg.textContent = '✓ Key created!';
         document.getElementById('keyLabelInput').value = '';
+        pragmaTrack('api_key_created', {});
         loadAPIKeys();
       } catch (e) { msg.style.color='#fca5a5'; msg.textContent = e.message; }
     }
@@ -3906,6 +3979,7 @@ if verdict["firewall_action"] == "block":
         const a = document.createElement('a');
         a.href = url; a.download = 'pragma-audit-export.jsonld'; a.click();
         URL.revokeObjectURL(url);
+        pragmaTrack('audit_exported', { format: 'jsonld' });
       } catch(e) {
         showError('Export failed: ' + e.message);
       } finally {
@@ -3939,6 +4013,7 @@ if verdict["firewall_action"] == "block":
           return;
         }
         const data = await res.json();
+        pragmaTrack('compliance_rules_viewed', { rule_count: (data.rules||[]).length });
         renderComplianceRules(data.rules || []);
       } catch(e) {
         el.innerHTML = `<div style="font-size:13px;color:#f87171;">Error: ${esc(e.message)}</div>`;
@@ -4292,6 +4367,109 @@ if verdict["firewall_action"] == "block":
         </table></div>
         ${refsHtml ? `<div style="margin-top:14px;"><div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">Regulatory References</div>${refsHtml}</div>` : ''}
         <div style="margin-top:12px;font-size:11px;color:var(--text-subtle);">4/5ths rule: a group is flagged when its selection rate is less than 80% of the highest group's rate (EEOC 29 CFR Part 1607).</div>`;
+    }
+
+    // ── Admin Analytics ─────────────────────────────────────────────────────
+    async function loadAdminAnalytics() {
+      if (!_isAdmin) return;
+      const panel = document.getElementById('adminAnalyticsPanel');
+      const el    = document.getElementById('adminAnalyticsContent');
+      panel.style.display = 'block';
+      el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">Loading…</div>';
+      try {
+        const res = await fetch(`${API}/admin/analytics`, { headers: authHeaders() });
+        if (!res.ok) { el.innerHTML = '<div style="color:#f87171;font-size:13px;">Not authorized or failed to load.</div>'; return; }
+        const d = await res.json();
+        const users = d.users || {};
+
+        const dau  = users.dau  ?? '—';
+        const wau  = users.wau  ?? '—';
+        const mau  = users.mau  ?? '—';
+
+        const adoptionRows = Object.entries(d.feature_adoption || {}).map(([k,v]) => {
+          const cnt = typeof v === 'object' ? v.count : v;
+          return `<tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:6px 10px;font-size:12px;color:var(--text);">${esc(k)}</td>
+            <td style="padding:6px 10px;font-size:12px;color:var(--accent2);text-align:right;font-weight:600;">${cnt}</td>
+           </tr>`;
+        }).join('');
+
+        const topEventRows = Object.entries(d.top_events || {}).slice(0,8).map(([evt,cnt]) =>
+          `<tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:5px 10px;font-size:12px;color:var(--text);">${esc(evt)}</td>
+            <td style="padding:5px 10px;font-size:12px;color:var(--text-muted);text-align:right;">${cnt}</td>
+           </tr>`).join('');
+
+        const categoryRows = Object.entries(d.category_usage || {}).map(([k,v]) =>
+          `<tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:5px 10px;font-size:12px;color:var(--text);">${esc(k)}</td>
+            <td style="padding:5px 10px;font-size:12px;color:var(--text-muted);text-align:right;">${v}</td>
+           </tr>`).join('');
+
+        const planRows = Object.entries(d.plan_dist || {}).map(([k,v]) =>
+          `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12px;">
+            <span style="color:var(--text);">${esc(k)}</span>
+            <span style="color:var(--accent2);font-weight:600;">${v}</span>
+           </div>`).join('');
+
+        const newUsersRows = (d.new_users_by_day || []).slice(-7).map(entry => {
+          const day = entry.date || entry[0]; const cnt = entry.count ?? entry[1];
+          return `<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--border);">
+            <span style="color:var(--text-muted);">${esc(String(day))}</span>
+            <span style="color:var(--text);font-weight:600;">${cnt}</span>
+           </div>`;
+        }).join('');
+
+        el.innerHTML = `
+          <!-- MAU / WAU / DAU -->
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;">
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;">
+              <div style="font-size:24px;font-weight:800;color:var(--accent2);">${dau}</div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-top:4px;">DAU</div>
+            </div>
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;">
+              <div style="font-size:24px;font-weight:800;color:var(--accent2);">${wau}</div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-top:4px;">WAU</div>
+            </div>
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;">
+              <div style="font-size:24px;font-weight:800;color:var(--accent2);">${mau}</div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-top:4px;">MAU</div>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+            <!-- Feature adoption -->
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Feature Adoption (users)</div>
+              <table style="width:100%;border-collapse:collapse;">${adoptionRows || '<tr><td style="font-size:12px;color:var(--text-muted);padding:6px 10px;">No data yet</td></tr>'}</table>
+            </div>
+            <!-- Top events -->
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Top Events (all time)</div>
+              <table style="width:100%;border-collapse:collapse;">${topEventRows || '<tr><td style="font-size:12px;color:var(--text-muted);padding:6px 10px;">No events yet</td></tr>'}</table>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+            <!-- Category usage -->
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Category Usage</div>
+              <table style="width:100%;border-collapse:collapse;">${categoryRows || '<tr><td style="font-size:12px;color:var(--text-muted);padding:6px 10px;">No data</td></tr>'}</table>
+            </div>
+            <!-- Plan distribution -->
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Plan Distribution</div>
+              <div style="padding:4px 0;">${planRows || '<div style="font-size:12px;color:var(--text-muted);">No data</div>'}</div>
+            </div>
+            <!-- New users (7d) -->
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">New Users (last 7d)</div>
+              <div>${newUsersRows || '<div style="font-size:12px;color:var(--text-muted);">No data</div>'}</div>
+            </div>
+          </div>`;
+      } catch(e) {
+        el.innerHTML = `<div style="color:#f87171;font-size:13px;">Error: ${esc(e.message)}</div>`;
+      }
     }
   </script>
 </body>

@@ -149,8 +149,25 @@ class FeedbackRequest(BaseModel):
 
 # ── Auth endpoints ────────────────────────────────────────────────────────────
 
+_ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "chak.utd@gmail.com")
+
+def _is_admin(user: dict) -> bool:
+    """True if the session belongs to the site admin."""
+    return user.get("email") == _ADMIN_EMAIL or user.get("sub") == database.anon_id(_ADMIN_EMAIL)
+
+
+@app.get("/config/public")
+async def public_config():
+    """Return non-secret client config (PostHog key, feature flags)."""
+    return {
+        "posthog_key":  os.getenv("POSTHOG_API_KEY", ""),
+        "posthog_host": os.getenv("POSTHOG_HOST", "https://us.i.posthog.com"),
+        "analytics_enabled": bool(os.getenv("POSTHOG_API_KEY")),
+    }
+
+
 @app.post("/auth/google")
-async def google_auth(req: GoogleAuthRequest):
+async def google_auth(req: GoogleAuthRequest, request: Request):
     """Verify Google ID token and return a session token."""
     user_info = auth.verify_google_token(req.credential)
     if not user_info:
@@ -158,7 +175,6 @@ async def google_auth(req: GoogleAuthRequest):
         raise HTTPException(status_code=401, detail="Invalid Google credential")
     token = auth.create_session(user_info)
     logger.info("Google auth success — user=%s", user_info.get("name", "unknown"))
-    # Upsert user profile so we can send email notifications
     if user_info.get("email"):
         try:
             database.upsert_user(
@@ -168,18 +184,39 @@ async def google_auth(req: GoogleAuthRequest):
             )
         except Exception:
             logger.exception("Failed to upsert user profile — non-fatal")
+    # Record non-PII profile metadata
+    try:
+        sub = database.get_subscription(user_info["sub"])
+        plan = "growth" if sub and sub.get("status") == "active" else "free"
+        database.upsert_user_profile(
+            google_sub=user_info["sub"],
+            login_method="google",
+            plan_tier=plan,
+            locale=request.headers.get("Accept-Language", "")[:10],
+        )
+    except Exception:
+        pass
     return {
-        "token":   token,
-        "name":    user_info["name"],
-        "picture": user_info["picture"],
+        "token":    token,
+        "name":     user_info["name"],
+        "picture":  user_info["picture"],
+        "is_admin": user_info.get("email") == _ADMIN_EMAIL,
     }
 
 
 @app.post("/auth/guest")
-async def guest_auth():
+async def guest_auth(request: Request):
     """Create a temporary guest session — no sign-in required."""
     token, user_info = auth.create_guest_session()
     logger.info("Guest session created — name=%s", user_info.get("name", "guest"))
+    try:
+        database.upsert_user_profile(
+            google_sub=user_info["sub"],
+            login_method="guest",
+            locale=request.headers.get("Accept-Language", "")[:10],
+        )
+    except Exception:
+        pass
     return {"token": token, "name": user_info["name"], "picture": "", "is_guest": True}
 
 
@@ -194,13 +231,53 @@ async def logout(
 
 @app.get("/me")
 async def me(user: dict = Depends(get_current_user)):
-    return {"name": user["name"], "picture": user["picture"]}
+    return {
+        "name":     user["name"],
+        "picture":  user["picture"],
+        "is_admin": _is_admin(user),
+    }
 
 
 @app.get("/my-stats")
 async def my_stats(user: dict = Depends(get_current_user)):
     """Return aggregate usage stats — no PII."""
     return database.get_stats(user["sub"])
+
+
+class TrackEventRequest(BaseModel):
+    event_name: str
+    properties: Optional[Dict] = {}
+    session_id: Optional[str] = None
+
+
+@app.post("/track", dependencies=[Depends(get_current_user)])
+async def track_event(req: TrackEventRequest, user: dict = Depends(get_current_user)):
+    """
+    Record a feature usage event from the frontend.
+    All data is non-PII — only anon_id, event name, and structured properties.
+    """
+    # Sanitise: drop any accidental PII keys before storing
+    _PII_KEYS = {"email", "name", "username", "password", "phone", "address", "ip"}
+    safe_props = {k: v for k, v in (req.properties or {}).items() if k.lower() not in _PII_KEYS}
+    database.track_feature_event(
+        google_sub=user["sub"],
+        event_name=req.event_name[:64],
+        properties=safe_props,
+        session_id=req.session_id,
+    )
+    return {"ok": True}
+
+
+@app.get("/admin/analytics", dependencies=[Depends(get_current_user)])
+async def admin_analytics(user: dict = Depends(get_current_user)):
+    """
+    Aggregated non-PII site analytics — admin only.
+    Returns user counts (DAU/WAU/MAU), feature adoption, category usage,
+    event volume, and session depth — all anonymised.
+    """
+    if not _is_admin(user):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return database.get_analytics_summary()
 
 
 # ── Protected endpoints ───────────────────────────────────────────────────────

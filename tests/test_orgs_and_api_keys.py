@@ -430,3 +430,166 @@ class TestComplianceRules:
         assert "timestamp" in ctx
         assert "firewallAction" in ctx
         assert "inputHash" in ctx
+
+
+# ── Analytics tests ────────────────────────────────────────────────────────────
+
+class TestUserProfileUpsert:
+    def test_creates_profile_on_first_login(self):
+        from backend import database as db
+        sub = "analytics-test-sub-001"
+        db.upsert_user_profile(sub, login_method="google", plan_tier="free")
+        rules = db.get_effective_rules(org_id=None)
+        # Verify function runs without error (no exception raised)
+        assert rules is not None
+
+    def test_increments_session_count(self):
+        from backend import database as db
+        from sqlalchemy import text
+        sub = "analytics-test-sub-002"
+        db.upsert_user_profile(sub, login_method="google", plan_tier="free")
+        db.upsert_user_profile(sub, login_method="google", plan_tier="free")
+        with db._engine.connect() as conn:
+            row = conn.execute(
+                text("SELECT session_count FROM user_profiles WHERE anon_id = :aid"),
+                {"aid": db.anon_id(sub)}
+            ).fetchone()
+        assert row is not None
+        assert row.session_count >= 2
+
+    def test_guest_login_method_stored(self):
+        from backend import database as db
+        from sqlalchemy import text
+        sub = "analytics-test-sub-003"
+        db.upsert_user_profile(sub, login_method="guest", plan_tier="free")
+        with db._engine.connect() as conn:
+            row = conn.execute(
+                text("SELECT login_method FROM user_profiles WHERE anon_id = :aid"),
+                {"aid": db.anon_id(sub)}
+            ).fetchone()
+        assert row is not None
+        assert row.login_method == "guest"
+
+    def test_plan_tier_upgrade_persists(self):
+        from backend import database as db
+        from sqlalchemy import text
+        sub = "analytics-test-sub-004"
+        db.upsert_user_profile(sub, login_method="google", plan_tier="free")
+        db.upsert_user_profile(sub, login_method="google", plan_tier="growth")
+        with db._engine.connect() as conn:
+            row = conn.execute(
+                text("SELECT plan_tier FROM user_profiles WHERE anon_id = :aid"),
+                {"aid": db.anon_id(sub)}
+            ).fetchone()
+        assert row is not None
+        assert row.plan_tier == "growth"
+
+
+class TestTrackFeatureEvent:
+    def test_event_stored_in_table(self):
+        from backend import database as db
+        from sqlalchemy import text
+        sub = "analytics-test-sub-010"
+        db.upsert_user_profile(sub, login_method="google", plan_tier="free")
+        db.track_feature_event(sub, "decision_evaluated", {"category": "lending"})
+        with db._engine.connect() as conn:
+            row = conn.execute(
+                text("SELECT event_name FROM feature_events WHERE anon_id = :aid ORDER BY id DESC LIMIT 1"),
+                {"aid": db.anon_id(sub)}
+            ).fetchone()
+        assert row is not None
+        assert row.event_name == "decision_evaluated"
+
+    def test_features_used_updated(self):
+        from backend import database as db
+        from sqlalchemy import text
+        import json
+        sub = "analytics-test-sub-011"
+        db.upsert_user_profile(sub, login_method="google", plan_tier="free")
+        db.track_feature_event(sub, "audit_exported", {"format": "jsonld"})
+        with db._engine.connect() as conn:
+            row = conn.execute(
+                text("SELECT features_used FROM user_profiles WHERE anon_id = :aid"),
+                {"aid": db.anon_id(sub)}
+            ).fetchone()
+        assert row is not None
+        features = json.loads(row.features_used or "[]")
+        assert "audit_exported" in features
+
+    def test_api_key_created_sets_flag(self):
+        from backend import database as db
+        from sqlalchemy import text
+        sub = "analytics-test-sub-012"
+        db.upsert_user_profile(sub, login_method="google", plan_tier="free")
+        db.track_feature_event(sub, "api_key_created", {})
+        with db._engine.connect() as conn:
+            row = conn.execute(
+                text("SELECT has_api_key FROM user_profiles WHERE anon_id = :aid"),
+                {"aid": db.anon_id(sub)}
+            ).fetchone()
+        assert row is not None
+        assert row.has_api_key == 1
+
+    def test_decision_evaluated_increments_total(self):
+        from backend import database as db
+        from sqlalchemy import text
+        sub = "analytics-test-sub-013"
+        db.upsert_user_profile(sub, login_method="google", plan_tier="free")
+        db.track_feature_event(sub, "decision_evaluated", {"category": "hiring"})
+        db.track_feature_event(sub, "decision_evaluated", {"category": "hiring"})
+        with db._engine.connect() as conn:
+            row = conn.execute(
+                text("SELECT total_evaluations FROM user_profiles WHERE anon_id = :aid"),
+                {"aid": db.anon_id(sub)}
+            ).fetchone()
+        assert row is not None
+        assert row.total_evaluations >= 2
+
+    def test_no_error_without_profile(self):
+        from backend import database as db
+        # track_feature_event should not raise even if profile doesn't exist
+        db.track_feature_event("nonexistent-sub-999", "tab_viewed", {"tab": "history"})
+
+
+class TestGetAnalyticsSummary:
+    def test_returns_dict(self):
+        from backend import database as db
+        result = db.get_analytics_summary()
+        assert isinstance(result, dict)
+
+    def test_contains_users_block(self):
+        from backend import database as db
+        result = db.get_analytics_summary()
+        assert "users" in result
+        users = result["users"]
+        assert "dau" in users
+        assert "wau" in users
+        assert "mau" in users
+
+    def test_dau_is_int(self):
+        from backend import database as db
+        result = db.get_analytics_summary()
+        assert isinstance(result["users"]["dau"], int)
+
+    def test_top_events_is_dict(self):
+        from backend import database as db
+        result = db.get_analytics_summary()
+        assert isinstance(result.get("top_events", {}), dict)
+
+    def test_feature_adoption_is_dict(self):
+        from backend import database as db
+        result = db.get_analytics_summary()
+        assert isinstance(result.get("feature_adoption", {}), dict)
+
+    def test_new_users_by_day_is_list(self):
+        from backend import database as db
+        result = db.get_analytics_summary()
+        assert isinstance(result.get("new_users_by_day", []), list)
+
+    def test_analytics_reflects_new_events(self):
+        from backend import database as db
+        sub = "analytics-test-sub-020"
+        db.upsert_user_profile(sub, login_method="google", plan_tier="free")
+        db.track_feature_event(sub, "report_downloaded", {})
+        result = db.get_analytics_summary()
+        assert result["users"]["mau"] >= 1

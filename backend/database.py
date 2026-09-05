@@ -259,6 +259,35 @@ compliance_snapshots = Table(
     Column("taken_at",      String,  nullable=False),  # ISO UTC timestamp
 )
 
+# ── Customer Analytics (non-PII metadata only) ────────────────────────────────
+
+user_profiles = Table(
+    "user_profiles", _meta,
+    Column("anon_id",          String,  primary_key=True),
+    Column("login_method",     String,  nullable=False, server_default="google"),  # google|guest|api
+    Column("plan_tier",        String,  nullable=False, server_default="free"),    # free|growth
+    Column("first_seen",       String,  nullable=False),
+    Column("last_seen",        String,  nullable=False),
+    Column("session_count",    Integer, nullable=False, server_default="1"),
+    Column("total_evaluations",Integer, nullable=False, server_default="0"),
+    Column("primary_category", String,  nullable=True),   # most-used eval category
+    Column("has_api_key",      Integer, nullable=False, server_default="0"),
+    Column("has_org",          Integer, nullable=False, server_default="0"),
+    Column("timezone",         String,  nullable=True),   # browser-reported, not IP
+    Column("locale",           String,  nullable=True),   # e.g. "en-US"
+    Column("features_used",    String,  nullable=False, server_default="[]"),  # JSON list of features touched
+)
+
+feature_events = Table(
+    "feature_events", _meta,
+    Column("id",          Integer, primary_key=True, autoincrement=True),
+    Column("anon_id",     String,  nullable=False),
+    Column("event_name",  String,  nullable=False),   # e.g. "decision_evaluated"
+    Column("properties",  String,  nullable=False, server_default="{}"),  # JSON
+    Column("timestamp",   String,  nullable=False),
+    Column("session_id",  String,  nullable=True),    # browser-generated UUID
+)
+
 # ── Dynamic Rule Engine ───────────────────────────────────────────────────────
 # Compliance rules are stored here and loaded at runtime — no code deploy needed
 # to add/update patterns, change severities, or toggle jurisdictions.
@@ -1821,4 +1850,222 @@ def get_audit_jsonld(google_sub: str, limit: int = 500) -> dict:
         "prov:generatedAtTime": datetime.now(timezone.utc).isoformat(),
         "totalRecords": len(entries),
         "entries": entries,
+    }
+
+# ── User Profile & Feature Event Functions ────────────────────────────────────
+
+def upsert_user_profile(
+    google_sub: str,
+    login_method: str = "google",
+    plan_tier: str = "free",
+    timezone: str | None = None,
+    locale: str | None = None,
+) -> None:
+    """
+    Insert or update a user's non-PII profile metadata on every login.
+    Increments session_count and refreshes last_seen. Never stores email or name.
+    """
+    aid = anon_id(google_sub)
+    now = datetime.now(__import__("datetime").timezone.utc).isoformat()
+    try:
+        with _engine.connect() as conn:
+            existing = conn.execute(
+                user_profiles.select().where(user_profiles.c.anon_id == aid)
+            ).fetchone()
+
+        with _engine.begin() as conn:
+            if existing:
+                vals: dict = {"last_seen": now, "session_count": existing.session_count + 1}
+                if plan_tier and plan_tier != "free":
+                    vals["plan_tier"] = plan_tier
+                if timezone and not existing.timezone:
+                    vals["timezone"] = timezone
+                if locale and not existing.locale:
+                    vals["locale"] = locale
+                conn.execute(
+                    user_profiles.update()
+                    .where(user_profiles.c.anon_id == aid)
+                    .values(**vals)
+                )
+            else:
+                conn.execute(user_profiles.insert().values(
+                    anon_id=aid,
+                    login_method=login_method,
+                    plan_tier=plan_tier,
+                    first_seen=now,
+                    last_seen=now,
+                    session_count=1,
+                    total_evaluations=0,
+                    timezone=timezone,
+                    locale=locale,
+                    features_used="[]",
+                ))
+    except Exception as e:
+        logger.warning("upsert_user_profile failed (non-fatal): %s", e)
+
+
+def track_feature_event(
+    google_sub: str,
+    event_name: str,
+    properties: dict | None = None,
+    session_id: str | None = None,
+) -> None:
+    """
+    Record a single feature usage event. All values are non-PII.
+    Also bumps user_profile.last_seen and merges the event_name into features_used.
+    """
+    aid = anon_id(google_sub)
+    now = datetime.now(__import__("datetime").timezone.utc).isoformat()
+    props_json = json.dumps(properties or {})
+    try:
+        with _engine.begin() as conn:
+            conn.execute(feature_events.insert().values(
+                anon_id=aid,
+                event_name=event_name,
+                properties=props_json,
+                timestamp=now,
+                session_id=session_id,
+            ))
+
+        # Update last_seen + features_used + category if present
+        category = (properties or {}).get("category")
+        with _engine.connect() as conn:
+            existing = conn.execute(
+                user_profiles.select().where(user_profiles.c.anon_id == aid)
+            ).fetchone()
+        if existing:
+            try:
+                used = set(json.loads(existing.features_used or "[]"))
+                used.add(event_name)
+                vals: dict = {"last_seen": now, "features_used": json.dumps(sorted(used))}
+                if event_name == "decision_evaluated":
+                    vals["total_evaluations"] = existing.total_evaluations + 1
+                    if category:
+                        vals["primary_category"] = category
+                if event_name == "api_key_created":
+                    vals["has_api_key"] = 1
+                if event_name in ("org_created", "org_joined"):
+                    vals["has_org"] = 1
+                with _engine.begin() as conn:
+                    conn.execute(
+                        user_profiles.update()
+                        .where(user_profiles.c.anon_id == aid)
+                        .values(**vals)
+                    )
+            except Exception:
+                pass
+    except Exception as e:
+        logger.warning("track_feature_event failed (non-fatal): %s", e)
+
+
+def get_analytics_summary() -> dict:
+    """
+    Return aggregated, non-PII site analytics for the admin dashboard.
+    """
+    from collections import defaultdict, Counter
+    now_dt = datetime.now(__import__("datetime").timezone.utc)
+    now = now_dt.isoformat()
+    today_start  = now_dt.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    week_start   = (now_dt - __import__("datetime").timedelta(days=7)).isoformat()
+    month_start  = (now_dt - __import__("datetime").timedelta(days=30)).isoformat()
+
+    try:
+        with _engine.connect() as conn:
+            profiles = conn.execute(user_profiles.select()).fetchall()
+            events   = conn.execute(
+                feature_events.select()
+                .where(feature_events.c.timestamp >= month_start)
+                .order_by(feature_events.c.timestamp.desc())
+            ).fetchall()
+    except Exception as e:
+        logger.error("get_analytics_summary failed: %s", e)
+        return {}
+
+    total_users   = len(profiles)
+    dau = sum(1 for p in profiles if p.last_seen >= today_start)
+    wau = sum(1 for p in profiles if p.last_seen >= week_start)
+    mau = sum(1 for p in profiles if p.last_seen >= month_start)
+
+    # New users by day (last 30 days)
+    new_by_day: dict[str, int] = defaultdict(int)
+    for p in profiles:
+        if p.first_seen >= month_start:
+            new_by_day[p.first_seen[:10]] += 1
+
+    # Login method breakdown
+    login_methods: Counter = Counter(p.login_method for p in profiles)
+
+    # Plan distribution
+    plan_dist: Counter = Counter(p.plan_tier for p in profiles)
+
+    # Category usage (from user_profiles.primary_category)
+    category_dist: Counter = Counter(
+        p.primary_category for p in profiles if p.primary_category
+    )
+
+    # Feature adoption (% of users who touched each feature)
+    all_features: dict[str, int] = defaultdict(int)
+    for p in profiles:
+        for feat in json.loads(p.features_used or "[]"):
+            all_features[feat] += 1
+    feature_adoption = {
+        feat: {"count": cnt, "pct": round(cnt / total_users * 100, 1) if total_users else 0}
+        for feat, cnt in sorted(all_features.items(), key=lambda x: -x[1])
+    }
+
+    # Has API key / Has org
+    api_key_users = sum(1 for p in profiles if p.has_api_key)
+    org_users     = sum(1 for p in profiles if p.has_org)
+
+    # Event volume by day (last 30 days)
+    event_by_day: dict[str, int] = defaultdict(int)
+    for e in events:
+        event_by_day[e.timestamp[:10]] += 1
+
+    # Top events (last 30 days)
+    top_events: Counter = Counter(e.event_name for e in events)
+
+    # Avg evaluations per user
+    evals = [p.total_evaluations for p in profiles if p.total_evaluations > 0]
+    avg_evals = round(sum(evals) / len(evals), 1) if evals else 0
+
+    # Timezone distribution
+    tz_dist: Counter = Counter(p.timezone for p in profiles if p.timezone)
+
+    # Session depth (session_count buckets)
+    session_buckets = {"1": 0, "2-5": 0, "6-20": 0, "21+": 0}
+    for p in profiles:
+        s = p.session_count
+        if s == 1:        session_buckets["1"] += 1
+        elif s <= 5:      session_buckets["2-5"] += 1
+        elif s <= 20:     session_buckets["6-20"] += 1
+        else:             session_buckets["21+"] += 1
+
+    return {
+        "users": {
+            "total": total_users,
+            "dau": dau,
+            "wau": wau,
+            "mau": mau,
+            "new_30d": sum(1 for p in profiles if p.first_seen >= month_start),
+            "api_key_pct": round(api_key_users / total_users * 100, 1) if total_users else 0,
+            "org_pct":     round(org_users / total_users * 100, 1) if total_users else 0,
+            "avg_evals_per_user": avg_evals,
+        },
+        "login_methods":   dict(login_methods.most_common()),
+        "plan_dist":       dict(plan_dist.most_common()),
+        "category_usage":  dict(category_dist.most_common()),
+        "feature_adoption": feature_adoption,
+        "session_depth":   session_buckets,
+        "timezone_dist":   dict(tz_dist.most_common(10)),
+        "new_users_by_day": [
+            {"date": d, "count": c}
+            for d, c in sorted(new_by_day.items())
+        ],
+        "event_volume_by_day": [
+            {"date": d, "count": c}
+            for d, c in sorted(event_by_day.items())
+        ],
+        "top_events": dict(top_events.most_common(20)),
+        "generated_at": now,
     }
