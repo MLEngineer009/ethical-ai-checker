@@ -16,15 +16,27 @@ Pragma is a single-deployment SaaS application: one FastAPI backend serves the w
 │                                                                 │
 │  Auth  ·  Firewall  ·  Compliance  ·  Evidence  ·  Billing     │
 │  Chat  ·  Batch     ·  Dashboard   ·  Audit     ·  Orgs        │
+│  Analytics  ·  Rule Engine  ·  Adverse Action                  │
 └────┬────────────────────────────────────────────────────────────┘
      │
-     ├──► LLM Orchestrator ──► Pragma model → Claude → OpenAI → mock
+     ├──► L1 Compliance Engine (deterministic, <5ms, always runs)
+     │     ├── HOLC geo redlining (500+ zip codes, 35 US cities)
+     │     ├── ECOA proxy variable detection
+     │     ├── Text scanner (14 direct + indirect phrasing patterns)
+     │     ├── Compound proxy threshold scoring
+     │     ├── Disparate impact risk (4/5ths rule)
+     │     └── State law overlays (CA, NY, IL)
      │
-     ├──► Risk Detector (heuristic pattern matching)
+     ├──► L2 LLM Orchestrator (optional, waterfall)
+     │     └── Pragma model → Claude → GPT-4o-mini → heuristic mock
      │
-     ├──► Compliance Engine (15-article EU AI Act checker)
+     ├──► EU AI Act Compliance Engine (15-article scoring)
      │
      ├──► Evidence Analyzer (Claude — document + interview scoring)
+     │
+     ├──► Dynamic Rule Engine (DB-backed, per-org overrides)
+     │
+     ├──► Analytics (PostHog + own DB — non-PII user metrics)
      │
      ├──► PostgreSQL (Railway) / SQLite (local dev)
      │
@@ -39,16 +51,49 @@ Pragma is a single-deployment SaaS application: one FastAPI backend serves the w
 
 ### 1. FastAPI Backend (`backend/main.py`)
 
-Single-file entrypoint. All endpoints, auth middleware, rate limiting, and static file serving in one place. Key design choices:
+Single-file entrypoint. All endpoints, auth middleware, rate limiting, and static file serving in one place.
 
+Key design choices:
 - **No router split** — all routes in `main.py`. Simple enough to not warrant fragmentation.
-- **Sync + async mix** — most endpoints are `async def` but DB calls are synchronous (SQLAlchemy core, not async). This is fine on Railway where there is one worker process and concurrency is handled by uvicorn's thread pool.
-- **Session token auth** — custom `X-Session-Token` header (not JWT). Tokens are 32-byte hex stored in an in-memory dict (per-process). This means sessions are lost on redeploy — acceptable for the current scale.
+- **Sync + async mix** — most endpoints are `async def` but DB calls are synchronous (SQLAlchemy core, not async). Fine on Railway where concurrency is handled by uvicorn's thread pool.
+- **Session token auth** — custom `X-Session-Token` header (not JWT). Tokens are 32-byte hex stored in an in-memory dict. Sessions are lost on redeploy — acceptable tradeoff.
 - **API key auth** — `pragma_*` prefixed keys stored in the DB for SDK use.
 
-### 2. LLM Orchestrator (`backend/llm_orchestrator.py`)
+### 2. L1 Compliance Engine (`backend/compliance_engine.py`)
 
-Waterfall fallback chain for compliance analysis:
+Deterministic compliance checking that runs on every request — no LLM, no external call, no variable latency. Checks:
+
+- **HOLC geo redlining** — 500+ historically redlined zip codes across 35 US cities (`geo_data.py`). `is_redlined(zip_code)` returns `(bool, city_name)`.
+- **ECOA proxy variable detection** — `zip_code`, `last_name`, `ip_country`, `email_domain`, `birth_date`, `age` and 6+ others flagged as protected-class proxies.
+- **Text scanner** — 14 regex pattern groups covering direct and indirect protected-class language:
+  - Direct: race, national_origin, sex, age, disability, religion, familial_status, public_assistance
+  - Indirect: "that part of town", "near retirement", "family obligations", "non-native speaker", etc.
+- **Compound proxy threshold** — flags when N proxy variables appear in the same decision context.
+- **Disparate impact risk** — flags when the decision pattern suggests group-level adverse impact.
+- **State law overlays** — jurisdiction-specific rules for CA (FEHA), NY (HRL), IL (HRA).
+- **ECOA §1002.9** — checks for required written adverse action reasons.
+
+Each check accepts an optional `rule_config` dict from the dynamic rule engine (see below).
+
+**Rule result statuses:** `FAIL` (block), `FLAG` (human review), `PASS` (allowed)
+
+### 3. Dynamic Rule Engine (DB tables: `compliance_rules`, `org_rule_overrides`)
+
+All compliance rules are stored in the database rather than hardcoded. This means:
+
+- **Configurable thresholds** — `compound_proxy_threshold` has `flag_at`/`fail_at` values editable per org.
+- **Per-org severity overrides** — an enterprise org can change a FAIL to FLAG for a specific rule.
+- **Enable/disable rules** — orgs can turn off inapplicable jurisdiction overlays.
+- **No code deploy needed** — rule changes take effect immediately.
+
+`get_effective_rules(org_id)` merges global defaults with org overrides and returns the full rule set. `run_compliance_checks()` loads this at evaluation time and passes `rule_config` to each checker that accepts it (via `inspect.signature`).
+
+15 default rules seeded on first boot:
+`text_scanner_race`, `text_scanner_national_origin`, `text_scanner_sex`, `text_scanner_age`, `text_scanner_disability`, `text_scanner_religion`, `text_scanner_familial`, `text_scanner_public_assistance`, `compound_proxy_threshold`, `disparate_impact_threshold`, `employment_gap_months`, `state_overlay_ca`, `state_overlay_ny`, `state_overlay_il`, `ecoa_adverse_action_notice`, `geo_redlining`
+
+### 4. LLM Orchestrator (`backend/llm_orchestrator.py`)
+
+Waterfall fallback chain for deeper risk analysis (L2). Runs after L1 when enabled:
 
 ```
 Pragma (custom fine-tuned model on Ollama/HuggingFace)
@@ -57,78 +102,74 @@ Pragma (custom fine-tuned model on Ollama/HuggingFace)
       → heuristic mock (always available)
 ```
 
-Each provider is tried in order; the first success wins. The mock ensures the firewall always returns a result even with no API keys configured (useful for dev). Provider is recorded in the response so clients know which model scored the decision.
+Provider recorded in the response so clients know which model scored the decision.
 
-### 3. Risk Detector (`backend/risk_detector.py`)
+### 5. EU AI Act Compliance Engine (`backend/compliance_engine.py`)
 
-Two-layer detection:
-
-**Layer 1 — Heuristic keyword matching** (runs synchronously, no LLM call)
-- 8 risk categories: `bias`, `discrimination`, `privacy`, `transparency`, `fairness`, `autonomy`, `harm`, `manipulation`
-- Pattern matching on decision text + context values
-- ECOA proxy variable detection: `zip_code`, `last_name`, `ip_country`, `email_domain`, `birth_date`, `age`, etc.
-
-**Layer 2 — LLM analysis** (via orchestrator)
-- Generates `confidence_score`, `recommendation`, per-framework ethical analysis
-- LLM flags supplement but do not override heuristic flags for blocking decisions
-
-Firewall verdict logic:
-```
-block            = confidence ≥ threshold AND len(risk_flags) ≥ 2
-override_required = len(risk_flags) ≥ 1 AND NOT block
-allow            = no flags
-```
-
-### 4. Compliance Engine (`backend/compliance_engine.py`)
-
-Evaluates a registered AI system against all 15 EU AI Act articles. Stateless — takes a `system` dict and `stats` dict, returns scores. No DB writes (snapshot saving happens in the endpoint layer).
+Evaluates a registered AI system against all 15 EU AI Act articles. Stateless — takes a `system` dict and `stats` dict, returns scores.
 
 **Scoring:**
 - `pass` = declaration + evidence notes + dated entry → 1.0 points
-- `partial` = declaration only (no supporting docs) → 0.5 points
-- `fail` = not declared or evidence contradictory → 0.0 points
+- `partial` = declaration only → 0.5 points
+- `fail` = not declared or contradictory evidence → 0.0 points
 - `overall_score` = (passes × 1.0 + partials × 0.5) / 15
 
-**Art. 5 special rule:** A prohibited use case (social scoring, real-time biometric, etc.) overrides the verdict to `prohibited` regardless of score. Prohibited systems cannot receive a certificate.
+**Art. 5 special rule:** A prohibited use case overrides the verdict to `prohibited` regardless of score.
 
-### 5. Evidence Analyzer (`backend/evidence_analyzer.py`)
+### 6. Evidence Analyzer (`backend/evidence_analyzer.py`)
 
-Claude-powered module for deep evidence validation. Two functions:
+Claude-powered module for deep evidence validation.
 
 **`analyze_document(article_key, title, requirement, filename, file_data)`**
-- Extracts text from uploaded files (PDF via `pypdf`, plain text for .txt/.md/.csv)
+- Extracts text from PDF (pypdf) or plain text files
 - Sends document excerpt (max 12,000 chars) to Claude with the specific article's legal requirement
 - Returns: `notes`, `date`, `verdict` (pass/partial/insufficient), `explanation`, `confidence`
 
 **`score_interview(article_key, title, requirement, questions_and_answers)`**
 - Takes structured Q&A for an article
 - Claude evaluates the answers against the legal requirement
-- Returns: `notes`, `verdict` (pass/partial/fail), `feedback`, `missing` (list of gaps)
+- Returns: `notes`, `verdict`, `feedback`, `missing` (list of gaps)
 
-Both functions use the same Claude model (`claude-sonnet-4-6`) with a strict JSON-only system prompt.
+### 7. Adverse Action Notice Generator
 
-### 6. Interview Engine (`backend/interview_engine.py`)
+`POST /adverse-action-notice` generates ECOA §1002.9 + FCRA §615(a) compliant HTML denial notices. Accepts the decision context and returns a structured HTML document with correct statutory language, required disclosures, and timing guidance.
 
-Static data module — no Claude calls. Defines 4–5 article-specific questions for each of the 9 interviewable articles (Art. 4, 9, 10, 11, 17, 25, 27, 30, 33). Questions are written against the actual legal requirement text, not generic governance questions.
+### 8. Disparate Impact Analysis (`POST /disparate-impact`)
 
-### 7. Notifications (`backend/notifications.py` + `backend/email_service.py`)
+Accepts a JSON array of decisions with demographic fields and applies the EEOC 4/5ths rule:
+- Identifies the highest-selection-rate group as the baseline
+- Flags any group with selection rate < 80% of the baseline as "ADVERSE IMPACT"
+- Returns group breakdown, disparity ratios, and applicable regulatory references
 
-**Three notification types:**
+### 9. Analytics (`backend/database.py` tables: `user_profiles`, `feature_events`)
+
+Non-PII customer metadata system. Two components:
+
+**PostHog (behavioral):** Lazy-initialized from `/config/public` — key never hardcoded in HTML. Tracks behavioral events with session replay and funnel analysis.
+
+**Own DB (business metrics):**
+- `user_profiles` — per-user aggregate: plan_tier, session_count, total_evaluations, primary_category, features_used JSON, has_api_key, has_org
+- `feature_events` — append-only event log: event_name, properties JSON, session_id, timestamp
+
+Key functions:
+- `upsert_user_profile(google_sub, login_method, plan_tier, timezone, locale)` — insert or update on every login
+- `track_feature_event(google_sub, event_name, properties, session_id)` — append event, update features_used
+- `get_analytics_summary()` — returns DAU/WAU/MAU, login_methods, plan_dist, category_usage, feature_adoption, session_depth, timezone_dist, new_users_by_day, event_volume_by_day, top_events
+
+Admin analytics dashboard visible in-app for admin users only (gated by `ADMIN_EMAIL` env var).
+
+### 10. Notifications (`backend/notifications.py` + `backend/email_service.py`)
+
+Three notification types:
 - `welcome` — sent once on first Google login (36,500 day dedup window)
 - `gap_reminder` — sent per-system with FAIL/PARTIAL articles, 30-day cadence
 - `countdown` — weekly EU AI Act deadline countdown for users with high-risk systems
 
-**Architecture decisions:**
-- Railway cron job (`send_notifications.py`) runs at 09:00 UTC daily — avoids duplicate sends that would happen with in-process APScheduler across multiple instances
-- `notification_log` table deduplicates sends at the DB level
-- Resend API for transactional email (simpler than SES/SendGrid for this scale)
-- All emails include a unique `unsubscribe_token` for one-click unsubscribe
+Railway cron job (`send_notifications.py`) runs at 09:00 UTC daily. `notification_log` table deduplicates sends at the DB level.
 
-### 8. Database (`backend/database.py`)
+### 11. Database (`backend/database.py`)
 
-SQLAlchemy Core (not ORM). All queries use the expression language, not models. This keeps the schema explicit and avoids magic.
-
-**Tables:**
+SQLAlchemy Core (not ORM). All tables:
 
 | Table | Purpose |
 |---|---|
@@ -144,20 +185,15 @@ SQLAlchemy Core (not ORM). All queries use the expression language, not models. 
 | `subscriptions` | Stripe subscription state |
 | `users` | Google-authenticated user profiles + unsubscribe token |
 | `notification_log` | Sent notification deduplication log |
-| `compliance_snapshots` | Daily compliance score snapshots per system (for trend charts) |
+| `compliance_snapshots` | Daily compliance score snapshots per system |
+| `compliance_rules` | DB-backed rule definitions with config JSON |
+| `org_rule_overrides` | Per-org severity/enabled/config customizations |
+| `user_profiles` | Non-PII user metadata for analytics |
+| `feature_events` | Append-only behavioral event log |
 
 **Identity:** Two parallel identity systems:
-- `anon_id` = SHA-256 of `google_sub` — used in `request_logs`, `audit_log`, etc. (no PII)
-- `google_sub` — used directly in `users`, `ai_systems`, `compliance_snapshots`, `notification_log`
-
-**Migrations:** `init_db()` uses `inspect()` to check for missing columns and runs `ALTER TABLE` statements. This is a simple, dependency-free migration approach suitable for a single-instance deployment.
-
-### 9. Auth (`backend/auth.py`)
-
-- **Google OAuth:** Verifies Google ID tokens using `google.oauth2.id_token.verify_oauth2_token`. Extracts `sub`, `name`, `email`, `picture`.
-- **Guest sessions:** Random `guest_{hex}` sub, full feature access, no email.
-- **Session store:** In-memory Python dict (`_sessions`). Lost on restart. Acceptable tradeoff — users re-authenticate via Google.
-- **Session token:** 32-byte random hex (64-char string) in `X-Session-Token` header.
+- `anon_id` = SHA-256 of `google_sub` — used in `request_logs`, `audit_log`, `user_profiles`, `feature_events`
+- `google_sub` — used in `users`, `ai_systems`, `compliance_snapshots`, `notification_log`
 
 ---
 
@@ -170,62 +206,72 @@ POST /evaluate-decision
   parse + validate request
         │
         ▼
-  detect_all_risks(decision, context, category)
-    ├── keyword heuristics
-    └── detect_fintech_proxy_variables(context)
+  database.get_effective_rules(org_id)
         │
         ▼
-  llm_orchestrator.evaluate(decision, context)
+  run_compliance_checks(decision, context, category, rule_config)
+    ├── HOLC geo redlining check
+    ├── ECOA proxy variable detection
+    ├── Text scanner (direct + indirect patterns)
+    ├── Compound proxy threshold (rule_config.flag_at / fail_at)
+    ├── Disparate impact risk (rule_config.flag_at / fail_at)
+    ├── State law overlays (CA/NY/IL if enabled)
+    └── ECOA adverse action notice check
+        │
+        ▼
+  llm_orchestrator.evaluate(decision, context)  [L2, optional]
     → confidence_score, regulatory_refs, ethical analyses
         │
         ▼
-  _compute_firewall(risk_flags, confidence_score)
-    → firewall_action, should_block
+  _compute_firewall(compliance_checks, risk_flags, confidence_score)
+    → firewall_action: block | override_required | allow
         │
         ▼
-  write to audit_log (anon_id, hash, verdict, flags)
+  write to audit_log (anon_id, hash, verdict, checks)
+        │
+        ▼
+  track_feature_event(google_sub, 'decision_evaluated', {category, firewall_action})
         │
         ▼
   return EthicalAnalysis response
 ```
 
-## Data Flow: Compliance Check + Snapshot
+## Data Flow: JSON-LD Audit Export
 
 ```
-GET /ai-systems/{id}/compliance
+GET /audit/export?format=jsonld
         │
         ▼
-  get_ai_system(system_id, google_sub)  ← ownership check
+  database.get_audit_jsonld(google_sub, limit=500)
+        │
+        ├── Fetches all audit_log rows for user
+        ├── Builds W3C PROV-compatible @context
+        └── Returns JSON-LD document with:
+              @context (timestamp, firewallAction, inputHash, ...)
+              @type: "ComplianceAuditLog"
+              entries: [{...each decision...}]
         │
         ▼
-  get_audit_stats_for_system(google_sub)
-        │
-        ▼
-  compute_compliance(system, stats)
-    → 15 article statuses, overall_score, verdict
-        │
-        ├──► save_compliance_snapshot()  ← once per day, non-fatal
-        │
-        └──► return compliance result
+  Return as application/ld+json attachment
 ```
 
-## Data Flow: Evidence Upload
+## Data Flow: Adverse Action Notice
 
 ```
-POST /evidence/extract  (multipart)
+POST /adverse-action-notice
+  { decision, context, category, denial_reasons? }
         │
-        ├── read file bytes (max 10 MB)
+        ▼
+  Build ECOA §1002.9 + FCRA §615(a) compliant HTML document
         │
-        ├── _extract_text(filename, bytes)
-        │     ├── .pdf → pypdf PdfReader
-        │     └── .txt/.md/.csv → UTF-8 decode
+        ├── Statutory denial reason language
+        ├── Required CRA disclosure (if credit decision)
+        ├── Applicant rights statement
+        ├── Timeline guidance (30-day notice requirement)
+        └── Signature block
         │
-        ├── truncate to 12,000 chars
-        │
-        ├── claude: analyze_document(article_key, requirement, doc_text)
-        │     → {notes, date, verdict, explanation, confidence}
-        │
-        └── return result (frontend auto-fills wizard fields)
+        ▼
+  Return text/html document ready to send or download
 ```
 
 ---
@@ -234,32 +280,34 @@ POST /evidence/extract  (multipart)
 
 Single HTML file — no build step, no framework, no bundler. Served by FastAPI's static file handler.
 
-**Why single file:** Minimises deployment complexity. Everything ships as one response with no asset pipeline.
-
-**Key JS patterns:**
-- `esc(str)` — XSS-safe text insertion via `document.createTextNode()`
-- `switchTab(name)` — tab routing with URL state
-- `sessionToken` — global variable set on auth, sent as `X-Session-Token` header on all API calls
-- All API calls are `async/await` fetch with error handling
-
 **Tab structure:**
 ```
-Evaluate  →  single decision firewall
-History   →  paginated decision log
-Batch     →  CSV upload + results download
-Audit     →  audit trail with override panel
-EU AI Act →  system registration wizard + compliance checklist + certificate download
-Dashboard →  score trend sparklines + article heatmap + deadline countdown
-Settings  →  billing, orgs, API keys, notification preferences
+Evaluate   →  single decision firewall + compliance checks
+History    →  paginated decision log
+Batch      →  CSV upload + results download
+Audit      →  audit trail with override panel + JSON-LD export
+EU AI Act  →  system registration wizard + compliance checklist + certificate download
+Dashboard  →  score trend sparklines + article heatmap + admin analytics panel
+Demo       →  live Affirm BNPL + Workday hiring + Gemini chatbot scenarios
+Settings   →  billing, orgs, API keys, compliance rule engine, notifications
 ```
 
-**EU AI Act wizard:** 5-step flow collecting all 15 articles' evidence. Steps 4–5 include "📄 Upload doc" and "💬 Interview" buttons that call the evidence API and auto-fill fields.
+**Analytics instrumentation (pragmaTrack):**
+- `user_logged_in` — Google + guest login
+- `tab_viewed` — every tab switch
+- `decision_evaluated` — category, firewall_action, fail_count, flag_count
+- `batch_uploaded` — file name
+- `report_downloaded` — category
+- `scenario_run` — scenario_id, use_case
+- `api_key_created`
+- `audit_exported` — format: jsonld
+- `compliance_rules_viewed` — rule_count
 
-**Dashboard:** Loads on tab activation. Calls `/dashboard/summary`, renders:
-- Deadline countdown bar (days to 1 Aug 2026, colour by urgency)
-- Summary stat cards
-- Per-system cards with SVG sparkline trend charts (no chart library — pure `<polyline>`)
-- 15-article heatmap grid (✓/~/✗ per article per system)
+**Admin-only features:** Admin analytics dashboard in Dashboard tab (DAU/WAU/MAU, feature adoption, top events, category usage, plan distribution, new users). Visible only when `is_admin` returned from auth.
+
+**Landing pages:**
+- `frontend/index.html` — main app (usepragma.co)
+- `frontend/lending.html` — lending vertical landing page (lending.usepragma.co)
 
 ---
 
@@ -276,7 +324,7 @@ Railway build (Nixpacks)
 Railway service
   uvicorn backend.main:app --host 0.0.0.0 --port $PORT
         │
-        ├── Serves frontend/index.html
+        ├── Serves frontend/index.html + lending.html
         ├── Handles all API requests
         └── Connects to PostgreSQL plugin (DATABASE_URL auto-injected)
 
@@ -286,12 +334,12 @@ Railway cron (daily 09:00 UTC)
         └── Sends welcome / gap reminder / countdown emails via Resend
 ```
 
-**Environment variables required:**
+**Environment variables:**
 
 | Variable | Purpose |
 |---|---|
 | `DATABASE_URL` | Auto-injected by Railway PostgreSQL plugin |
-| `ANTHROPIC_API_KEY` | Claude (compliance engine + evidence analyzer) |
+| `ANTHROPIC_API_KEY` | Claude (L2 analysis + evidence analyzer) |
 | `OPENAI_API_KEY` | GPT-4o-mini fallback |
 | `GOOGLE_CLIENT_ID` | Google OAuth token verification |
 | `RESEND_API_KEY` | Transactional email |
@@ -301,6 +349,9 @@ Railway cron (daily 09:00 UTC)
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signature verification |
 | `STRIPE_GROWTH_PRICE_ID` | Growth plan price ID |
 | `ALLOWED_ORIGINS` | CORS allowlist |
+| `POSTHOG_API_KEY` | PostHog behavioral analytics (optional) |
+| `POSTHOG_HOST` | PostHog host (default: https://us.i.posthog.com) |
+| `ADMIN_EMAIL` | Email address with admin dashboard access (default: chak.utd@gmail.com) |
 
 ---
 
@@ -310,20 +361,21 @@ Railway cron (daily 09:00 UTC)
 
 **Database isolation:** `StaticPool` in-memory SQLite per test run. `conftest.py` patches `_engine` before any module imports so tests never touch the real DB.
 
-**Coverage threshold:** 80% enforced in CI. Current: 82.5% across 434 tests.
+**Coverage threshold:** 80% enforced in CI. Current: 80.46% across 512 tests.
 
 **Test file map:**
 
 | File | What it covers |
 |---|---|
-| `test_api.py` | All HTTP endpoints (78 tests) |
-| `test_compliance.py` | 15-article engine, evidence scoring, prohibition detection, certificate PDF |
-| `test_fintech_compliance.py` | Proxy variable guard, audit trail, HITL override |
-| `test_regulations.py` | Regulatory reference mapping |
-| `test_orgs_and_api_keys.py` | Org lifecycle, API key CRUD |
+| `test_api.py` | All HTTP endpoints |
+| `test_compliance.py` | 15-article EU AI Act engine, evidence scoring, certificate PDF |
+| `test_fintech_compliance.py` | HOLC geo data, text scanner, compound proxies, ECOA, disparate impact, state laws |
+| `test_orgs_and_api_keys.py` | Org lifecycle, API key CRUD, dynamic rule engine, JSON-LD export, analytics DB functions |
 | `test_auth.py` | Session management, Google OAuth, guest sessions |
 | `test_notifications.py` | Email templates, notification logic, deduplication |
 | `test_evidence.py` | Document extraction, interview scoring, question engine |
+| `test_regulations.py` | Regulatory reference mapping |
+| `test_disparity_analysis.py` | Disparate impact 4/5ths rule |
 
 ---
 
@@ -337,5 +389,7 @@ Railway cron (daily 09:00 UTC)
 | SQL injection | Migration `ALTER TABLE` column names validated with `^[a-z_][a-z0-9_]*$` |
 | Stripe webhooks | `stripe.WebhookSignature.verify_header()` before any processing |
 | Auth | Session tokens are 32-byte random hex; no JWTs to decode client-side |
-| PII | Raw decision text is never stored — only `sha256(input)` in `request_logs` |
+| PII | Raw decision text never stored — only `sha256(input)` in `request_logs` |
+| Analytics PII | `/track` endpoint strips email, name, phone before storing; uses `anon_id = sha256(google_sub)` |
 | File uploads | Type checked by extension; PDF parsed in-memory; no disk writes |
+| Admin gating | `_is_admin()` checks email against `ADMIN_EMAIL` env var — admin endpoints 403 for all other users |
