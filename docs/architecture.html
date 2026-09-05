@@ -464,10 +464,42 @@ HF_TOKEN=hf_... python ml/evaluate.py \<br>
     </div>
   </section>
 
+  <!-- L1 COMPLIANCE ENGINE -->
+  <section id="l1">
+    <h2>L1 Compliance Engine</h2>
+    <p class="section-sub">Deterministic, synchronous rule evaluation — no LLM call, no latency. Catches most violations before reaching L2.</p>
+    <div class="card-grid cols-3">
+      <div class="card">
+        <h3><span class="dot" style="background:#f87171"></span> HOLC Geo Redlining</h3>
+        <p>500+ historically redlined zip codes across 35 US cities, loaded from <code>geo_data.py</code> at startup. Any decision where <code>context.zip_code</code> maps to a redlined area is flagged as a potential Fair Housing Act violation.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot" style="background:#fbbf24"></span> ECOA Proxy Variables</h3>
+        <p>35+ proxy fields detected: <code>zip_code</code>, <code>last_name</code>, <code>ip_country</code>, <code>email_domain</code>, neighborhood descriptors, national origin indicators. Compound risk detection when multiple proxies appear together.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot" style="background:#f97316"></span> Text Scanner — 14 Patterns</h3>
+        <p>Indirect discriminatory phrasing: "that part of town", "near retirement", "family obligations", "mother tongue", "criminal background", and 9 more. Scans both decision text and context free-text fields.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot" style="background:#a78bfa"></span> Disparate Impact (EEOC 4/5ths)</h3>
+        <p>Batch decision sets are analyzed for group-level pass rates. A protected group with a pass rate below 80% of the highest group's rate triggers an EEOC disparate impact flag automatically.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot" style="background:#38bdf8"></span> State Law Overlays</h3>
+        <p>California FEHA, New York HRL, and Illinois HRA add state-level protected classes and stricter thresholds on top of federal (ECOA/EEOC) baseline. Applied based on geographic scope of the AI system.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot green"></span> Dynamic Rule Engine</h3>
+        <p>Rules stored in <code>compliance_rules</code> table. Default action (FAIL/FLAG/ALLOW) and threshold are configurable per org via <code>org_rule_overrides</code>. Changes take effect immediately — no deployment required. Full audit trail of who changed what.</p>
+      </div>
+    </div>
+  </section>
+
   <!-- ARCHITECTURE DIAGRAM -->
   <section id="architecture">
     <h2>System Architecture</h2>
-    <p class="section-sub">Request flow from client to model and back. Feedback loop drives continuous retraining.</p>
+    <p class="section-sub">Request flows through L1 deterministic rules, then L2 LLM analysis. Analytics captured at each step.</p>
     <div class="arch-diagram">
 
       <!-- Clients -->
@@ -511,36 +543,36 @@ HF_TOKEN=hf_... python ml/evaluate.py \<br>
       </div>
       <div class="arch-row" style="gap:40px; flex-wrap:wrap;">
         <div class="arch-box backend">
-          Model Orchestrator
-          <small>llm_orchestrator.py</small>
+          L1 Compliance Engine
+          <small>geo_data.py · text scanner · state overlays</small>
         </div>
         <div class="arch-box backend">
-          PDF Generator
-          <small>report_generator.py</small>
+          LLM Orchestrator
+          <small>llm_orchestrator.py · Claude primary</small>
         </div>
         <div class="arch-box backend">
-          Risk Detector
-          <small>risk_detector.py</small>
-        </div>
-        <div class="arch-box backend">
-          Compliance Engine
+          EU AI Act Engine
           <small>compliance_engine.py · 15 articles</small>
         </div>
         <div class="arch-box backend">
-          Feedback Logger
-          <small>/feedback endpoint</small>
-        </div>
-        <div class="arch-box backend">
           Evidence Analyzer
-          <small>evidence_analyzer.py</small>
+          <small>evidence_analyzer.py + interview_engine.py</small>
         </div>
         <div class="arch-box backend">
-          Interview Engine
-          <small>interview_engine.py</small>
+          PDF / Certificate Generator
+          <small>report_generator.py · compliance_certificate.py</small>
+        </div>
+        <div class="arch-box backend">
+          Adverse Action Generator
+          <small>ECOA §1002.9 · FCRA §615(a) notices</small>
+        </div>
+        <div class="arch-box backend">
+          Analytics Layer
+          <small>PostHog + user_profiles + feature_events</small>
         </div>
         <div class="arch-box backend">
           Notifications
-          <small>notifications.py · Resend</small>
+          <small>notifications.py · Resend · daily cron</small>
         </div>
       </div>
 
@@ -566,27 +598,20 @@ HF_TOKEN=hf_... python ml/evaluate.py \<br>
       <div class="arch-row"><div class="arch-arrow">↓</div></div>
 
       <!-- Model layer -->
-      <div class="arch-divider"><span>Model Layer — Provider Chain</span></div>
+      <div class="arch-divider"><span>LLM Layer — L2 Analysis</span></div>
       <div class="arch-row">
         <div class="arch-box llm primary">
-          Pragma Model
-          <small>🥇 Primary — HF Inference API</small>
-        </div>
-        <div class="arch-arrow">→ fallback →</div>
-        <div class="arch-box llm">
-          Claude claude-opus-4-6
-          <small>Fallback (offline teacher)</small>
-        </div>
-        <div class="arch-arrow">→ fallback →</div>
-        <div class="arch-box llm">
-          GPT-4o-mini
-          <small>Fallback on rate limit</small>
+          Claude (Anthropic)
+          <small>🥇 Primary — L2 LLM analysis</small>
         </div>
         <div class="arch-arrow">→ fallback →</div>
         <div class="arch-box llm">
           Mock Response
           <small>Offline / unconfigured</small>
         </div>
+      </div>
+      <div style="text-align:center; font-size:12px; color:rgba(255,255,255,0.35); margin-top:8px;">
+        L1 deterministic rules run before LLM — most violations caught before any LLM call
       </div>
 
       <div class="arch-row"><div class="arch-arrow">↓</div></div>
@@ -596,7 +621,7 @@ HF_TOKEN=hf_... python ml/evaluate.py \<br>
       <div class="arch-row">
         <div class="arch-box db">
           PostgreSQL
-          <small>request_logs · audit_log · ai_systems · certificates · subscriptions · users · notification_log · compliance_snapshots · analysis_feedback · waitlist · organizations · org_members · api_keys</small>
+          <small>request_logs · audit_log · ai_systems · certificates · subscriptions · users · notification_log · compliance_snapshots · analysis_feedback · waitlist · organizations · org_members · api_keys · compliance_rules · org_rule_overrides · user_profiles · feature_events</small>
         </div>
         <div class="arch-box db">
           In-Memory Sessions
@@ -606,27 +631,20 @@ HF_TOKEN=hf_... python ml/evaluate.py \<br>
 
       <div class="arch-row"><div class="arch-arrow">↓</div></div>
 
-      <!-- ML pipeline -->
-      <div class="arch-divider"><span>ML Pipeline (Offline)</span></div>
-      <div class="arch-row">
+      <!-- Analytics -->
+      <div class="arch-divider"><span>Analytics</span></div>
+      <div class="arch-row" style="gap:40px; flex-wrap:wrap;">
         <div class="arch-box ml">
-          collect_feedback.py
-          <small>Weak category detection</small>
+          PostHog
+          <small>pragmaTrack() · behavioral events</small>
         </div>
-        <div class="arch-arrow">→</div>
         <div class="arch-box ml">
-          generate_data.py
-          <small>Claude labels new examples</small>
+          Own DB Analytics
+          <small>user_profiles · feature_events · DAU/WAU/MAU</small>
         </div>
-        <div class="arch-arrow">→</div>
         <div class="arch-box ml">
-          train.py (Colab T4)
-          <small>LoRA fine-tune Phi-3-mini</small>
-        </div>
-        <div class="arch-arrow">→</div>
-        <div class="arch-box ml">
-          HuggingFace Hub
-          <small>Pragma model adapter</small>
+          Admin Dashboard
+          <small>GET /admin/analytics · in-app panel</small>
         </div>
       </div>
 
@@ -737,6 +755,66 @@ HF_TOKEN=hf_... python ml/evaluate.py \<br>
             <td><code>/api-keys</code></td>
             <td><span class="badge auth">Bearer</span></td>
             <td>Generate a <code>pragma_*</code> API key for programmatic SDK access</td>
+          </tr>
+          <tr>
+            <td><span class="method get">GET</span></td>
+            <td><code>/api-keys</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>List all API keys for current user (id, name, prefix, created, last_used)</td>
+          </tr>
+          <tr>
+            <td><span class="method" style="background:rgba(248,113,113,0.15);color:#f87171;">DELETE</span></td>
+            <td><code>/api-keys/{key_id}</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Revoke an API key by id</td>
+          </tr>
+          <tr>
+            <td><span class="method get">GET</span></td>
+            <td><code>/compliance-rules</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Get effective compliance rules for a category (merged org overrides over global defaults)</td>
+          </tr>
+          <tr>
+            <td><span class="method" style="background:rgba(251,191,36,0.15);color:#fbbf24;">PUT</span></td>
+            <td><code>/compliance-rules/{rule_id}</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Update a compliance rule (action, threshold, enabled) — changes take effect immediately, no redeploy</td>
+          </tr>
+          <tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/analyze-text-bias</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Run text scanner on a string — detects indirect discriminatory phrasing (14 pattern categories)</td>
+          </tr>
+          <tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/adverse-action-notice</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Generate ECOA §1002.9 + FCRA §615(a) compliant adverse action notice from an audit_log_id</td>
+          </tr>
+          <tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/disparate-impact</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Run EEOC 4/5ths disparate impact analysis across demographic groups from a batch decision set</td>
+          </tr>
+          <tr>
+            <td><span class="method post">POST</span></td>
+            <td><code>/track</code></td>
+            <td><span class="badge auth">Bearer</span></td>
+            <td>Track a feature event to own DB (complements PostHog) — updates user_profiles and feature_events</td>
+          </tr>
+          <tr>
+            <td><span class="method get">GET</span></td>
+            <td><code>/admin/analytics</code></td>
+            <td><span class="badge" style="background:rgba(248,113,113,0.15);color:#f87171;">Admin</span></td>
+            <td>Return DAU/WAU/MAU, feature adoption rates, top events, plan distribution, new users (7d) — admin only</td>
+          </tr>
+          <tr>
+            <td><span class="method get">GET</span></td>
+            <td><code>/cosmos</code></td>
+            <td><span class="badge pub">Public</span></td>
+            <td>Serve Cosmos AI LLC company homepage (frontend/cosmos.html)</td>
           </tr>
           <tr>
             <td><span class="method get">GET</span></td>
@@ -1147,57 +1225,101 @@ CREATE TABLE compliance_snapshots (
   fails            INTEGER NOT NULL,
   articles_json    TEXT NOT NULL,   -- {art_key: status} snapshot
   taken_at         TEXT NOT NULL    -- ISO UTC timestamp, one per day (deduped)
+);
+
+-- Dynamic compliance rule engine (DB-backed, live config, per-org overrides)
+CREATE TABLE compliance_rules (
+  id               SERIAL PRIMARY KEY,
+  rule_id          TEXT UNIQUE NOT NULL, -- e.g. "holc_redlining", "ecoa_proxy_zip"
+  category         TEXT,                 -- lending | hiring | healthcare | all
+  description      TEXT,
+  default_action   TEXT NOT NULL,        -- FAIL | FLAG | ALLOW
+  threshold        REAL,                 -- configurable severity threshold
+  enabled          BOOLEAN DEFAULT TRUE,
+  created_at       TEXT,
+  updated_at       TEXT
+);
+
+CREATE TABLE org_rule_overrides (
+  id               SERIAL PRIMARY KEY,
+  org_id           INTEGER NOT NULL,
+  rule_id          TEXT NOT NULL,
+  action           TEXT,                 -- overrides default_action for this org
+  threshold        REAL,
+  enabled          BOOLEAN,
+  updated_by       TEXT,                 -- anon_id of admin who made the change
+  updated_at       TEXT
+);
+
+-- Customer analytics — feature adoption and user behavior
+CREATE TABLE user_profiles (
+  id                 SERIAL PRIMARY KEY,
+  anon_id            TEXT UNIQUE NOT NULL,
+  plan_tier          TEXT DEFAULT 'free',
+  login_method       TEXT,              -- google | guest
+  total_evaluations  INTEGER DEFAULT 0,
+  session_count      INTEGER DEFAULT 0,
+  has_api_key        INTEGER DEFAULT 0,
+  features_used      TEXT,             -- JSON array of feature names
+  last_active        TEXT,
+  created_at         TEXT
+);
+
+CREATE TABLE feature_events (
+  id               SERIAL PRIMARY KEY,
+  anon_id          TEXT NOT NULL,
+  event_name       TEXT NOT NULL,       -- decision_evaluated, report_downloaded, …
+  properties       TEXT,               -- JSON dict of event properties
+  created_at       TEXT NOT NULL
 );</code>
     </div>
   </section>
 
   <!-- MODEL ORCHESTRATION -->
   <section>
-    <h2>Model Orchestration</h2>
-    <p class="section-sub">The Pragma model leads. Claude and OpenAI exist only as production fallbacks while the model matures.</p>
+    <h2>Two-Layer Firewall</h2>
+    <p class="section-sub">L1 deterministic rules run synchronously in microseconds. L2 LLM analysis runs only when L1 passes — or to enrich context.</p>
 
     <div class="chain">
       <div class="chain-step primary">
-        <div class="chain-icon">🧠</div>
-        <div class="chain-name">Pragma Model</div>
-        <div class="chain-sub">Primary · HF Inference API<br>Our domain-specific model</div>
+        <div class="chain-icon">⚡</div>
+        <div class="chain-name">L1 — Deterministic</div>
+        <div class="chain-sub">HOLC geo · text scanner · ECOA proxy<br>disparate impact · state overlays</div>
       </div>
-      <div class="chain-sep">→</div>
+      <div class="chain-sep">→ if pass →</div>
       <div class="chain-step fallback">
         <div class="chain-icon">🤖</div>
-        <div class="chain-name">Claude claude-opus-4-6</div>
-        <div class="chain-sub">Fallback · Adaptive Thinking<br>Rate limit or unavailable</div>
-      </div>
-      <div class="chain-sep">→</div>
-      <div class="chain-step fallback">
-        <div class="chain-icon">💬</div>
-        <div class="chain-name">GPT-4o-mini</div>
-        <div class="chain-sub">Fallback · If Claude fails<br>Rate limit or credit error</div>
+        <div class="chain-name">L2 — Claude LLM</div>
+        <div class="chain-sub">Regulatory reasoning · risk flags<br>evidence generation · confidence score</div>
       </div>
       <div class="chain-sep">→</div>
       <div class="chain-step offline">
-        <div class="chain-icon">🔇</div>
-        <div class="chain-name">Mock Response</div>
-        <div class="chain-sub">Last resort · Always returns<br>Labeled provider: mock</div>
+        <div class="chain-icon">📋</div>
+        <div class="chain-name">Verdict + Audit Record</div>
+        <div class="chain-sub">BLOCK / FLAG / ALLOW<br>W3C PROV JSON-LD export</div>
       </div>
     </div>
 
     <div class="card-grid cols-3" style="margin-top:16px;">
       <div class="card">
-        <h3><span class="dot" style="background:#a78bfa"></span> Pragma Model</h3>
-        <p>Fine-tuned Phi-3-mini LoRA adapter served via HuggingFace Inference API. Set <code>CUSTOM_MODEL_REPO</code> env var to activate. Also supports Ollama locally (<code>OLLAMA_MODEL</code>). Returns <code>provider: "pragma"</code>.</p>
+        <h3><span class="dot" style="background:#a78bfa"></span> L1 Compliance Engine</h3>
+        <p>Deterministic rule evaluation: HOLC historically redlined zip codes (500+ across 35 US cities), ECOA proxy variables (35+ fields), indirect phrasing (14 categories), compound risk detection, state law overlays (CA/NY/IL). DB-backed rules with per-org overrides — no redeploy needed.</p>
       </div>
       <div class="card">
-        <h3><span class="dot green"></span> Claude (Fallback)</h3>
-        <p>claude-opus-4-6 with Adaptive Thinking. Streaming response. Falls back on rate limits, auth errors, or credit exhaustion. Long-term goal: remove from production entirely.</p>
+        <h3><span class="dot green"></span> L2 — Claude (Anthropic)</h3>
+        <p>claude-sonnet-4-6 primary. Streams regulatory reasoning across EU AI Act, ECOA, EEOC, FCRA, CFPB. Also powers evidence analyzer (document upload validation) and guided interview scoring.</p>
       </div>
       <div class="card">
-        <h3><span class="dot teal"></span> Ethical Framework Output</h3>
-        <div class="card-grid" style="margin-top:10px; gap:8px;">
-          <div><h4 style="font-size:13px; margin-bottom:2px;">Kantian Ethics</h4><p style="font-size:12px;">Could this be universalized?</p></div>
-          <div><h4 style="font-size:13px; margin-bottom:2px;">Utilitarian Analysis</h4><p style="font-size:12px;">Greatest good for most people?</p></div>
-          <div><h4 style="font-size:13px; margin-bottom:2px;">Virtue Ethics</h4><p style="font-size:12px;">Character of a virtuous actor?</p></div>
-        </div>
+        <h3><span class="dot teal"></span> Outputs</h3>
+        <ul style="font-size:13px; line-height:2; padding-left:16px;">
+          <li>Firewall verdict: BLOCK / FLAG / ALLOW</li>
+          <li>Regulatory refs + risk flags (JSON)</li>
+          <li>ECOA §1002.9 adverse action notice</li>
+          <li>FCRA §615(a) consumer disclosure</li>
+          <li>EEOC 4/5ths disparate impact report</li>
+          <li>W3C PROV JSON-LD audit export</li>
+          <li>PDF compliance certificate</li>
+        </ul>
       </div>
     </div>
   </section>

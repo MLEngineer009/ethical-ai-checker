@@ -120,7 +120,7 @@
 <body>
 
 <nav>
-  <div class="nav-logo"><span>Pragma</span></div>
+  <div class="nav-logo"><span>Pragma</span> <span style="font-size:12px;font-weight:500;color:var(--muted);margin-left:8px;">by Cosmos AI</span></div>
   <div class="nav-links">
     <a href="#problem">Problem</a>
     <a href="#value">Value</a>
@@ -138,7 +138,8 @@
 <div class="hero">
   <div class="hero-badge">Business Case</div>
   <h1>Pragma</h1>
-  <p>Stop ECOA violations and EU AI Act breaches before they execute. Pre-execution blocking, immutable audit trail, compliance certificates — built for fintech and enterprise AI teams.</p>
+  <p style="color:var(--muted);font-size:13px;margin-bottom:8px;">A product of <strong style="color:var(--text);">Cosmos AI LLC</strong> · Texas</p>
+  <p>Stop ECOA violations, HOLC redlining, and EU AI Act breaches before they execute. Pre-execution blocking, ECOA adverse action notices, disparate impact analysis, immutable audit trail, compliance certificates — built for fintech and enterprise AI teams.</p>
 </div>
 
 <div class="container">
@@ -392,6 +393,34 @@
             <td style="color:var(--red);">No</td>
           </tr>
           <tr>
+            <td><strong>HOLC redlining geo detection</strong></td>
+            <td style="color:var(--green);">Yes — 500+ zip codes, 35 US cities (deterministic, L1)</td>
+            <td style="color:var(--red);">No</td>
+            <td style="color:var(--red);">No</td>
+            <td style="color:var(--red);">No</td>
+          </tr>
+          <tr>
+            <td><strong>ECOA adverse action notice generator</strong></td>
+            <td style="color:var(--green);">Yes — §1002.9 + FCRA §615(a), one API call</td>
+            <td style="color:var(--red);">No</td>
+            <td style="color:var(--red);">No</td>
+            <td style="color:var(--red);">No</td>
+          </tr>
+          <tr>
+            <td><strong>Disparate impact analysis (EEOC 4/5ths)</strong></td>
+            <td style="color:var(--green);">Yes — group-level pass rates, flagged automatically</td>
+            <td style="color:var(--muted);">Partial (some tools)</td>
+            <td style="color:var(--muted);">Partial (model-level)</td>
+            <td style="color:var(--red);">No</td>
+          </tr>
+          <tr>
+            <td><strong>Dynamic rule engine (DB-backed, per-org)</strong></td>
+            <td style="color:var(--green);">Yes — live config, per-org overrides, no redeploy</td>
+            <td style="color:var(--red);">No</td>
+            <td style="color:var(--red);">No</td>
+            <td style="color:var(--red);">No</td>
+          </tr>
+          <tr>
             <td>Compliance dashboard + trend charts</td>
             <td style="color:var(--green);">Yes — score snapshots, sparklines, heatmap, deadline countdown</td>
             <td style="color:var(--muted);">Limited</td>
@@ -456,55 +485,62 @@
           <li><strong style="color:var(--text);">Rate Limiting</strong> — Free: 100 evals/month; Growth: 2,000; Enterprise: unlimited — enforced on both single and batch evaluation</li>
           <li><strong style="color:var(--text);">Security Hardening</strong> — XSS prevention (esc() helper), CORS explicit allowlist, input size limits, SQL injection guard, Stripe webhook signature verification</li>
           <li>Structured logging across all backend modules (main.py, compliance_engine.py, database.py)</li>
-          <li><strong style="color:var(--text);">Demo System</strong> — "Try Demo — LoanSight AI" one-click button pre-fills wizard with a realistic EU credit-scoring system; <code>seed_demo.py</code> for CLI pre-seeding before investor demos</li>
-          <li>Mobile bottom navigation bar for web dashboard on phones (fixed nav, iOS Safari compatible)</li>
-          <li>SaaS web dashboard (Evaluate, History, Batch, Chat, Audit Log 🔐, Compliance 🏛️, Settings + Billing tabs)</li>
-          <li>iOS + Android mobile app with Chat screen and firewall verdict banners</li>
-          <li>Google SSO + guest sessions, org accounts, API key management</li>
+          <li><strong style="color:var(--text);">Demo System</strong> — "Try Demo — LoanSight AI" one-click button pre-fills wizard with a realistic EU credit-scoring system</li>
+          <li>Mobile bottom navigation bar for web dashboard on phones (scrollable, 8 tabs, iOS Safari compatible)</li>
+          <li>SaaS web dashboard (Evaluate, History, Batch, Audit Log 🔐, Compliance 🏛️, Dashboard, Scenarios, Settings tabs)</li>
+          <li>Google SSO + guest sessions, org accounts, API key management + traffic dashboard</li>
           <li><strong style="color:var(--text);">Email Notifications</strong> — welcome, compliance gap reminders (30-day cadence), EU AI Act countdown (weekly); Railway cron at 09:00 UTC; Resend integration</li>
-          <li><strong style="color:var(--text);">Compliance Dashboard</strong> — daily score snapshots, SVG sparkline trend charts (no JS libraries), 15-article heatmap, days-to-deadline countdown bar</li>
-          <li><strong style="color:var(--text);">AI-Powered Evidence Collection</strong> — document upload (PDF/TXT/MD/CSV → Claude validates against article requirement) and guided interview (5 Q&amp;A per article → Claude scores and surfaces gaps)</li>
-          <li>434 tests, all passing · 82.5% coverage</li>
+          <li><strong style="color:var(--text);">Compliance Dashboard</strong> — daily score snapshots, SVG sparkline trend charts, 15-article heatmap, days-to-deadline countdown bar</li>
+          <li><strong style="color:var(--text);">AI-Powered Evidence Collection</strong> — document upload + guided interview (Claude scores and surfaces gaps)</li>
+          <li><strong style="color:var(--text);">HOLC Geo Redlining Detection</strong> — 500+ historically redlined zip codes across 35 US cities; deterministic L1 rule</li>
+          <li><strong style="color:var(--text);">ECOA §1002.9 Adverse Action Notice Generator</strong> — production-ready notices from one API call; FCRA §615(a) included</li>
+          <li><strong style="color:var(--text);">Disparate Impact Analysis</strong> — EEOC 4/5ths rule, group-level pass rates, flagged automatically</li>
+          <li><strong style="color:var(--text);">Dynamic Rule Engine</strong> — compliance rules in DB, per-org overrides, live config without redeploy</li>
+          <li><strong style="color:var(--text);">Indirect Phrasing Detection</strong> — 14 pattern categories ("that part of town", "near retirement", "family obligations"…)</li>
+          <li><strong style="color:var(--text);">State Law Overlays</strong> — California FEHA, New York HRL, Illinois HRA on top of federal baseline</li>
+          <li><strong style="color:var(--text);">W3C PROV JSON-LD Audit Export</strong> — machine-readable provenance document for regulators and GRC tools</li>
+          <li><strong style="color:var(--text);">Customer Analytics</strong> — PostHog (behavioral) + own DB (DAU/WAU/MAU, feature adoption, plan distribution); admin-only in-app dashboard</li>
+          <li><strong style="color:var(--text);">Lending Vertical Landing Page</strong> — lending.usepragma.co with ECOA/HOLC/FCRA positioning</li>
+          <li><strong style="color:var(--text);">Cosmos AI LLC branding</strong> — Pragma is a Cosmos AI product; cosmos.html company page at /cosmos</li>
+          <li>512 tests, all passing · 80.46% coverage</li>
         </ul>
       </div>
       <div class="card" style="border-color:rgba(124,111,224,0.3);">
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
-          <span class="badge" style="background:rgba(124,111,224,0.15); color:var(--accent); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">Q2 2026 — Growth</span>
+          <span class="badge" style="background:rgba(124,111,224,0.15); color:var(--accent); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">Near-term — Growth</span>
         </div>
         <ul style="color:var(--muted); font-size:14px; line-height:2.2;">
-          <li>First Pragma model v1 deployed on HuggingFace</li>
           <li>First pilot enterprise customer integration</li>
+          <li>Evidence staleness tracking — flag evidence older than 12 months</li>
+          <li>Remediation action plans — step-by-step gap resolution per article</li>
+          <li>Webhook delivery — push compliance alerts to customer systems</li>
           <li>Node.js SDK — <code>Pragma(openai, { policyId: "..." })</code></li>
-          <li>SHAP/LIME explainability when custom model exposes feature weights</li>
-          <li>Policy Builder UI — CEO-level no-code rule configuration</li>
-          <li>VPC-deployable Docker container + Helm chart for enterprise</li>
+          <li>NIST AI RMF framework support</li>
         </ul>
       </div>
       <div class="card" style="border-color:rgba(247,147,30,0.3);">
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
-          <span class="badge" style="background:rgba(247,147,30,0.15); color:#f7b75e; font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">Q3 2026 — Scale</span>
+          <span class="badge" style="background:rgba(247,147,30,0.15); color:#f7b75e; font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">Scale</span>
         </div>
         <ul style="color:var(--muted); font-size:14px; line-height:2.2;">
-          <li>Pragma model v2 — retrained on real user feedback data</li>
-          <li>Self-hosted / VPC enterprise deployment</li>
-          <li>Batch evaluation API for bulk decisions</li>
+          <li>EU AI Act regulatory update feed — auto-update as guidance evolves</li>
+          <li>Conformity assessment workflow — full Annex VI self-assessment form</li>
           <li>SAML / SSO enterprise integration</li>
-          <li>Industry-specific risk libraries (HR, Fintech, Healthcare)</li>
-          <li>Ethics scoring trends and benchmarking dashboard</li>
-          <li>Automated nightly retraining pipeline on Railway</li>
+          <li>VPC-deployable Docker container + Helm chart for enterprise</li>
+          <li>HIPAA / healthcare vertical overlays</li>
+          <li>Multi-language support — EU market</li>
         </ul>
       </div>
       <div class="card" style="border-color:rgba(78,205,196,0.3);">
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
-          <span class="badge" style="background:rgba(78,205,196,0.15); color:var(--accent2); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">Q4 2026 — Platform</span>
+          <span class="badge" style="background:rgba(78,205,196,0.15); color:var(--accent2); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">Platform</span>
         </div>
         <ul style="color:var(--muted); font-size:14px; line-height:2.2;">
-          <li>Pragma model fully replaces Claude/OpenAI in production</li>
-          <li>Marketplace of ethical policy templates</li>
           <li>Regulatory change monitoring &amp; alerts</li>
-          <li>Explainability graph — decision reasoning trace</li>
           <li>Partner integrations (Workday, Salesforce, SAP)</li>
-          <li>Public ethics API for open-source community</li>
+          <li>Marketplace of compliance policy templates</li>
+          <li>Explainability graph — decision reasoning trace</li>
+          <li>Cosmos AI product #2 — stealth</li>
         </ul>
       </div>
     </div>
