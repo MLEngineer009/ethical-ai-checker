@@ -1,0 +1,776 @@
+<title>Cosmos AI</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+  :root {
+    --ground: #060D1C;
+    --surface: #0D1829;
+    --raised: #132035;
+    --border: rgba(255,255,255,0.07);
+    --border-accent: rgba(0,200,240,0.2);
+    --text: #EFF6FF;
+    --text-muted: #7B8FA6;
+    --text-subtle: #3D5168;
+    --accent: #00C8F0;
+    --accent-dim: rgba(0,200,240,0.08);
+    --emerald: #22C55E;
+    --amber: #F59E0B;
+    --red: #EF4444;
+    --font-display: 'Syne', system-ui, sans-serif;
+    --font-body: 'DM Sans', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --ground: #F5F8FF;
+      --surface: #FFFFFF;
+      --raised: #EBF0FA;
+      --border: rgba(0,0,0,0.07);
+      --border-accent: rgba(0,100,160,0.2);
+      --text: #0A1525;
+      --text-muted: #4A6080;
+      --text-subtle: #9AAFCC;
+      --accent: #0072A3;
+      --accent-dim: rgba(0,114,163,0.07);
+    }
+  }
+
+  :root[data-theme="light"] {
+    --ground: #F5F8FF;
+    --surface: #FFFFFF;
+    --raised: #EBF0FA;
+    --border: rgba(0,0,0,0.07);
+    --border-accent: rgba(0,100,160,0.2);
+    --text: #0A1525;
+    --text-muted: #4A6080;
+    --text-subtle: #9AAFCC;
+    --accent: #0072A3;
+    --accent-dim: rgba(0,114,163,0.07);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--ground);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+
+  /* ── Nav ── */
+  nav {
+    padding: 22px 48px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(6,13,28,0.9);
+    backdrop-filter: blur(18px);
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) nav { background: rgba(245,248,255,0.92); }
+  }
+  :root[data-theme="light"] nav { background: rgba(245,248,255,0.92); }
+
+  .nav-brand {
+    display: flex; align-items: baseline; gap: 6px;
+    text-decoration: none;
+  }
+
+  .nav-cosmos {
+    font-family: var(--font-display);
+    font-size: 17px; font-weight: 800;
+    letter-spacing: 3px; text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .nav-ai {
+    font-family: var(--font-display);
+    font-size: 17px; font-weight: 600;
+    letter-spacing: 3px; text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .nav-right {
+    display: flex; align-items: center; gap: 24px;
+  }
+
+  .nav-link {
+    font-size: 13px; font-weight: 500;
+    color: var(--text-muted); text-decoration: none;
+    transition: color .2s;
+  }
+  .nav-link:hover { color: var(--text); }
+
+  .nav-cta {
+    font-size: 13px; font-weight: 600;
+    color: var(--accent); text-decoration: none;
+    border: 1px solid var(--border-accent);
+    padding: 7px 18px; border-radius: 6px;
+    transition: background .2s, color .2s;
+  }
+  .nav-cta:hover { background: var(--accent); color: var(--ground); }
+
+  /* ── Container ── */
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 48px;
+  }
+
+  /* ── Wordmark section ── */
+  .wordmark-section {
+    padding: 120px 0 80px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* subtle radial glow behind the wordmark */
+  .wordmark-section::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%; transform: translate(-50%, -60%);
+    width: 800px; height: 400px; border-radius: 50%;
+    background: radial-gradient(ellipse, rgba(0,200,240,0.05) 0%, transparent 65%);
+    pointer-events: none;
+  }
+
+  .wordmark {
+    font-family: var(--font-display);
+    font-size: clamp(52px, 9vw, 96px);
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    line-height: 1;
+    color: var(--text);
+    position: relative;
+  }
+
+  .wordmark .ai-part { color: var(--accent); }
+
+  .wordmark-rule {
+    width: 48px; height: 1px;
+    background: var(--accent);
+    margin: 36px auto 32px;
+    opacity: 0.5;
+  }
+
+  .wordmark-tagline {
+    font-family: var(--font-body);
+    font-size: 18px; font-weight: 400;
+    color: var(--text-muted);
+    line-height: 1.6;
+    max-width: 480px; margin: 0 auto;
+    font-style: italic;
+  }
+
+  .wordmark-sub {
+    margin-top: 14px;
+    font-family: var(--font-mono);
+    font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--text-subtle);
+  }
+
+  /* ── Products section ── */
+  .products-section {
+    padding: 0 0 100px;
+  }
+
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: 10px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--text-subtle);
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  /* The Pragma product card */
+  .product-card {
+    background: var(--surface);
+    border: 1px solid var(--border-accent);
+    border-radius: 18px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* glowing top edge */
+  .product-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent 5%, var(--accent) 50%, transparent 95%);
+    opacity: 0.6;
+  }
+
+  .product-card-inner {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 380px;
+  }
+
+  /* Left: product identity */
+  .product-identity {
+    padding: 52px 48px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    border-right: 1px solid var(--border);
+  }
+
+  .product-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+    letter-spacing: 2px; text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 24px;
+  }
+
+  .product-badge-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .product-name {
+    font-family: var(--font-display);
+    font-size: 44px; font-weight: 800;
+    letter-spacing: -1.5px; line-height: 1;
+    color: var(--text);
+    margin-bottom: 18px;
+  }
+
+  .product-desc {
+    font-size: 15px; color: var(--text-muted);
+    line-height: 1.7; margin-bottom: 36px;
+    max-width: 340px;
+  }
+
+  .product-link {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-size: 14px; font-weight: 600;
+    color: var(--accent); text-decoration: none;
+    transition: gap .2s;
+  }
+  .product-link:hover { gap: 14px; }
+  .product-link-arrow { font-size: 16px; transition: transform .2s; }
+  .product-link:hover .product-link-arrow { transform: translateX(3px); }
+
+  .product-stats {
+    display: flex; gap: 24px; margin-top: 40px;
+    padding-top: 28px;
+    border-top: 1px solid var(--border);
+  }
+
+  .product-stat-num {
+    font-family: var(--font-display);
+    font-size: 22px; font-weight: 800;
+    color: var(--text); letter-spacing: -1px;
+  }
+  .product-stat-num.cyan { color: var(--accent); }
+  .product-stat-num.green { color: var(--emerald); }
+
+  .product-stat-label {
+    font-family: var(--font-mono);
+    font-size: 9px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--text-subtle); margin-top: 3px;
+  }
+
+  /* Right: live compliance window */
+  .product-window {
+    background: var(--ground);
+    padding: 32px 36px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+
+  .window-header {
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--text-subtle);
+    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .window-header::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+
+  .check-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 12px;
+  }
+
+  .check-status {
+    font-family: var(--font-mono);
+    font-size: 10px; font-weight: 500; letter-spacing: .5px;
+    padding: 2px 8px; border-radius: 4px; flex-shrink: 0;
+    min-width: 38px; text-align: center;
+  }
+
+  .check-status.pass { background: rgba(34,197,94,0.1); color: var(--emerald); border: 1px solid rgba(34,197,94,0.2); }
+  .check-status.fail { background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+  .check-status.flag { background: rgba(245,158,11,0.1); color: var(--amber); border: 1px solid rgba(245,158,11,0.2); }
+
+  .check-label { color: var(--text-muted); flex: 1; }
+
+  .verdict-row {
+    margin-top: 6px;
+    padding: 14px 16px;
+    border-radius: 8px;
+    background: rgba(239,68,68,0.06);
+    border: 1px solid rgba(239,68,68,0.2);
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .verdict-text {
+    font-family: var(--font-mono); font-size: 12px; font-weight: 500;
+    color: var(--red); letter-spacing: .5px;
+  }
+  .verdict-sub { font-size: 11px; color: var(--text-subtle); margin-left: auto; }
+
+  /* Future product placeholder */
+  .future-card {
+    margin-top: 14px;
+    border: 1px dashed var(--border);
+    border-radius: 18px;
+    padding: 40px 48px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 24px;
+  }
+
+  .future-label {
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--text-subtle);
+    margin-bottom: 10px;
+  }
+
+  .future-name {
+    font-family: var(--font-display); font-size: 22px; font-weight: 700;
+    color: var(--text-subtle); letter-spacing: -0.5px;
+  }
+
+  .future-tag {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    padding: 5px 14px; border-radius: 20px;
+    border: 1px solid var(--border);
+    color: var(--text-subtle);
+  }
+
+  /* ── How we build ── */
+  .how-section {
+    padding: 80px 0 100px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .how-inner {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr;
+    gap: 72px;
+    align-items: start;
+  }
+
+  .how-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 18px;
+  }
+
+  .how-heading {
+    font-family: var(--font-display);
+    font-size: 30px; font-weight: 800; line-height: 1.2;
+    letter-spacing: -0.8px; color: var(--text);
+    margin-bottom: 20px; text-wrap: balance;
+  }
+
+  .how-body {
+    font-size: 14px; color: var(--text-muted);
+    line-height: 1.8; max-width: 320px;
+  }
+
+  .how-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .how-stat-card {
+    background: var(--ground);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+
+  .how-stat-num {
+    font-family: var(--font-display);
+    font-size: 28px; font-weight: 800;
+    color: var(--accent); letter-spacing: -1px; line-height: 1;
+    margin-bottom: 5px;
+  }
+
+  .how-stat-unit {
+    font-size: 18px; letter-spacing: 0;
+  }
+
+  .how-stat-label {
+    font-size: 12px; font-weight: 600; color: var(--text);
+    margin-bottom: 3px;
+  }
+
+  .how-stat-sub {
+    font-size: 11px; color: var(--text-subtle);
+    line-height: 1.4;
+  }
+
+  /* Mini commit log */
+  .how-log {
+    background: var(--ground);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .how-log-header {
+    font-family: var(--font-mono);
+    font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--text-subtle);
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--raised);
+  }
+
+  .how-log-item {
+    display: flex; align-items: baseline; gap: 10px;
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-mono); font-size: 11px;
+    line-height: 1.4;
+  }
+
+  .how-log-item:last-child { border-bottom: none; }
+
+  .how-log-hash {
+    color: var(--accent); flex-shrink: 0; opacity: 0.7;
+  }
+
+  .how-log-msg {
+    color: var(--text-subtle);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* ── About section ── */
+  .about-section {
+    padding: 80px 0 100px;
+    border-top: 1px solid var(--border);
+  }
+
+  .about-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.6fr;
+    gap: 72px;
+    align-items: start;
+  }
+
+  .about-left-label {
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 3px;
+    text-transform: uppercase; color: var(--text-subtle);
+    margin-bottom: 20px;
+  }
+
+  .about-heading {
+    font-family: var(--font-display);
+    font-size: 30px; font-weight: 800; line-height: 1.2;
+    letter-spacing: -0.8px; color: var(--text);
+    text-wrap: balance;
+  }
+
+  .about-body {
+    font-size: 15px; color: var(--text-muted);
+    line-height: 1.8;
+  }
+
+  .about-body p + p { margin-top: 16px; }
+
+  .about-body strong { color: var(--text); font-weight: 600; }
+
+  .about-contact {
+    margin-top: 28px;
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 500;
+    color: var(--accent); text-decoration: none;
+    border-bottom: 1px solid var(--border-accent);
+    padding-bottom: 2px;
+  }
+
+  /* ── Footer ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 36px 48px;
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 16px;
+  }
+
+  .footer-brand {
+    font-family: var(--font-display);
+    font-size: 14px; font-weight: 800;
+    letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .footer-brand .ai { color: var(--accent); }
+
+  .footer-links {
+    display: flex; gap: 24px; list-style: none;
+  }
+
+  .footer-links a {
+    font-size: 12px; color: var(--text-subtle);
+    text-decoration: none; transition: color .2s;
+  }
+  .footer-links a:hover { color: var(--text-muted); }
+
+  .footer-legal {
+    font-size: 11px; color: var(--text-subtle);
+    font-family: var(--font-mono);
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    nav { padding: 16px 24px; }
+    .container { padding: 0 24px; }
+    .product-card-inner { grid-template-columns: 1fr; }
+    .product-identity { border-right: none; border-bottom: 1px solid var(--border); padding: 36px 28px; }
+    .product-window { padding: 24px 28px; }
+    .about-grid { grid-template-columns: 1fr; gap: 32px; }
+    footer { padding: 28px 24px; flex-direction: column; gap: 20px; text-align: center; }
+    .footer-links { justify-content: center; }
+    .future-card { flex-direction: column; align-items: flex-start; }
+    .how-inner { grid-template-columns: 1fr; gap: 36px; }
+    .how-body { max-width: 100%; }
+    .how-log-msg { white-space: normal; }
+    .wordmark { letter-spacing: 0.1em; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .product-badge-dot { animation: none; }
+    * { transition: none !important; }
+  }
+</style>
+
+<!-- ── Nav ── -->
+<nav>
+  <a href="/cosmos" class="nav-brand">
+    <span class="nav-cosmos">Cosmos&nbsp;</span><span class="nav-ai">AI</span>
+  </a>
+  <div class="nav-right">
+    <a href="#about" class="nav-link">About</a>
+    <a href="https://usepragma.co" class="nav-cta">Open Pragma →</a>
+  </div>
+</nav>
+
+<!-- ── Wordmark ── -->
+<section class="wordmark-section">
+  <div class="container">
+    <div class="wordmark">Cosmos&nbsp;<span class="ai-part">AI</span></div>
+    <div class="wordmark-rule"></div>
+    <p class="wordmark-tagline">Building the compliance layer for AI systems that operate in the real world.</p>
+    <div class="wordmark-sub">Cosmos AI LLC &nbsp;·&nbsp; Delaware</div>
+  </div>
+</section>
+
+<!-- ── Products ── -->
+<section class="products-section">
+  <div class="container">
+    <div class="section-label">Products</div>
+
+    <!-- Pragma card -->
+    <div class="product-card">
+      <div class="product-card-inner">
+
+        <!-- Identity -->
+        <div class="product-identity">
+          <div>
+            <div class="product-badge">
+              <span class="product-badge-dot"></span>
+              Now available
+            </div>
+            <div class="product-name">pragma</div>
+            <p class="product-desc">
+              An AI compliance firewall that intercepts decisions before they execute — blocking discrimination, ECOA violations, and EU AI Act breaches in real-time. Then generates the evidence your legal team needs.
+            </p>
+            <a href="https://usepragma.co" class="product-link">
+              usepragma.co <span class="product-link-arrow">→</span>
+            </a>
+          </div>
+
+          <div class="product-stats">
+            <div>
+              <div class="product-stat-num cyan">&lt;5ms</div>
+              <div class="product-stat-label">L1 latency</div>
+            </div>
+            <div>
+              <div class="product-stat-num">10+</div>
+              <div class="product-stat-label">Regulations covered</div>
+            </div>
+            <div>
+              <div class="product-stat-num green">15</div>
+              <div class="product-stat-label">EU AI Act articles</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live window -->
+        <div class="product-window">
+          <div class="window-header">Live evaluation</div>
+
+          <div class="check-row">
+            <span class="check-status fail">FAIL</span>
+            <span class="check-label">geo_redlining — HOLC historically redlined zip</span>
+          </div>
+          <div class="check-row">
+            <span class="check-status fail">FAIL</span>
+            <span class="check-label">ecoa_adverse_action — no written denial reason</span>
+          </div>
+          <div class="check-row">
+            <span class="check-status flag">FLAG</span>
+            <span class="check-label">compound_proxies — 2 proxy variables detected</span>
+          </div>
+          <div class="check-row">
+            <span class="check-status pass">PASS</span>
+            <span class="check-label">text_scanner_race — no direct language found</span>
+          </div>
+          <div class="check-row">
+            <span class="check-status pass">PASS</span>
+            <span class="check-label">state_overlay_il — Illinois HRA satisfied</span>
+          </div>
+
+          <div class="verdict-row">
+            <span style="font-size:15px;">🚫</span>
+            <span class="verdict-text">BLOCKED</span>
+            <span class="verdict-sub">audit_id #8821 · confidence 0.94</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Future placeholder -->
+    <div class="future-card">
+      <div>
+        <div class="future-label">Coming next</div>
+        <div class="future-name">More products in development</div>
+      </div>
+      <span class="future-tag">In stealth</span>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── How we build ── -->
+<section class="how-section">
+  <div class="container">
+    <div class="how-inner">
+
+      <div class="how-left">
+        <div class="how-eyebrow">How we build</div>
+        <div class="how-heading">Agentic development.<br>Unreasonable output.</div>
+        <p class="how-body">We run AI agents throughout our entire development loop — writing code, generating test suites, reviewing pull requests, catching regressions. A small team moves with the throughput of an engineering org ten times its size.</p>
+      </div>
+
+      <div class="how-right">
+        <div class="how-grid">
+          <div class="how-stat-card">
+            <div class="how-stat-num">512</div>
+            <div class="how-stat-label">Automated tests</div>
+            <div class="how-stat-sub">agents write tests alongside features</div>
+          </div>
+          <div class="how-stat-card">
+            <div class="how-stat-num">80<span class="how-stat-unit">%</span></div>
+            <div class="how-stat-label">Code coverage</div>
+            <div class="how-stat-sub">enforced in CI on every push</div>
+          </div>
+          <div class="how-stat-card">
+            <div class="how-stat-num">Days</div>
+            <div class="how-stat-label">Feature cycle time</div>
+            <div class="how-stat-sub">idea to production, not weeks</div>
+          </div>
+          <div class="how-stat-card">
+            <div class="how-stat-num">&lt;2</div>
+            <div class="how-stat-label">Engineers</div>
+            <div class="how-stat-sub">with agents handling the rest</div>
+          </div>
+        </div>
+
+        <!-- Mini commit log -->
+        <div class="how-log">
+          <div class="how-log-header">Recent shipping</div>
+          <div class="how-log-item">
+            <span class="how-log-hash">f1487db</span>
+            <span class="how-log-msg">feat: customer analytics — PostHog + DB tracking, admin dashboard</span>
+          </div>
+          <div class="how-log-item">
+            <span class="how-log-hash">3f0cbab</span>
+            <span class="how-log-msg">feat: dynamic rule engine, JSON-LD audit export, indirect phrasing patterns</span>
+          </div>
+          <div class="how-log-item">
+            <span class="how-log-hash">78f1d08</span>
+            <span class="how-log-msg">feat: adverse action notice generator, disparate impact UI</span>
+          </div>
+          <div class="how-log-item">
+            <span class="how-log-hash">0f0ed02</span>
+            <span class="how-log-msg">feat: 500+ HOLC zips, compound proxy, ECOA §1002.9, state laws</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── About ── -->
+<section class="about-section" id="about">
+  <div class="container">
+    <div class="about-grid">
+      <div>
+        <div class="about-left-label">About</div>
+        <div class="about-heading">Infrastructure for the regulated AI era.</div>
+      </div>
+      <div class="about-body">
+        <p>
+          <strong>Cosmos AI LLC</strong> builds developer-first compliance tools for companies deploying AI in regulated industries. We start with the problems that create the most liability — loan decisions, hiring screens, clinical recommendations — and build the infrastructure layer that sits between AI systems and the damage they can cause.
+        </p>
+        <p>
+          Our first product, <strong>Pragma</strong>, is a real-time AI compliance firewall covering the EU AI Act, ECOA, EEOC, FCRA, CFPB, and a growing library of state regulations. It ships as a single API endpoint — no compliance team required, no six-month implementation.
+        </p>
+        <p>
+          We're a small team with deep conviction: the next decade of enterprise AI adoption will be shaped by whoever builds the best trust infrastructure first.
+        </p>
+        <a href="mailto:hello@usepragma.co" class="about-contact">
+          Get in touch →
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ── -->
+<footer>
+  <span class="footer-brand">Cosmos&nbsp;<span class="ai">AI</span></span>
+  <ul class="footer-links">
+    <li><a href="https://usepragma.co">Pragma</a></li>
+    <li><a href="https://usepragma.co/lending">Lending</a></li>
+    <li><a href="#about">About</a></li>
+  </ul>
+  <span class="footer-legal">© 2026 Cosmos AI LLC · Delaware</span>
+</footer>
