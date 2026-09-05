@@ -1925,6 +1925,33 @@ async def cosmos_landing():
     raise HTTPException(status_code=404, detail="Page not found")
 
 
+@app.get("/docs/architecture")
+async def docs_architecture():
+    """Serve the architecture documentation page."""
+    page = Path(__file__).parent.parent / "docs" / "architecture.html"
+    if page.exists():
+        return FileResponse(page)
+    raise HTTPException(status_code=404, detail="Page not found")
+
+
+@app.get("/docs/business")
+async def docs_business():
+    """Serve the business case documentation page."""
+    page = Path(__file__).parent.parent / "docs" / "business.html"
+    if page.exists():
+        return FileResponse(page)
+    raise HTTPException(status_code=404, detail="Page not found")
+
+
+@app.get("/docs/auditing")
+async def docs_auditing():
+    """Serve the auditing documentation page."""
+    page = Path(__file__).parent.parent / "docs" / "auditing.html"
+    if page.exists():
+        return FileResponse(page)
+    raise HTTPException(status_code=404, detail="Page not found")
+
+
 @app.get("/")
 async def root():
     """Serve frontend UI."""
