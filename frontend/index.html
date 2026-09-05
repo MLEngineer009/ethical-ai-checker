@@ -767,14 +767,6 @@
       color: var(--text-subtle); margin-bottom: 8px; margin-top: 20px;
     }
 
-    @media (max-width: 768px) {
-      .sidebar { display: none; }
-      .main-content { margin-left: 0; }
-      .content-body { padding: 16px 16px 80px; }  /* bottom padding clears the mobile nav */
-      .context-row { grid-template-columns: 1fr; }
-      .mobile-nav { display: flex; }
-    }
-
     /* ── Mobile bottom navigation ── */
     .mobile-nav {
       display: none;
@@ -815,6 +807,15 @@
       background: #a78bfa;
       transition: transform 0.2s ease;
     }
+
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .main-content { margin-left: 0; }
+      .content-body { padding: 16px 16px 80px; }
+      .context-row { grid-template-columns: 1fr; }
+      .mobile-nav { display: flex; }
+    }
+
     /* ── Assessment Wizard ─────────────────────────────────── */
     .wiz-field-label { font-size:11px;font-weight:600;color:var(--text-subtle);margin-bottom:4px;letter-spacing:.3px; }
     .wiz-input { width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;color:var(--text-primary);font-size:13px;padding:9px 12px;box-sizing:border-box; }
