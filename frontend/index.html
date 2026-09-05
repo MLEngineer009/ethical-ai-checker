@@ -784,26 +784,30 @@
       border-top: 1px solid var(--sidebar-border);
       z-index: 200;
       padding-bottom: env(safe-area-inset-bottom, 0);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
     }
+    .mobile-nav::-webkit-scrollbar { display: none; }
     .mobile-nav-btn {
-      flex: 1;
+      flex: 0 0 auto;
+      min-width: 68px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       gap: 3px;
-      padding: 9px 4px 8px;
+      padding: 9px 6px 8px;
       background: transparent;
       border: none;
       cursor: pointer;
       font-family: inherit;
       color: rgba(255,255,255,0.4);
       transition: color 0.15s;
-      min-width: 0;
     }
     .mobile-nav-btn.active { color: #a78bfa; }
     .mobile-nav-btn .mnav-icon { font-size: 18px; line-height: 1; }
-    .mobile-nav-btn .mnav-label { font-size: 10px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 56px; }
+    .mobile-nav-btn .mnav-label { font-size: 10px; font-weight: 600; white-space: nowrap; }
     .mobile-nav-indicator {
       position: absolute;
       top: 0; left: 0; right: 0;
@@ -3255,6 +3259,7 @@ if verdict["firewall_action"] == "block":
       });
       document.querySelectorAll('.mobile-nav-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.tab === name);
+        if (b.dataset.tab === name) b.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
       });
       document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
       document.getElementById(`tab-${name}`).classList.add('active');
