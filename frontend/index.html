@@ -1396,9 +1396,11 @@
           <div class="card">
             <div class="card-title">🔐 Regulatory Audit Trail</div>
             <p style="font-size:13px;color:var(--text-muted);margin-bottom:4px;">One row per evaluation — SHA-256 input hash, no raw decision text stored. Proxy variables and firewall verdicts logged per ECOA &amp; EU AI Act Art. 12 requirements. Hand this to a regulator.</p>
-            <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+            <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
               <button class="btn btn-primary" style="padding:6px 14px;font-size:12px;" onclick="loadAuditLog()">🔄 Refresh</button>
+              <button class="btn" style="padding:6px 14px;font-size:12px;" onclick="exportAuditJsonLD()" id="btnExportJsonLD">⬇ Export JSON-LD</button>
               <span style="font-size:12px;color:var(--text-subtle);align-self:center;" id="auditLogCount"></span>
+              <span style="font-size:11px;color:var(--text-sub);align-self:center;">JSON-LD export is W3C PROV-compatible — submit directly to regulators or GRC tools.</span>
             </div>
             <div id="auditLogTable">
               <div class="history-empty">Loading audit log…</div>
@@ -1809,6 +1811,17 @@ if verdict["firewall_action"] == "block":
     # Pragma caught a compliance violation
     print(verdict["compliance_checks"])  # FAIL/FLAG per regulation</div>
             </div>
+          </div>
+
+          <!-- Compliance Rules Engine -->
+          <div class="card settings-section">
+            <div class="settings-h">⚙️ Compliance Rule Engine</div>
+            <p class="settings-sub">Configure rule severity, toggle jurisdictions, and add custom patterns for your org — no code deployment needed. Changes apply to all evaluations immediately.</p>
+            <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+              <button class="btn btn-primary" style="padding:6px 14px;font-size:12px;" onclick="loadComplianceRules()">🔄 Load Rules</button>
+              <span style="font-size:12px;color:var(--text-sub);align-self:center;">Requires an org — create one in Organizations above.</span>
+            </div>
+            <div id="complianceRulesList"></div>
           </div>
 
         </div>
@@ -3877,6 +3890,138 @@ if verdict["firewall_action"] == "block":
         ? '<div style="margin-top:5px;"><b>To improve:</b><ul style="margin:3px 0;padding-left:16px;">' + missing.map(m => `<li>${m}</li>`).join('') + '</ul></div>'
         : '';
       fb.innerHTML = `<div class="ev-feedback-box ${verdict === 'pass' ? 'ev-fb-pass' : verdict === 'partial' ? 'ev-fb-partial' : 'ev-fb-fail'}" style="margin-top:8px;">${explanation}${missHtml}</div>`;
+    }
+
+    // ── JSON-LD Audit Export ─────────────────────────────────────────────────
+
+    async function exportAuditJsonLD() {
+      const btn = document.getElementById('btnExportJsonLD');
+      btn.textContent = '⏳ Exporting…';
+      btn.disabled = true;
+      try {
+        const res = await fetch(`${API}/audit/export?format=jsonld&limit=500`, { headers: authHeaders() });
+        if (!res.ok) throw new Error(await res.text());
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'pragma-audit-export.jsonld'; a.click();
+        URL.revokeObjectURL(url);
+      } catch(e) {
+        showError('Export failed: ' + e.message);
+      } finally {
+        btn.textContent = '⬇ Export JSON-LD';
+        btn.disabled = false;
+      }
+    }
+
+    // ── Compliance Rule Engine (Settings tab) ────────────────────────────────
+
+    const _RULE_TYPE_LABELS = {
+      regex:     'Pattern Match',
+      threshold: 'Threshold',
+      geo:       'Geographic',
+      state:     'State Law',
+    };
+    const _SEV_COLORS = {
+      FAIL: '#f87171',
+      FLAG: '#fbbf24',
+      PASS: '#4ade80',
+    };
+
+    async function loadComplianceRules() {
+      const el = document.getElementById('complianceRulesList');
+      el.innerHTML = '<div style="font-size:13px;color:var(--text-muted);">Loading rules…</div>';
+      try {
+        const res = await fetch(`${API}/compliance-rules`, { headers: authHeaders() });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          el.innerHTML = `<div style="font-size:13px;color:#f87171;">${esc(err.detail || 'Failed to load rules')}</div>`;
+          return;
+        }
+        const data = await res.json();
+        renderComplianceRules(data.rules || []);
+      } catch(e) {
+        el.innerHTML = `<div style="font-size:13px;color:#f87171;">Error: ${esc(e.message)}</div>`;
+      }
+    }
+
+    function renderComplianceRules(rules) {
+      const el = document.getElementById('complianceRulesList');
+      if (!rules.length) {
+        el.innerHTML = '<div style="font-size:13px;color:var(--text-muted);">No rules found.</div>';
+        return;
+      }
+
+      // Group by rule_type
+      const groups = {};
+      for (const r of rules) {
+        const g = _RULE_TYPE_LABELS[r.rule_type] || r.rule_type;
+        if (!groups[g]) groups[g] = [];
+        groups[g].push(r);
+      }
+
+      let html = '';
+      for (const [groupName, groupRules] of Object.entries(groups)) {
+        html += `<div style="margin-bottom:18px;">
+          <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-sub);margin-bottom:8px;">${esc(groupName)}</div>`;
+        for (const r of groupRules) {
+          const sevColor = _SEV_COLORS[r.severity] || '#888';
+          const overrideBadge = r.has_override
+            ? `<span style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;background:rgba(99,102,241,0.15);color:#a78bfa;border:1px solid rgba(99,102,241,0.3);border-radius:3px;padding:1px 5px;margin-left:6px;">ORG OVERRIDE</span>`
+            : '';
+          html += `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;flex-wrap:wrap;gap:8px;" id="rule_row_${esc(r.rule_key)}">
+            <div style="flex:1;min-width:200px;">
+              <div style="font-size:13px;font-weight:600;color:var(--text);">${esc(r.description)}${overrideBadge}</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${esc(r.regulation)}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+              <select onchange="updateComplianceRule('${esc(r.rule_key)}', {severity: this.value})"
+                style="font-size:11px;font-weight:700;background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:4px 8px;color:${sevColor};cursor:pointer;">
+                <option value="FAIL" ${r.severity==='FAIL'?'selected':''} style="color:#f87171;">FAIL</option>
+                <option value="FLAG" ${r.severity==='FLAG'?'selected':''} style="color:#fbbf24;">FLAG</option>
+                <option value="PASS" ${r.severity==='PASS'?'selected':''} style="color:#4ade80;">PASS</option>
+              </select>
+              <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--text-muted);">
+                <input type="checkbox" ${r.enabled?'checked':''} onchange="updateComplianceRule('${esc(r.rule_key)}', {enabled: this.checked})" style="cursor:pointer;width:14px;height:14px;">
+                Enabled
+              </label>
+              ${r.has_override ? `<button onclick="resetComplianceRule('${esc(r.rule_key)}')" style="font-size:10px;background:none;border:1px solid var(--border);border-radius:4px;color:var(--text-muted);cursor:pointer;padding:3px 7px;">Reset</button>` : ''}
+            </div>
+          </div>`;
+        }
+        html += '</div>';
+      }
+      el.innerHTML = html;
+    }
+
+    async function updateComplianceRule(ruleKey, patch) {
+      try {
+        const res = await fetch(`${API}/compliance-rules/${encodeURIComponent(ruleKey)}`, {
+          method: 'PATCH', headers: authHeaders(),
+          body: JSON.stringify(patch),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          showError(err.detail || 'Failed to update rule');
+          return;
+        }
+        // Refresh rule list to show override badge
+        await loadComplianceRules();
+      } catch(e) {
+        showError('Update failed: ' + e.message);
+      }
+    }
+
+    async function resetComplianceRule(ruleKey) {
+      try {
+        const res = await fetch(`${API}/compliance-rules/${encodeURIComponent(ruleKey)}/reset`, {
+          method: 'POST', headers: authHeaders(),
+        });
+        if (!res.ok) throw new Error('Reset failed');
+        await loadComplianceRules();
+      } catch(e) {
+        showError('Reset failed: ' + e.message);
+      }
     }
   </script>
 

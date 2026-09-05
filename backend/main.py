@@ -755,8 +755,15 @@ def _run_evaluation(decision: str, context: Dict[str, Any], category: str, block
     if not isinstance(confidence_score, (int, float)) or not 0 <= confidence_score <= 1:
         confidence_score = 0.5
 
+    # Load DB-backed rule config (thresholds, patterns) — falls back to defaults if unavailable
+    try:
+        effective_rules = database.get_effective_rules(org_id=None)
+        rule_config = {r["rule_key"]: r["config"] for r in effective_rules if r["enabled"]}
+    except Exception:
+        rule_config = None
+
     # Always run deterministic rule-based compliance checks
-    rule_checks = run_compliance_checks(decision, context, category)
+    rule_checks = run_compliance_checks(decision, context, category, rule_config=rule_config)
     compliance_checks = _merge_compliance_checks(rule_checks, llm_analysis.get("compliance_checks", []))
 
     return {
@@ -1555,6 +1562,101 @@ async def gemini_chat_demo(request: GeminiScenarioRequest, user: dict = Depends(
         "gemini_response": gemini_response,
         "compliance":     {**analysis, "proxy_variables_detected": proxy_report["proxy_variables_detected"]},
     }
+
+
+# ── Dynamic Compliance Rules API ──────────────────────────────────────────────
+
+class RuleOverrideRequest(BaseModel):
+    severity: Optional[str] = None          # FAIL | FLAG | PASS | None (keep default)
+    enabled: Optional[bool] = None
+    config_override: Optional[Dict] = None  # partial config dict to merge
+
+
+@app.get("/compliance-rules", dependencies=[Depends(get_current_user)])
+async def list_compliance_rules(user: dict = Depends(get_current_user)):
+    """
+    List all compliance rules with org-level overrides applied.
+    Enterprise orgs can customise severity, toggle rules, and add custom patterns
+    without a code deployment.
+    """
+    org_id = None
+    try:
+        orgs = database.get_my_orgs(user["sub"])
+        if orgs:
+            org_id = orgs[0]["org_id"]  # primary org
+    except Exception:
+        pass
+    return {"rules": database.get_effective_rules(org_id=org_id)}
+
+
+@app.patch("/compliance-rules/{rule_key}", dependencies=[Depends(get_current_user)])
+async def update_compliance_rule(
+    rule_key: str,
+    body: RuleOverrideRequest,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Override a compliance rule for the caller's primary org.
+    Only severity, enabled, and config_override are changeable — rule logic lives in code.
+    Requires the caller to be a member of at least one org.
+    """
+    orgs = database.get_my_orgs(user["sub"])
+    if not orgs:
+        raise HTTPException(status_code=400, detail="You must be part of an org to override rules. Create or join one in Settings.")
+    org_id = orgs[0]["org_id"]
+
+    if body.severity and body.severity not in ("FAIL", "FLAG", "PASS"):
+        raise HTTPException(status_code=422, detail="severity must be FAIL, FLAG, or PASS")
+
+    ok = database.update_org_rule_override(
+        org_id=org_id,
+        rule_key=rule_key,
+        severity=body.severity,
+        enabled=body.enabled,
+        config_override=body.config_override,
+    )
+    if not ok:
+        raise HTTPException(status_code=500, detail="Failed to save rule override")
+    return {"ok": True, "rule_key": rule_key, "org_id": org_id}
+
+
+@app.post("/compliance-rules/{rule_key}/reset", dependencies=[Depends(get_current_user)])
+async def reset_compliance_rule(rule_key: str, user: dict = Depends(get_current_user)):
+    """Reset a rule to global defaults by removing the org-level override."""
+    orgs = database.get_my_orgs(user["sub"])
+    if not orgs:
+        raise HTTPException(status_code=400, detail="No org found")
+    org_id = orgs[0]["org_id"]
+    database.reset_org_rule_override(org_id=org_id, rule_key=rule_key)
+    return {"ok": True, "rule_key": rule_key, "reset_to": "global_default"}
+
+
+# ── JSON-LD Audit Export ───────────────────────────────────────────────────────
+
+@app.get("/audit/export", dependencies=[Depends(get_current_user)])
+async def export_audit_jsonld(
+    format: str = "jsonld",
+    limit: int = 500,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Export the caller's audit log as a W3C PROV-compatible JSON-LD document.
+    Suitable for direct submission to regulators or ingestion by GRC tools (ServiceNow, OneTrust).
+
+    Query params:
+      format=jsonld (default) — JSON-LD with compliance ontology
+      limit=500               — max records (capped at 1000)
+    """
+    limit = min(limit, 1000)
+    doc = database.get_audit_jsonld(user["sub"], limit=limit)
+    if format == "jsonld":
+        import json as _json
+        return Response(
+            content=_json.dumps(doc, indent=2, default=str),
+            media_type="application/ld+json",
+            headers={"Content-Disposition": 'attachment; filename="pragma-audit-export.jsonld"'},
+        )
+    return doc
 
 
 # ── Adverse Action Notice Generator ───────────────────────────────────────────

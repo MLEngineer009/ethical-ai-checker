@@ -823,21 +823,27 @@ def _check_eeoc_decision(decision: str, ctx: dict) -> list:
 import re as _re
 
 _PROTECTED_CLASS_PATTERNS = [
-    # Race / Color
+    # Race / Color — direct + indirect
     (_re.compile(r'\b(black|white|asian|hispanic|latino|latina|african[\s-]american|minority|minorities|ethnic\s+neighbor|racial\s+compos|racial\s+demog|predominantly\s+\w+\s+neighbor)\b', _re.I), "race", "Race / Color"),
-    # National Origin
+    (_re.compile(r'\b(that\s+part\s+of\s+town|certain\s+neighborhoods|urban\s+area|inner.?city|low.?income\s+community|diverse\s+area|those\s+communities)\b', _re.I), "race", "Race / Color (indirect)"),
+    # National Origin — direct + indirect
     (_re.compile(r'\b(immigrant|foreign[\s-]born|national\s+origin|country\s+of\s+origin|citizenship\s+status|visa\s+holder|undocumented|remittance\s+to|wire\s+to\s+\w+)\b', _re.I), "national_origin", "National Origin"),
-    # Sex / Gender
+    (_re.compile(r'\b(non.?native\s+speaker|foreign\s+accent|unusual\s+name|offshore\s+income|international\s+transfer|non.?US\s+educated)\b', _re.I), "national_origin", "National Origin (indirect)"),
+    # Sex / Gender — direct + indirect
     (_re.compile(r'\b(pregnant|pregnancy|maternity|paternity\s+leave|gender\s+gap|female\s+applicant|male\s+applicant)\b', _re.I), "sex", "Sex / Pregnancy"),
-    # Age
+    (_re.compile(r'\b(family\s+obligations|primary\s+caregiver|likely\s+to\s+take\s+leave|career\s+gap|childcare\s+obligations|work.?life\s+balance\s+concern)\b', _re.I), "sex", "Sex / Pregnancy (indirect)"),
+    # Age — direct + indirect
     (_re.compile(r'\b(elderly|senior\s+citizen|retirement\s+age|too\s+old|older\s+worker|nearing\s+retirement)\b', _re.I), "age", "Age"),
-    # Religion
+    (_re.compile(r'\b(near\s+retirement|limited\s+remaining\s+career|long.?term\s+commitment\s+concern|generational|pre.?retirement|overqualified)\b', _re.I), "age", "Age (indirect)"),
+    # Religion — direct + indirect
     (_re.compile(r'\b(muslim|jewish|christian\s+applicant|religious\s+observance|sabbath|halal|kosher)\b', _re.I), "religion", "Religion"),
-    # Disability
+    (_re.compile(r'\b(religious\s+affiliation|faith.?based|place\s+of\s+worship|prayer\s+schedule)\b', _re.I), "religion", "Religion (indirect)"),
+    # Disability — direct + indirect
     (_re.compile(r'\b(disability|disabled\s+applicant|medical\s+condition\s+affect|health\s+condition\s+limit|handicap)\b', _re.I), "disability", "Disability"),
-    # Familial Status
-    (_re.compile(r'\b(single\s+mother|single\s+parent|familial\s+status|children\s+present|expecting\s+child)\b', _re.I), "familial_status", "Familial Status"),
-    # Public Assistance (already caught in context, but catch in text too)
+    (_re.compile(r'\b(limited\s+capacity|accommodation\s+needed|health\s+challenges|medical\s+leave\s+history|chronic\s+illness|reduced\s+work\s+capacity)\b', _re.I), "disability", "Disability (indirect)"),
+    # Familial Status — direct + indirect
+    (_re.compile(r'\b(single\s+mother|single\s+parent|familial\s+status|children\s+present|expecting\s+child|dependents)\b', _re.I), "familial_status", "Familial Status"),
+    # Public Assistance
     (_re.compile(r'\b(receives?\s+welfare|on\s+food\s+stamps|snap\s+recipient|public\s+housing)\b', _re.I), "public_assistance", "Receipt of Public Assistance"),
 ]
 
@@ -894,12 +900,15 @@ def _detect_active_proxies(decision: str, ctx: dict) -> list[str]:
     return active
 
 
-def _check_compound_proxies(decision: str, ctx: dict) -> list:
+def _check_compound_proxies(decision: str, ctx: dict, rule_config: dict | None = None) -> list:
     """Flag when multiple proxies are used simultaneously — compound discrimination risk."""
+    cfg = (rule_config or {}).get("compound_proxy_threshold", {})
+    flag_at = int(cfg.get("flag_at", 2))
+    fail_at = int(cfg.get("fail_at", 3))
     proxies = _detect_active_proxies(decision, ctx)
-    if len(proxies) < 2:
+    if len(proxies) < flag_at:
         return []
-    status = "FAIL" if len(proxies) >= 3 else "FLAG"
+    status = "FAIL" if len(proxies) >= fail_at else "FLAG"
     proxy_list = "; ".join(f"({i+1}) {p}" for i, p in enumerate(proxies))
     return [{
         "regulation": "ECOA — Equal Credit Opportunity Act",
@@ -979,11 +988,15 @@ def _check_ecoa_adverse_action_reasons(decision: str, ctx: dict) -> list:
 
 # ── 5. Disparate impact risk flag ──────────────────────────────────────────────
 
-def _check_disparate_impact_risk(decision: str, ctx: dict) -> list:
+def _check_disparate_impact_risk(decision: str, ctx: dict, rule_config: dict | None = None) -> list:
     """
     Flag decisions where the combination of factors creates high disparate impact risk.
     Single-decision proxy for the 4/5ths rule — full statistical analysis requires batch data.
     """
+    cfg = (rule_config or {}).get("disparate_impact_threshold", {})
+    flag_at = int(cfg.get("flag_at", 1))
+    fail_at = int(cfg.get("fail_at", 3))
+
     proxies = _detect_active_proxies(decision, ctx)
     if not proxies:
         return [{
@@ -994,16 +1007,15 @@ def _check_disparate_impact_risk(decision: str, ctx: dict) -> list:
         }]
 
     proxy_count = len(proxies)
-    # High risk: 3+ proxies or any single high-severity proxy (redlining + denial)
     zip_code = _s(ctx.get("zip_code", ""))
     has_geo = zip_code and _is_redlined(zip_code)[0]
     has_income = _has(ctx.get("income_source", ""), _PROTECTED_INCOME_KW)
     denial = _is_denial(decision, ctx)
 
-    if proxy_count >= 3 or (has_geo and denial and has_income):
+    if proxy_count >= fail_at or (has_geo and denial and has_income):
         status = "FAIL"
         severity = "HIGH — multiple protected-class factors compound risk significantly"
-    elif proxy_count >= 2 or (has_geo and denial):
+    elif proxy_count >= flag_at or (has_geo and denial):
         status = "FLAG"
         severity = "MODERATE — run batch disparate impact analysis across similar decisions"
     else:
@@ -1199,17 +1211,30 @@ _DECISION_CHECKERS = {
 }
 
 
-def run_compliance_checks(decision: str, context: dict, category: str = "other") -> list:
+def run_compliance_checks(
+    decision: str,
+    context: dict,
+    category: str = "other",
+    rule_config: dict | None = None,
+) -> list:
     """
     Run all deterministic compliance checks for the given category.
     Always runs — no LLM or API key required.
-    Returns compliance_checks list with PASS/FAIL/FLAG per regulation.
+
+    rule_config: optional dict keyed by rule_key, values are the config dicts
+                 loaded from the DB via database.get_effective_rules(). When
+                 None, built-in defaults are used (backward compatible).
     """
+    import inspect as _inspect
     checkers = _DECISION_CHECKERS.get(category.lower(), _DECISION_CHECKERS["other"])
     results = []
     for checker in checkers:
         try:
-            results.extend(checker(decision, context))
+            sig = _inspect.signature(checker)
+            if "rule_config" in sig.parameters:
+                results.extend(checker(decision, context, rule_config=rule_config))
+            else:
+                results.extend(checker(decision, context))
         except Exception:
             pass
     return results

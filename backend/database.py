@@ -259,6 +259,36 @@ compliance_snapshots = Table(
     Column("taken_at",      String,  nullable=False),  # ISO UTC timestamp
 )
 
+# ── Dynamic Rule Engine ───────────────────────────────────────────────────────
+# Compliance rules are stored here and loaded at runtime — no code deploy needed
+# to add/update patterns, change severities, or toggle jurisdictions.
+
+compliance_rules = Table(
+    "compliance_rules", _meta,
+    Column("id",              Integer, primary_key=True, autoincrement=True),
+    Column("rule_key",        String,  nullable=False, unique=True),  # e.g. "ecoa_redlined_zip"
+    Column("regulation",      String,  nullable=False),               # "ECOA / Reg B"
+    Column("description",     String,  nullable=False),
+    Column("rule_type",       String,  nullable=False),               # regex|threshold|geo|state
+    Column("config_json",     String,  nullable=False, server_default="{}"),  # JSON config
+    Column("default_severity",String,  nullable=False, server_default="FLAG"), # FAIL|FLAG|PASS
+    Column("categories",      String,  nullable=False, server_default='["*"]'), # JSON list
+    Column("enabled",         Integer, nullable=False, server_default="1"),
+    Column("created_at",      String,  nullable=False),
+    Column("updated_at",      String,  nullable=False),
+)
+
+org_rule_overrides = Table(
+    "org_rule_overrides", _meta,
+    Column("id",              Integer, primary_key=True, autoincrement=True),
+    Column("org_id",          Integer, nullable=False),
+    Column("rule_key",        String,  nullable=False),
+    Column("severity",        String,  nullable=True),   # overrides default_severity when set
+    Column("enabled",         Integer, nullable=True),   # overrides enabled when set
+    Column("config_override", String,  nullable=True),   # JSON partial config override
+    Column("updated_at",      String,  nullable=False),
+)
+
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
@@ -320,6 +350,9 @@ def init_db() -> None:
         if "unsubscribe_token" not in user_cols:
             with _engine.begin() as conn:
                 conn.execute(text("ALTER TABLE users ADD COLUMN unsubscribe_token VARCHAR"))
+
+    # Seed default compliance rules if table is empty
+    _seed_default_rules()
 
     logger.info("Database schema up to date")
 
@@ -1397,4 +1430,395 @@ def get_api_usage_stats(google_sub: str) -> Dict[str, Any]:
         "by_verdict":   by_verdict,
         "calls_by_day": calls_by_day,
         "recent_calls": recent,
+    }
+
+# ── Dynamic Compliance Rules ──────────────────────────────────────────────────
+
+# Default rule definitions — these are seeded once and then live in the DB.
+# Enterprise orgs override severity/enabled/config without touching this code.
+_DEFAULT_RULES = [
+    {
+        "rule_key": "text_scanner_race",
+        "regulation": "ECOA / Reg B",
+        "description": "Detects racial or color references in decision text",
+        "rule_type": "regex",
+        "config_json": json.dumps({"patterns": [
+            r"\b(black|white|asian|hispanic|latino|latina|african[\s-]american|minority|minorities|ethnic\s+neighbor|racial\s+compos|racial\s+demog|predominantly\s+\w+\s+neighbor)\b",
+            r"\b(that part of town|certain neighborhoods|urban area|inner.?city|low.?income community|diverse area|those communities)\b",
+        ], "category": "Race / Color"}),
+        "default_severity": "FLAG",
+        "categories": json.dumps(["finance", "lending", "hiring", "hr", "other"]),
+    },
+    {
+        "rule_key": "text_scanner_national_origin",
+        "regulation": "ECOA / Reg B",
+        "description": "Detects national origin references in decision text",
+        "rule_type": "regex",
+        "config_json": json.dumps({"patterns": [
+            r"\b(immigrant|foreign[\s-]born|national\s+origin|country\s+of\s+origin|citizenship\s+status|visa\s+holder|undocumented|remittance\s+to|wire\s+to\s+\w+)\b",
+            r"\b(non.?native\s+speaker|foreign\s+accent|unusual\s+name|offshore\s+income|international\s+transfer)\b",
+        ], "category": "National Origin"}),
+        "default_severity": "FLAG",
+        "categories": json.dumps(["finance", "lending", "hiring", "hr", "other"]),
+    },
+    {
+        "rule_key": "text_scanner_sex",
+        "regulation": "ECOA / Reg B",
+        "description": "Detects sex/pregnancy/gender references in decision text",
+        "rule_type": "regex",
+        "config_json": json.dumps({"patterns": [
+            r"\b(pregnant|pregnancy|maternity|paternity\s+leave|gender\s+gap|female\s+applicant|male\s+applicant)\b",
+            r"\b(family\s+obligations|primary\s+caregiver|likely\s+to\s+take\s+leave|career\s+gap|childcare\s+obligations)\b",
+        ], "category": "Sex / Pregnancy"}),
+        "default_severity": "FLAG",
+        "categories": json.dumps(["finance", "lending", "hiring", "hr", "other"]),
+    },
+    {
+        "rule_key": "text_scanner_age",
+        "regulation": "ADEA / ECOA",
+        "description": "Detects age references in decision text",
+        "rule_type": "regex",
+        "config_json": json.dumps({"patterns": [
+            r"\b(elderly|senior\s+citizen|retirement\s+age|too\s+old|older\s+worker|nearing\s+retirement)\b",
+            r"\b(near\s+retirement|limited\s+remaining\s+career|long.?term\s+commitment\s+concern|generational|pre.?retirement)\b",
+        ], "category": "Age"}),
+        "default_severity": "FLAG",
+        "categories": json.dumps(["finance", "lending", "hiring", "hr", "other"]),
+    },
+    {
+        "rule_key": "text_scanner_disability",
+        "regulation": "ADA / ECOA",
+        "description": "Detects disability references in decision text",
+        "rule_type": "regex",
+        "config_json": json.dumps({"patterns": [
+            r"\b(disability|disabled\s+applicant|medical\s+condition\s+affect|health\s+condition\s+limit|handicap)\b",
+            r"\b(limited\s+capacity|accommodation\s+needed|health\s+challenges|medical\s+leave\s+history|chronic\s+illness)\b",
+        ], "category": "Disability"}),
+        "default_severity": "FLAG",
+        "categories": json.dumps(["finance", "lending", "hiring", "hr", "other"]),
+    },
+    {
+        "rule_key": "text_scanner_religion",
+        "regulation": "Title VII / ECOA",
+        "description": "Detects religion references in decision text",
+        "rule_type": "regex",
+        "config_json": json.dumps({"patterns": [
+            r"\b(muslim|jewish|christian\s+applicant|religious\s+observance|sabbath|halal|kosher)\b",
+            r"\b(religious\s+affiliation|faith.?based|place\s+of\s+worship|prayer\s+schedule)\b",
+        ], "category": "Religion"}),
+        "default_severity": "FLAG",
+        "categories": json.dumps(["finance", "lending", "hiring", "hr", "other"]),
+    },
+    {
+        "rule_key": "text_scanner_familial",
+        "regulation": "FHA / ECOA",
+        "description": "Detects familial status references in decision text",
+        "rule_type": "regex",
+        "config_json": json.dumps({"patterns": [
+            r"\b(single\s+mother|single\s+parent|familial\s+status|children\s+present|expecting\s+child|dependents)\b",
+        ], "category": "Familial Status"}),
+        "default_severity": "FLAG",
+        "categories": json.dumps(["finance", "lending", "hiring", "hr", "other"]),
+    },
+    {
+        "rule_key": "text_scanner_public_assistance",
+        "regulation": "ECOA / Reg B",
+        "description": "Detects public assistance references in decision text",
+        "rule_type": "regex",
+        "config_json": json.dumps({"patterns": [
+            r"\b(receives?\s+welfare|on\s+food\s+stamps|snap\s+recipient|public\s+housing)\b",
+        ], "category": "Receipt of Public Assistance"}),
+        "default_severity": "FLAG",
+        "categories": json.dumps(["finance", "lending", "hiring", "hr", "other"]),
+    },
+    {
+        "rule_key": "compound_proxy_threshold",
+        "regulation": "ECOA / CFPB UDAAP",
+        "description": "Compound proxy detection thresholds (intersectional discrimination)",
+        "rule_type": "threshold",
+        "config_json": json.dumps({
+            "flag_at":    2,    # FLAG when >= this many proxies active
+            "fail_at":    3,    # FAIL when >= this many proxies active
+        }),
+        "default_severity": "FLAG",
+        "categories": json.dumps(["finance", "lending", "hiring", "hr", "other"]),
+    },
+    {
+        "rule_key": "disparate_impact_threshold",
+        "regulation": "ECOA — Disparate Impact",
+        "description": "Disparate impact risk thresholds (proxy count based)",
+        "rule_type": "threshold",
+        "config_json": json.dumps({
+            "flag_at":    1,
+            "fail_at":    3,
+            "eeoc_ratio": 0.80,  # 4/5ths rule threshold
+        }),
+        "default_severity": "FLAG",
+        "categories": json.dumps(["finance", "lending", "hiring", "hr"]),
+    },
+    {
+        "rule_key": "employment_gap_months",
+        "regulation": "ECOA / ADEA / ADA",
+        "description": "Minimum employment gap (months) to trigger proxy flag",
+        "rule_type": "threshold",
+        "config_json": json.dumps({"min_gap_months": 6}),
+        "default_severity": "FLAG",
+        "categories": json.dumps(["finance", "lending", "hiring", "hr"]),
+    },
+    {
+        "rule_key": "state_overlay_ca",
+        "regulation": "CA CPRA / AB-2771 / AB-168",
+        "description": "California state law overlay — CPRA, pay transparency, salary history ban",
+        "rule_type": "state",
+        "config_json": json.dumps({"state": "CA", "laws": ["CPRA", "AB-2771", "AB-168"]}),
+        "default_severity": "FLAG",
+        "categories": json.dumps(["finance", "lending", "hiring", "hr"]),
+    },
+    {
+        "rule_key": "state_overlay_ny",
+        "regulation": "NYC Local Law 144 / NY DFS Circular 1",
+        "description": "New York state law overlay — bias audit and insurance AI requirements",
+        "rule_type": "state",
+        "config_json": json.dumps({"state": "NY", "laws": ["Local Law 144", "NY DFS"]}),
+        "default_severity": "FLAG",
+        "categories": json.dumps(["finance", "lending", "hiring", "hr"]),
+    },
+    {
+        "rule_key": "state_overlay_il",
+        "regulation": "IL AIVIA / Illinois Human Rights Act",
+        "description": "Illinois state law overlay — AI video interview consent, human rights",
+        "rule_type": "state",
+        "config_json": json.dumps({"state": "IL", "laws": ["AIVIA", "IHRA"]}),
+        "default_severity": "FLAG",
+        "categories": json.dumps(["hiring", "hr", "finance", "lending"]),
+    },
+    {
+        "rule_key": "ecoa_adverse_action_notice",
+        "regulation": "ECOA §1002.9 / FCRA §615(a)",
+        "description": "Checks that denied applicants receive a written notice with specific reasons",
+        "rule_type": "threshold",
+        "config_json": json.dumps({"require_denial_factors": True}),
+        "default_severity": "FAIL",
+        "categories": json.dumps(["finance", "lending"]),
+    },
+    {
+        "rule_key": "geo_redlining",
+        "regulation": "ECOA / Fair Housing Act",
+        "description": "Flags zip codes in historically redlined areas (HOLC grade C/D)",
+        "rule_type": "geo",
+        "config_json": json.dumps({"use_holc_database": True, "use_prefix_matching": True}),
+        "default_severity": "FAIL",
+        "categories": json.dumps(["finance", "lending"]),
+    },
+]
+
+
+def _seed_default_rules() -> None:
+    """Insert default rules if the table is empty. Idempotent."""
+    try:
+        with _engine.connect() as conn:
+            existing = conn.execute(
+                select(compliance_rules.c.rule_key)
+            ).fetchall()
+        existing_keys = {r.rule_key for r in existing}
+        now = datetime.now(timezone.utc).isoformat()
+        to_insert = [
+            {**r, "enabled": 1, "created_at": now, "updated_at": now}
+            for r in _DEFAULT_RULES
+            if r["rule_key"] not in existing_keys
+        ]
+        if to_insert:
+            with _engine.begin() as conn:
+                conn.execute(compliance_rules.insert(), to_insert)
+            logger.info("Seeded %d default compliance rules", len(to_insert))
+    except Exception as e:
+        logger.warning("Could not seed compliance rules: %s", e)
+
+
+def get_effective_rules(org_id: int | None = None) -> list[dict]:
+    """
+    Returns all compliance rules with org-level overrides applied.
+    If org_id is None, returns global defaults only.
+    """
+    with _engine.connect() as conn:
+        rules = conn.execute(
+            compliance_rules.select().order_by(compliance_rules.c.id)
+        ).fetchall()
+
+        overrides: dict[str, dict] = {}
+        if org_id:
+            ovr_rows = conn.execute(
+                org_rule_overrides.select().where(
+                    org_rule_overrides.c.org_id == org_id
+                )
+            ).fetchall()
+            overrides = {r.rule_key: r for r in ovr_rows}
+
+    result = []
+    for r in rules:
+        base_config = json.loads(r.config_json or "{}")
+        ovr = overrides.get(r.rule_key)
+        config = base_config.copy()
+        if ovr and ovr.config_override:
+            config.update(json.loads(ovr.config_override))
+        result.append({
+            "rule_key":        r.rule_key,
+            "regulation":      r.regulation,
+            "description":     r.description,
+            "rule_type":       r.rule_type,
+            "config":          config,
+            "severity":        (ovr.severity if ovr and ovr.severity else r.default_severity),
+            "default_severity": r.default_severity,
+            "categories":      json.loads(r.categories or '["*"]'),
+            "enabled":         bool(ovr.enabled if ovr and ovr.enabled is not None else r.enabled),
+            "has_override":    ovr is not None,
+            "updated_at":      r.updated_at,
+        })
+    return result
+
+
+def update_org_rule_override(
+    org_id: int,
+    rule_key: str,
+    severity: str | None = None,
+    enabled: bool | None = None,
+    config_override: dict | None = None,
+) -> bool:
+    """Upsert an org-level override for a compliance rule. Returns True on success."""
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        with _engine.connect() as conn:
+            existing = conn.execute(
+                org_rule_overrides.select().where(
+                    (org_rule_overrides.c.org_id == org_id) &
+                    (org_rule_overrides.c.rule_key == rule_key)
+                )
+            ).fetchone()
+
+        with _engine.begin() as conn:
+            if existing:
+                vals: dict = {"updated_at": now}
+                if severity is not None:
+                    vals["severity"] = severity
+                if enabled is not None:
+                    vals["enabled"] = 1 if enabled else 0
+                if config_override is not None:
+                    vals["config_override"] = json.dumps(config_override)
+                conn.execute(
+                    org_rule_overrides.update()
+                    .where(
+                        (org_rule_overrides.c.org_id == org_id) &
+                        (org_rule_overrides.c.rule_key == rule_key)
+                    )
+                    .values(**vals)
+                )
+            else:
+                conn.execute(org_rule_overrides.insert().values(
+                    org_id=org_id,
+                    rule_key=rule_key,
+                    severity=severity,
+                    enabled=(1 if enabled else 0) if enabled is not None else None,
+                    config_override=json.dumps(config_override) if config_override else None,
+                    updated_at=now,
+                ))
+        return True
+    except Exception as e:
+        logger.error("update_org_rule_override failed: %s", e)
+        return False
+
+
+def reset_org_rule_override(org_id: int, rule_key: str) -> bool:
+    """Remove an org-level override, reverting the rule to global defaults."""
+    try:
+        with _engine.begin() as conn:
+            conn.execute(
+                org_rule_overrides.delete().where(
+                    (org_rule_overrides.c.org_id == org_id) &
+                    (org_rule_overrides.c.rule_key == rule_key)
+                )
+            )
+        return True
+    except Exception as e:
+        logger.error("reset_org_rule_override failed: %s", e)
+        return False
+
+
+# ── JSON-LD Audit Export ──────────────────────────────────────────────────────
+
+_JSONLD_CONTEXT = {
+    "@vocab":       "https://schema.pragma.ai/compliance/v1#",
+    "xsd":          "http://www.w3.org/2001/XMLSchema#",
+    "prov":         "http://www.w3.org/ns/prov#",
+    "schema":       "https://schema.org/",
+    "id":           "@id",
+    "type":         "@type",
+    "timestamp":    {"@id": "prov:generatedAtTime",  "@type": "xsd:dateTime"},
+    "inputHash":    {"@id": "schema:identifier"},
+    "category":     {"@id": "schema:category"},
+    "firewallAction": {"@id": "pragma:firewallAction"},
+    "confidence":   {"@id": "pragma:confidenceScore", "@type": "xsd:decimal"},
+    "riskFlags":    {"@id": "pragma:riskFlag",        "@container": "@set"},
+    "proxyVars":    {"@id": "pragma:proxyVariable",   "@container": "@set"},
+    "regulations":  {"@id": "pragma:regulatoryRef",   "@container": "@set"},
+    "provider":     {"@id": "prov:wasAttributedTo"},
+    "hitlOverride": {"@id": "pragma:humanOverride",   "@type": "xsd:boolean"},
+    "hitlReason":   {"@id": "pragma:overrideReason"},
+}
+
+
+def get_audit_jsonld(google_sub: str, limit: int = 500) -> dict:
+    """
+    Return the user's audit log as a W3C PROV-compatible JSON-LD document.
+    Suitable for direct submission to regulators or GRC tools.
+    """
+    aid = anon_id(google_sub)
+    with _engine.connect() as conn:
+        rows = conn.execute(
+            audit_log.select()
+            .where(audit_log.c.anon_id == aid)
+            .order_by(audit_log.c.timestamp.desc())
+            .limit(limit)
+        ).fetchall()
+
+    entries = []
+    for r in rows:
+        entry: dict = {
+            "@type":         "ComplianceEvaluationRecord",
+            "id":            f"urn:pragma:audit:{r.id}",
+            "timestamp":     r.timestamp,
+            "inputHash":     r.input_hash,
+            "category":      r.category,
+            "firewallAction": r.firewall_action,
+            "confidence":    r.confidence,
+            "provider":      r.provider,
+            "hitlOverride":  bool(r.hitl_override),
+        }
+        try:
+            entry["riskFlags"] = json.loads(r.risk_flags or "[]")
+        except Exception:
+            entry["riskFlags"] = []
+        try:
+            entry["proxyVars"] = json.loads(r.proxy_vars or "[]")
+        except Exception:
+            entry["proxyVars"] = []
+        try:
+            entry["regulations"] = json.loads(r.regulatory_refs or "[]")
+        except Exception:
+            entry["regulations"] = []
+        if r.hitl_override and r.hitl_reason:
+            entry["hitlReason"] = r.hitl_reason
+        entries.append(entry)
+
+    return {
+        "@context":  _JSONLD_CONTEXT,
+        "@type":     "ComplianceAuditLog",
+        "id":        f"urn:pragma:auditlog:{aid}",
+        "generatedBy": {
+            "@type": "prov:SoftwareAgent",
+            "schema:name": "Pragma Compliance Engine",
+            "schema:url":  "https://www.usepragma.co",
+        },
+        "prov:generatedAtTime": datetime.now(timezone.utc).isoformat(),
+        "totalRecords": len(entries),
+        "entries": entries,
     }

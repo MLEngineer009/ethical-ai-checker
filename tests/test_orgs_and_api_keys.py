@@ -339,3 +339,94 @@ class TestLogApiCall:
         assert stats["by_action"]["block"] == 1
         assert stats["by_action"]["allow"] == 1
         assert stats["by_action"]["override_required"] == 1
+
+
+class TestComplianceRules:
+    def test_default_rules_seeded(self):
+        from backend import database as db
+        db.init_db()
+        rules = db.get_effective_rules(org_id=None)
+        assert len(rules) >= 10
+
+    def test_rule_has_required_fields(self):
+        from backend import database as db
+        rules = db.get_effective_rules(org_id=None)
+        for r in rules:
+            for f in ("rule_key", "regulation", "description", "rule_type", "config",
+                      "severity", "default_severity", "categories", "enabled"):
+                assert f in r, f"Missing field {f} in rule {r.get('rule_key')}"
+
+    def test_geo_redlining_rule_exists(self):
+        from backend import database as db
+        rules = db.get_effective_rules()
+        keys = {r["rule_key"] for r in rules}
+        assert "geo_redlining" in keys
+
+    def test_compound_proxy_threshold_rule_exists(self):
+        from backend import database as db
+        rules = db.get_effective_rules()
+        keys = {r["rule_key"] for r in rules}
+        assert "compound_proxy_threshold" in keys
+
+    def test_org_override_changes_severity(self):
+        from backend import database as db
+        org = db.create_org("RulesOrg", "rules-owner-1")
+        org_id = org["org_id"]
+        ok = db.update_org_rule_override(org_id, "geo_redlining", severity="FLAG")
+        assert ok
+        rules = db.get_effective_rules(org_id=org_id)
+        geo = next(r for r in rules if r["rule_key"] == "geo_redlining")
+        assert geo["severity"] == "FLAG"
+        assert geo["has_override"] is True
+
+    def test_org_override_disable_rule(self):
+        from backend import database as db
+        org = db.create_org("RulesOrg2", "rules-owner-2")
+        org_id = org["org_id"]
+        db.update_org_rule_override(org_id, "state_overlay_ca", enabled=False)
+        rules = db.get_effective_rules(org_id=org_id)
+        ca = next(r for r in rules if r["rule_key"] == "state_overlay_ca")
+        assert ca["enabled"] is False
+
+    def test_reset_removes_override(self):
+        from backend import database as db
+        org = db.create_org("RulesOrg3", "rules-owner-3")
+        org_id = org["org_id"]
+        db.update_org_rule_override(org_id, "geo_redlining", severity="FLAG")
+        db.reset_org_rule_override(org_id, "geo_redlining")
+        rules = db.get_effective_rules(org_id=org_id)
+        geo = next(r for r in rules if r["rule_key"] == "geo_redlining")
+        assert geo["has_override"] is False
+        assert geo["severity"] == geo["default_severity"]
+
+    def test_config_override_merges(self):
+        from backend import database as db
+        org = db.create_org("RulesOrg4", "rules-owner-4")
+        org_id = org["org_id"]
+        db.update_org_rule_override(org_id, "compound_proxy_threshold",
+                                    config_override={"fail_at": 4})
+        rules = db.get_effective_rules(org_id=org_id)
+        rule = next(r for r in rules if r["rule_key"] == "compound_proxy_threshold")
+        assert rule["config"]["fail_at"] == 4
+
+    def test_no_org_returns_defaults(self):
+        from backend import database as db
+        rules = db.get_effective_rules(org_id=None)
+        for r in rules:
+            assert r["has_override"] is False
+
+    def test_get_audit_jsonld_new_user(self):
+        from backend import database as db
+        doc = db.get_audit_jsonld("brand-new-jsonld-user")
+        assert doc["@type"] == "ComplianceAuditLog"
+        assert doc["totalRecords"] == 0
+        assert "@context" in doc
+        assert "entries" in doc
+
+    def test_get_audit_jsonld_has_context_keys(self):
+        from backend import database as db
+        doc = db.get_audit_jsonld("any-user-x")
+        ctx = doc["@context"]
+        assert "timestamp" in ctx
+        assert "firewallAction" in ctx
+        assert "inputHash" in ctx
