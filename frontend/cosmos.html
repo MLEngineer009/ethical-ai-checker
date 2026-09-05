@@ -1,671 +1,505 @@
-<title>Cosmos AI</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
-
-<style>
-  :root {
-    --ground: #060D1C;
-    --surface: #0D1829;
-    --raised: #132035;
-    --border: rgba(255,255,255,0.07);
-    --border-accent: rgba(0,200,240,0.2);
-    --text: #EFF6FF;
-    --text-muted: #7B8FA6;
-    --text-subtle: #3D5168;
-    --accent: #00C8F0;
-    --accent-dim: rgba(0,200,240,0.08);
-    --emerald: #22C55E;
-    --amber: #F59E0B;
-    --red: #EF4444;
-    --font-display: 'Syne', system-ui, sans-serif;
-    --font-body: 'DM Sans', system-ui, sans-serif;
-    --font-mono: 'JetBrains Mono', monospace;
-  }
-
-  @media (prefers-color-scheme: light) {
-    :root:not([data-theme="dark"]) {
-      --ground: #F5F8FF;
-      --surface: #FFFFFF;
-      --raised: #EBF0FA;
-      --border: rgba(0,0,0,0.07);
-      --border-accent: rgba(0,100,160,0.2);
-      --text: #0A1525;
-      --text-muted: #4A6080;
-      --text-subtle: #9AAFCC;
-      --accent: #0072A3;
-      --accent-dim: rgba(0,114,163,0.07);
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cosmos AI — AI Infrastructure Studio</title>
+  <meta name="description" content="Cosmos AI LLC builds developer-first compliance infrastructure for companies deploying AI in regulated industries.">
+  <style>
+    /* ── Design tokens (matches Pragma) ── */
+    :root {
+      --bg:         #020b18;
+      --surface:    #0c1928;
+      --surface2:   #101f32;
+      --border:     #1a2d44;
+      --border2:    #243d57;
+      --text:       #e8f0fe;
+      --text-muted: #5c7a9e;
+      --text-sub:   #3a5878;
+      --accent:     #f59e0b;
+      --accent-dim: rgba(245,158,11,0.15);
+      --accent2:    #38bdf8;
+      --fail:       #ef4444;
+      --fail-dim:   rgba(239,68,68,0.12);
+      --pass:       #22c55e;
+      --pass-dim:   rgba(34,197,94,0.1);
+      --flag:       #f59e0b;
+      --radius:     10px;
+      --radius-sm:  6px;
     }
-  }
 
-  :root[data-theme="light"] {
-    --ground: #F5F8FF;
-    --surface: #FFFFFF;
-    --raised: #EBF0FA;
-    --border: rgba(0,0,0,0.07);
-    --border-accent: rgba(0,100,160,0.2);
-    --text: #0A1525;
-    --text-muted: #4A6080;
-    --text-subtle: #9AAFCC;
-    --accent: #0072A3;
-    --accent-dim: rgba(0,114,163,0.07);
-  }
-
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  html { scroll-behavior: smooth; }
-
-  body {
-    font-family: var(--font-body);
-    background: var(--ground);
-    color: var(--text);
-    -webkit-font-smoothing: antialiased;
-    min-height: 100vh;
-  }
-
-  /* ── Nav ── */
-  nav {
-    padding: 22px 48px;
-    display: flex; align-items: center; justify-content: space-between;
-    border-bottom: 1px solid var(--border);
-    position: sticky; top: 0; z-index: 50;
-    background: rgba(6,13,28,0.9);
-    backdrop-filter: blur(18px);
-  }
-
-  @media (prefers-color-scheme: light) {
-    :root:not([data-theme="dark"]) nav { background: rgba(245,248,255,0.92); }
-  }
-  :root[data-theme="light"] nav { background: rgba(245,248,255,0.92); }
-
-  .nav-brand {
-    display: flex; align-items: baseline; gap: 6px;
-    text-decoration: none;
-  }
-
-  .nav-cosmos {
-    font-family: var(--font-display);
-    font-size: 17px; font-weight: 800;
-    letter-spacing: 3px; text-transform: uppercase;
-    color: var(--text);
-  }
-
-  .nav-ai {
-    font-family: var(--font-display);
-    font-size: 17px; font-weight: 600;
-    letter-spacing: 3px; text-transform: uppercase;
-    color: var(--accent);
-  }
-
-  .nav-right {
-    display: flex; align-items: center; gap: 24px;
-  }
-
-  .nav-link {
-    font-size: 13px; font-weight: 500;
-    color: var(--text-muted); text-decoration: none;
-    transition: color .2s;
-  }
-  .nav-link:hover { color: var(--text); }
-
-  .nav-cta {
-    font-size: 13px; font-weight: 600;
-    color: var(--accent); text-decoration: none;
-    border: 1px solid var(--border-accent);
-    padding: 7px 18px; border-radius: 6px;
-    transition: background .2s, color .2s;
-  }
-  .nav-cta:hover { background: var(--accent); color: var(--ground); }
-
-  /* ── Container ── */
-  .container {
-    max-width: 960px;
-    margin: 0 auto;
-    padding: 0 48px;
-  }
-
-  /* ── Wordmark section ── */
-  .wordmark-section {
-    padding: 120px 0 80px;
-    text-align: center;
-    position: relative;
-    overflow: hidden;
-  }
-
-  /* subtle radial glow behind the wordmark */
-  .wordmark-section::before {
-    content: '';
-    position: absolute;
-    top: 50%; left: 50%; transform: translate(-50%, -60%);
-    width: 800px; height: 400px; border-radius: 50%;
-    background: radial-gradient(ellipse, rgba(0,200,240,0.05) 0%, transparent 65%);
-    pointer-events: none;
-  }
-
-  .wordmark {
-    font-family: var(--font-display);
-    font-size: clamp(52px, 9vw, 96px);
-    font-weight: 800;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    line-height: 1;
-    color: var(--text);
-    position: relative;
-  }
-
-  .wordmark .ai-part { color: var(--accent); }
-
-  .wordmark-rule {
-    width: 48px; height: 1px;
-    background: var(--accent);
-    margin: 36px auto 32px;
-    opacity: 0.5;
-  }
-
-  .wordmark-tagline {
-    font-family: var(--font-body);
-    font-size: 18px; font-weight: 400;
-    color: var(--text-muted);
-    line-height: 1.6;
-    max-width: 480px; margin: 0 auto;
-    font-style: italic;
-  }
-
-  .wordmark-sub {
-    margin-top: 14px;
-    font-family: var(--font-mono);
-    font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
-    color: var(--text-subtle);
-  }
-
-  /* ── Products section ── */
-  .products-section {
-    padding: 0 0 100px;
-  }
-
-  .section-label {
-    font-family: var(--font-mono);
-    font-size: 10px; letter-spacing: 3px; text-transform: uppercase;
-    color: var(--text-subtle);
-    text-align: center;
-    margin-bottom: 40px;
-  }
-
-  /* The Pragma product card */
-  .product-card {
-    background: var(--surface);
-    border: 1px solid var(--border-accent);
-    border-radius: 18px;
-    overflow: hidden;
-    position: relative;
-  }
-
-  /* glowing top edge */
-  .product-card::before {
-    content: '';
-    position: absolute; top: 0; left: 0; right: 0; height: 1px;
-    background: linear-gradient(90deg, transparent 5%, var(--accent) 50%, transparent 95%);
-    opacity: 0.6;
-  }
-
-  .product-card-inner {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    min-height: 380px;
-  }
-
-  /* Left: product identity */
-  .product-identity {
-    padding: 52px 48px;
-    display: flex; flex-direction: column; justify-content: space-between;
-    border-right: 1px solid var(--border);
-  }
-
-  .product-badge {
-    display: inline-flex; align-items: center; gap: 8px;
-    font-family: var(--font-mono); font-size: 10px; font-weight: 500;
-    letter-spacing: 2px; text-transform: uppercase;
-    color: var(--accent);
-    margin-bottom: 24px;
-  }
-
-  .product-badge-dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--accent);
-    box-shadow: 0 0 8px var(--accent);
-    animation: pulse 2s ease-in-out infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
-
-  .product-name {
-    font-family: var(--font-display);
-    font-size: 44px; font-weight: 800;
-    letter-spacing: -1.5px; line-height: 1;
-    color: var(--text);
-    margin-bottom: 18px;
-  }
-
-  .product-desc {
-    font-size: 15px; color: var(--text-muted);
-    line-height: 1.7; margin-bottom: 36px;
-    max-width: 340px;
-  }
-
-  .product-link {
-    display: inline-flex; align-items: center; gap: 10px;
-    font-size: 14px; font-weight: 600;
-    color: var(--accent); text-decoration: none;
-    transition: gap .2s;
-  }
-  .product-link:hover { gap: 14px; }
-  .product-link-arrow { font-size: 16px; transition: transform .2s; }
-  .product-link:hover .product-link-arrow { transform: translateX(3px); }
-
-  .product-stats {
-    display: flex; gap: 24px; margin-top: 40px;
-    padding-top: 28px;
-    border-top: 1px solid var(--border);
-  }
-
-  .product-stat-num {
-    font-family: var(--font-display);
-    font-size: 22px; font-weight: 800;
-    color: var(--text); letter-spacing: -1px;
-  }
-  .product-stat-num.cyan { color: var(--accent); }
-  .product-stat-num.green { color: var(--emerald); }
-
-  .product-stat-label {
-    font-family: var(--font-mono);
-    font-size: 9px; letter-spacing: 1px; text-transform: uppercase;
-    color: var(--text-subtle); margin-top: 3px;
-  }
-
-  /* Right: live compliance window */
-  .product-window {
-    background: var(--ground);
-    padding: 32px 36px;
-    display: flex; flex-direction: column; gap: 10px;
-  }
-
-  .window-header {
-    font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.5px;
-    text-transform: uppercase; color: var(--text-subtle);
-    margin-bottom: 8px;
-    display: flex; align-items: center; gap: 8px;
-  }
-
-  .window-header::after {
-    content: ''; flex: 1; height: 1px; background: var(--border);
-  }
-
-  .check-row {
-    display: flex; align-items: center; gap: 12px;
-    padding: 10px 14px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    font-size: 12px;
-  }
-
-  .check-status {
-    font-family: var(--font-mono);
-    font-size: 10px; font-weight: 500; letter-spacing: .5px;
-    padding: 2px 8px; border-radius: 4px; flex-shrink: 0;
-    min-width: 38px; text-align: center;
-  }
-
-  .check-status.pass { background: rgba(34,197,94,0.1); color: var(--emerald); border: 1px solid rgba(34,197,94,0.2); }
-  .check-status.fail { background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
-  .check-status.flag { background: rgba(245,158,11,0.1); color: var(--amber); border: 1px solid rgba(245,158,11,0.2); }
-
-  .check-label { color: var(--text-muted); flex: 1; }
-
-  .verdict-row {
-    margin-top: 6px;
-    padding: 14px 16px;
-    border-radius: 8px;
-    background: rgba(239,68,68,0.06);
-    border: 1px solid rgba(239,68,68,0.2);
-    display: flex; align-items: center; gap: 10px;
-  }
-
-  .verdict-text {
-    font-family: var(--font-mono); font-size: 12px; font-weight: 500;
-    color: var(--red); letter-spacing: .5px;
-  }
-  .verdict-sub { font-size: 11px; color: var(--text-subtle); margin-left: auto; }
-
-  /* Future product placeholder */
-  .future-card {
-    margin-top: 14px;
-    border: 1px dashed var(--border);
-    border-radius: 18px;
-    padding: 40px 48px;
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 24px;
-  }
-
-  .future-label {
-    font-family: var(--font-mono); font-size: 10px; letter-spacing: 2px;
-    text-transform: uppercase; color: var(--text-subtle);
-    margin-bottom: 10px;
-  }
-
-  .future-name {
-    font-family: var(--font-display); font-size: 22px; font-weight: 700;
-    color: var(--text-subtle); letter-spacing: -0.5px;
-  }
-
-  .future-tag {
-    font-family: var(--font-mono); font-size: 10px; font-weight: 500;
-    letter-spacing: 1.5px; text-transform: uppercase;
-    padding: 5px 14px; border-radius: 20px;
-    border: 1px solid var(--border);
-    color: var(--text-subtle);
-  }
-
-  /* ── How we build ── */
-  .how-section {
-    padding: 80px 0 100px;
-    border-top: 1px solid var(--border);
-    background: var(--surface);
-  }
-
-  .how-inner {
-    display: grid;
-    grid-template-columns: 1fr 1.5fr;
-    gap: 72px;
-    align-items: start;
-  }
-
-  .how-eyebrow {
-    font-family: var(--font-mono);
-    font-size: 10px; letter-spacing: 3px; text-transform: uppercase;
-    color: var(--accent); margin-bottom: 18px;
-  }
-
-  .how-heading {
-    font-family: var(--font-display);
-    font-size: 30px; font-weight: 800; line-height: 1.2;
-    letter-spacing: -0.8px; color: var(--text);
-    margin-bottom: 20px; text-wrap: balance;
-  }
-
-  .how-body {
-    font-size: 14px; color: var(--text-muted);
-    line-height: 1.8; max-width: 320px;
-  }
-
-  .how-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-bottom: 16px;
-  }
-
-  .how-stat-card {
-    background: var(--ground);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 16px 18px;
-  }
-
-  .how-stat-num {
-    font-family: var(--font-display);
-    font-size: 28px; font-weight: 800;
-    color: var(--accent); letter-spacing: -1px; line-height: 1;
-    margin-bottom: 5px;
-  }
-
-  .how-stat-unit {
-    font-size: 18px; letter-spacing: 0;
-  }
-
-  .how-stat-label {
-    font-size: 12px; font-weight: 600; color: var(--text);
-    margin-bottom: 3px;
-  }
-
-  .how-stat-sub {
-    font-size: 11px; color: var(--text-subtle);
-    line-height: 1.4;
-  }
-
-  /* Mini commit log */
-  .how-log {
-    background: var(--ground);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    overflow: hidden;
-  }
-
-  .how-log-header {
-    font-family: var(--font-mono);
-    font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
-    color: var(--text-subtle);
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--border);
-    background: var(--raised);
-  }
-
-  .how-log-item {
-    display: flex; align-items: baseline; gap: 10px;
-    padding: 9px 14px;
-    border-bottom: 1px solid var(--border);
-    font-family: var(--font-mono); font-size: 11px;
-    line-height: 1.4;
-  }
-
-  .how-log-item:last-child { border-bottom: none; }
-
-  .how-log-hash {
-    color: var(--accent); flex-shrink: 0; opacity: 0.7;
-  }
-
-  .how-log-msg {
-    color: var(--text-subtle);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-
-  /* ── About section ── */
-  .about-section {
-    padding: 80px 0 100px;
-    border-top: 1px solid var(--border);
-  }
-
-  .about-grid {
-    display: grid;
-    grid-template-columns: 1fr 1.6fr;
-    gap: 72px;
-    align-items: start;
-  }
-
-  .about-left-label {
-    font-family: var(--font-mono); font-size: 10px; letter-spacing: 3px;
-    text-transform: uppercase; color: var(--text-subtle);
-    margin-bottom: 20px;
-  }
-
-  .about-heading {
-    font-family: var(--font-display);
-    font-size: 30px; font-weight: 800; line-height: 1.2;
-    letter-spacing: -0.8px; color: var(--text);
-    text-wrap: balance;
-  }
-
-  .about-body {
-    font-size: 15px; color: var(--text-muted);
-    line-height: 1.8;
-  }
-
-  .about-body p + p { margin-top: 16px; }
-
-  .about-body strong { color: var(--text); font-weight: 600; }
-
-  .about-contact {
-    margin-top: 28px;
-    display: inline-flex; align-items: center; gap: 8px;
-    font-size: 13px; font-weight: 500;
-    color: var(--accent); text-decoration: none;
-    border-bottom: 1px solid var(--border-accent);
-    padding-bottom: 2px;
-  }
-
-  /* ── Footer ── */
-  footer {
-    border-top: 1px solid var(--border);
-    padding: 36px 48px;
-    display: flex; align-items: center; justify-content: space-between;
-    flex-wrap: wrap; gap: 16px;
-  }
-
-  .footer-brand {
-    font-family: var(--font-display);
-    font-size: 14px; font-weight: 800;
-    letter-spacing: 2.5px; text-transform: uppercase;
-    color: var(--text-muted);
-  }
-
-  .footer-brand .ai { color: var(--accent); }
-
-  .footer-links {
-    display: flex; gap: 24px; list-style: none;
-  }
-
-  .footer-links a {
-    font-size: 12px; color: var(--text-subtle);
-    text-decoration: none; transition: color .2s;
-  }
-  .footer-links a:hover { color: var(--text-muted); }
-
-  .footer-legal {
-    font-size: 11px; color: var(--text-subtle);
-    font-family: var(--font-mono);
-  }
-
-  /* ── Responsive ── */
-  @media (max-width: 768px) {
-    nav { padding: 16px 24px; }
-    .container { padding: 0 24px; }
-    .product-card-inner { grid-template-columns: 1fr; }
-    .product-identity { border-right: none; border-bottom: 1px solid var(--border); padding: 36px 28px; }
-    .product-window { padding: 24px 28px; }
-    .about-grid { grid-template-columns: 1fr; gap: 32px; }
-    footer { padding: 28px 24px; flex-direction: column; gap: 20px; text-align: center; }
-    .footer-links { justify-content: center; }
-    .future-card { flex-direction: column; align-items: flex-start; }
-    .how-inner { grid-template-columns: 1fr; gap: 36px; }
-    .how-body { max-width: 100%; }
-    .how-log-msg { white-space: normal; }
-    .wordmark { letter-spacing: 0.1em; }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .product-badge-dot { animation: none; }
-    * { transition: none !important; }
-  }
-</style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+    @media (prefers-reduced-motion: reduce) {
+      *, ::before, ::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+
+    /* ── Layout ── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 28px; }
+
+    .eyebrow {
+      font-size: 11px; font-weight: 700; letter-spacing: 1.8px; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 14px;
+    }
+
+    /* ── Nav ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--bg); border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+    }
+    .nav-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 60px;
+    }
+    .nav-logo {
+      font-size: 16px; font-weight: 700; letter-spacing: -.3px; color: var(--text);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .nav-logo .logo-mark {
+      width: 26px; height: 26px; background: var(--accent);
+      border-radius: 6px; display: flex; align-items: center; justify-content: center;
+      font-size: 13px; color: #000; font-weight: 900;
+    }
+    .nav-sub {
+      font-size: 10px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase;
+      color: var(--text-muted); border: 1px solid var(--border); border-radius: 4px;
+      padding: 2px 7px; margin-left: 4px;
+    }
+    .nav-links { display: flex; align-items: center; gap: 28px; }
+    .nav-link { font-size: 13px; color: var(--text-muted); font-weight: 500; transition: color .15s; }
+    .nav-link:hover { color: var(--text); }
+    .nav-cta {
+      font-size: 13px; font-weight: 700; color: #000;
+      background: var(--accent); border-radius: var(--radius-sm);
+      padding: 7px 18px; transition: opacity .15s;
+    }
+    .nav-cta:hover { opacity: 0.88; }
+
+    /* ── Hero ── */
+    .hero {
+      padding: 96px 0 80px;
+      border-bottom: 1px solid var(--border);
+    }
+    .hero-inner {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center;
+    }
+    .hero-eyebrow {
+      font-size: 11px; font-weight: 700; letter-spacing: 1.8px; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 18px;
+    }
+    h1 {
+      font-size: clamp(36px, 5vw, 52px); font-weight: 800; line-height: 1.1;
+      letter-spacing: -1.5px; color: var(--text); margin-bottom: 20px;
+    }
+    h1 span { color: var(--accent2); }
+    .hero-body {
+      font-size: 17px; color: var(--text-muted); line-height: 1.7; margin-bottom: 32px; max-width: 440px;
+    }
+    .hero-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .btn-primary {
+      display: inline-block; font-size: 14px; font-weight: 700;
+      color: #000; background: var(--accent);
+      padding: 11px 24px; border-radius: var(--radius-sm); transition: opacity .15s;
+    }
+    .btn-primary:hover { opacity: 0.88; }
+    .btn-ghost {
+      display: inline-block; font-size: 14px; font-weight: 600;
+      color: var(--text-muted); border: 1px solid var(--border);
+      padding: 11px 24px; border-radius: var(--radius-sm); transition: color .15s, border-color .15s;
+    }
+    .btn-ghost:hover { color: var(--text); border-color: var(--border2); }
+
+    /* ── Compliance window (hero right) ── */
+    .hero-window {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: 0 0 60px rgba(245,158,11,0.06);
+    }
+    .win-bar {
+      background: var(--surface2);
+      padding: 10px 16px;
+      display: flex; align-items: center; gap: 7px;
+      border-bottom: 1px solid var(--border);
+    }
+    .win-dot { width: 9px; height: 9px; border-radius: 50%; }
+    .win-dot.r { background: #ef4444; }
+    .win-dot.y { background: #f59e0b; }
+    .win-dot.g { background: #22c55e; }
+    .win-title { font-size: 11px; color: var(--text-sub); margin-left: 6px; font-family: monospace; }
+    .win-body { padding: 18px 20px; font-family: monospace; font-size: 12px; line-height: 1.9; }
+    .w-row { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+    .w-pill {
+      font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px;
+      letter-spacing: .5px; flex-shrink: 0; min-width: 36px; text-align: center;
+    }
+    .w-pill.fail { background: var(--fail-dim); color: var(--fail); border: 1px solid rgba(239,68,68,0.25); }
+    .w-pill.flag { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(245,158,11,0.25); }
+    .w-pill.pass { background: var(--pass-dim); color: var(--pass); border: 1px solid rgba(34,197,94,0.2); }
+    .w-label { color: var(--text-muted); font-size: 12px; }
+    .w-verdict {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
+      background: var(--fail-dim); border: 1px solid rgba(239,68,68,0.25);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .w-verdict-label { font-size: 12px; font-weight: 700; color: var(--fail); letter-spacing: .5px; }
+    .w-verdict-sub { font-size: 11px; color: var(--text-sub); margin-left: auto; }
+
+    /* ── Products ── */
+    .products-section {
+      padding: 80px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-header { margin-bottom: 40px; }
+    h2 {
+      font-size: clamp(26px, 4vw, 36px); font-weight: 800;
+      letter-spacing: -1px; color: var(--text); margin-bottom: 12px;
+    }
+    .section-sub { font-size: 15px; color: var(--text-muted); max-width: 520px; }
+
+    .product-card {
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      overflow: hidden;
+      position: relative;
+    }
+    .product-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    }
+    .product-card-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+    }
+
+    /* Product left */
+    .prod-left {
+      padding: 44px 40px;
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; justify-content: space-between;
+    }
+    .prod-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--pass); margin-bottom: 20px;
+    }
+    .prod-badge-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--pass);
+      box-shadow: 0 0 8px var(--pass);
+      animation: blink 2.4s ease-in-out infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+    .prod-name {
+      font-size: 42px; font-weight: 800; letter-spacing: -1.5px;
+      color: var(--text); line-height: 1; margin-bottom: 14px;
+    }
+    .prod-desc {
+      font-size: 14px; color: var(--text-muted); line-height: 1.7; margin-bottom: 28px;
+    }
+    .prod-link {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 14px; font-weight: 700; color: var(--accent);
+      transition: gap .15s;
+    }
+    .prod-link:hover { gap: 12px; }
+    .prod-stats {
+      display: flex; gap: 28px;
+      padding-top: 24px; margin-top: 32px;
+      border-top: 1px solid var(--border);
+    }
+    .prod-stat-num {
+      font-size: 22px; font-weight: 800; color: var(--text); letter-spacing: -1px;
+    }
+    .prod-stat-num.a  { color: var(--accent); }
+    .prod-stat-num.b  { color: var(--accent2); }
+    .prod-stat-num.g  { color: var(--pass); }
+    .prod-stat-label  { font-size: 10px; color: var(--text-sub); margin-top: 3px; letter-spacing: .5px; text-transform: uppercase; }
+
+    /* Product right — live eval */
+    .prod-right {
+      background: var(--bg);
+      padding: 28px 32px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .prod-right-header {
+      font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--text-sub); margin-bottom: 6px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .prod-right-header::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .check-row {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 9px 13px; font-size: 12px;
+    }
+    .ck { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 3px; letter-spacing: .5px; flex-shrink: 0; min-width: 36px; text-align: center; }
+    .ck.f { background: var(--fail-dim); color: var(--fail); border: 1px solid rgba(239,68,68,0.25); }
+    .ck.w { background: var(--accent-dim); color: var(--flag); border: 1px solid rgba(245,158,11,0.25); }
+    .ck.p { background: var(--pass-dim); color: var(--pass); border: 1px solid rgba(34,197,94,0.2); }
+    .ck-label { color: var(--text-muted); }
+    .verdict-box {
+      margin-top: 4px; padding: 12px 14px;
+      background: var(--fail-dim); border: 1px solid rgba(239,68,68,0.25);
+      border-radius: var(--radius-sm);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .verdict-box .vl { font-size: 12px; font-weight: 700; color: var(--fail); letter-spacing: .5px; }
+    .verdict-box .vs { font-size: 11px; color: var(--text-sub); margin-left: auto; }
+
+    /* Future card */
+    .future-card {
+      margin-top: 12px;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 32px 40px;
+      display: flex; align-items: center; justify-content: space-between; gap: 20px;
+    }
+    .future-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-sub); margin-bottom: 8px; }
+    .future-name { font-size: 20px; font-weight: 700; color: var(--text-sub); letter-spacing: -.5px; }
+    .future-tag {
+      font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+      padding: 5px 14px; border-radius: 20px; border: 1px solid var(--border); color: var(--text-sub);
+    }
+
+    /* ── How we build ── */
+    .how-section {
+      padding: 80px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .how-grid-wrap {
+      display: grid; grid-template-columns: 1fr 1.5fr; gap: 60px; align-items: start;
+    }
+    .how-heading {
+      font-size: clamp(22px, 3vw, 30px); font-weight: 800;
+      letter-spacing: -0.8px; color: var(--text);
+      margin-bottom: 16px;
+    }
+    .how-body { font-size: 14px; color: var(--text-muted); line-height: 1.8; }
+
+    .how-stats {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;
+    }
+    .how-stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+    }
+    .how-stat-num {
+      font-size: 28px; font-weight: 800; color: var(--accent2);
+      letter-spacing: -1px; line-height: 1; margin-bottom: 5px;
+    }
+    .how-stat-title { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+    .how-stat-sub { font-size: 11px; color: var(--text-sub); line-height: 1.4; }
+
+    /* Commit log */
+    .commit-log {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .commit-log-header {
+      background: var(--surface2);
+      padding: 9px 14px;
+      font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--text-sub);
+      border-bottom: 1px solid var(--border);
+    }
+    .commit-row {
+      display: flex; align-items: baseline; gap: 10px;
+      padding: 8px 14px;
+      border-bottom: 1px solid var(--border);
+      font-family: monospace; font-size: 11px;
+    }
+    .commit-row:last-child { border-bottom: none; }
+    .commit-hash { color: var(--accent2); flex-shrink: 0; }
+    .commit-msg { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── About ── */
+    .about-section {
+      padding: 80px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .about-grid {
+      display: grid; grid-template-columns: 1fr 1.6fr; gap: 64px; align-items: start;
+    }
+    .about-heading {
+      font-size: clamp(22px, 3vw, 30px); font-weight: 800;
+      letter-spacing: -.8px; color: var(--text); line-height: 1.25;
+    }
+    .about-body { font-size: 15px; color: var(--text-muted); line-height: 1.8; }
+    .about-body p + p { margin-top: 16px; }
+    .about-body strong { color: var(--text); font-weight: 600; }
+    .about-contact {
+      display: inline-flex; align-items: center; gap: 8px; margin-top: 24px;
+      font-size: 13px; font-weight: 700; color: var(--accent);
+      border-bottom: 1px solid var(--accent-dim); padding-bottom: 2px;
+    }
+
+    /* ── Footer ── */
+    footer {
+      padding: 32px 0;
+      border-top: 1px solid var(--border);
+    }
+    .footer-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 16px;
+    }
+    .footer-brand {
+      font-size: 14px; font-weight: 700; color: var(--text-muted); letter-spacing: -.3px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .footer-brand .logo-mark {
+      width: 20px; height: 20px; background: var(--accent);
+      border-radius: 4px; display: flex; align-items: center; justify-content: center;
+      font-size: 10px; color: #000; font-weight: 900;
+    }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-link { font-size: 12px; color: var(--text-sub); transition: color .15s; }
+    .footer-link:hover { color: var(--text-muted); }
+    .footer-legal { font-size: 11px; color: var(--text-sub); font-family: monospace; }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .hero-inner, .product-card-grid, .how-grid-wrap, .about-grid { grid-template-columns: 1fr; }
+      .prod-left { border-right: none; border-bottom: 1px solid var(--border); padding: 32px 24px; }
+      .prod-right { padding: 24px; }
+      .future-card { flex-direction: column; align-items: flex-start; }
+      .commit-msg { white-space: normal; }
+      nav .nav-links { display: none; }
+    }
+  </style>
+</head>
+<body>
 
 <!-- ── Nav ── -->
 <nav>
-  <a href="/cosmos" class="nav-brand">
-    <span class="nav-cosmos">Cosmos&nbsp;</span><span class="nav-ai">AI</span>
-  </a>
-  <div class="nav-right">
-    <a href="#about" class="nav-link">About</a>
-    <a href="https://usepragma.co" class="nav-cta">Open Pragma →</a>
+  <div class="container">
+    <div class="nav-inner">
+      <div class="nav-logo">
+        <span class="logo-mark">C</span>
+        Cosmos AI
+        <span class="nav-sub">LLC</span>
+      </div>
+      <div class="nav-links">
+        <a href="#products" class="nav-link">Products</a>
+        <a href="#how-we-build" class="nav-link">How we build</a>
+        <a href="#about" class="nav-link">About</a>
+        <a href="https://usepragma.co" class="nav-cta">Open Pragma →</a>
+      </div>
+    </div>
   </div>
 </nav>
 
-<!-- ── Wordmark ── -->
-<section class="wordmark-section">
+<!-- ── Hero ── -->
+<section class="hero">
   <div class="container">
-    <div class="wordmark">Cosmos&nbsp;<span class="ai-part">AI</span></div>
-    <div class="wordmark-rule"></div>
-    <p class="wordmark-tagline">Building the compliance layer for AI systems that operate in the real world.</p>
-    <div class="wordmark-sub">Cosmos AI LLC &nbsp;·&nbsp; Delaware</div>
+    <div class="hero-inner">
+      <div>
+        <div class="hero-eyebrow">AI Infrastructure · Delaware LLC</div>
+        <h1>Compliance infrastructure<br>for <span>regulated AI.</span></h1>
+        <p class="hero-body">We build developer-first tools for companies deploying AI in regulated industries — so the decision that denies a loan, screens a job applicant, or triages a patient is one your legal team can defend.</p>
+        <div class="hero-actions">
+          <a href="https://usepragma.co" class="btn-primary">Try Pragma →</a>
+          <a href="#about" class="btn-ghost">About us</a>
+        </div>
+      </div>
+
+      <!-- Live eval window -->
+      <div class="hero-window">
+        <div class="win-bar">
+          <span class="win-dot r"></span>
+          <span class="win-dot y"></span>
+          <span class="win-dot g"></span>
+          <span class="win-title">pragma / evaluate-decision</span>
+        </div>
+        <div class="win-body">
+          <div style="color:#3a5878;margin-bottom:8px;">// POST /evaluate-decision</div>
+          <div style="color:#5c7a9e;">decision: <span style="color:#86efac;">"Deny loan — zip 60620"</span></div>
+          <div style="color:#5c7a9e;">category: <span style="color:#86efac;">"lending"</span></div>
+          <br>
+          <div class="w-row"><span class="w-pill fail">FAIL</span><span class="w-label">geo_redlining — HOLC redlined zip</span></div>
+          <div class="w-row"><span class="w-pill fail">FAIL</span><span class="w-label">ecoa_adverse_action — no written reason</span></div>
+          <div class="w-row"><span class="w-pill flag">FLAG</span><span class="w-label">compound_proxies — 2 detected</span></div>
+          <div class="w-row"><span class="w-pill pass">PASS</span><span class="w-label">text_scanner_race</span></div>
+          <div class="w-verdict">
+            <span style="font-size:14px;">🚫</span>
+            <span class="w-verdict-label">BLOCKED</span>
+            <span class="w-verdict-sub">audit_id #8821 · 0.94</span>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
 <!-- ── Products ── -->
-<section class="products-section">
+<section class="products-section" id="products">
   <div class="container">
-    <div class="section-label">Products</div>
+    <div class="section-header">
+      <div class="eyebrow">Products</div>
+      <h2>One product. Shipped and live.</h2>
+      <p class="section-sub">We start with the use cases that create the most liability and build the infrastructure layer that sits between AI systems and the damage they can cause.</p>
+    </div>
 
-    <!-- Pragma card -->
     <div class="product-card">
-      <div class="product-card-inner">
+      <div class="product-card-grid">
 
-        <!-- Identity -->
-        <div class="product-identity">
+        <div class="prod-left">
           <div>
-            <div class="product-badge">
-              <span class="product-badge-dot"></span>
-              Now available
-            </div>
-            <div class="product-name">pragma</div>
-            <p class="product-desc">
-              An AI compliance firewall that intercepts decisions before they execute — blocking discrimination, ECOA violations, and EU AI Act breaches in real-time. Then generates the evidence your legal team needs.
-            </p>
-            <a href="https://usepragma.co" class="product-link">
-              usepragma.co <span class="product-link-arrow">→</span>
-            </a>
+            <div class="prod-badge"><span class="prod-badge-dot"></span>Live at usepragma.co</div>
+            <div class="prod-name">pragma</div>
+            <p class="prod-desc">Real-time AI compliance firewall covering ECOA, EU AI Act, EEOC, FCRA, CFPB, and state laws. Intercepts discriminatory decisions before they execute and generates the evidence your legal team needs.</p>
+            <a href="https://usepragma.co" class="prod-link">Open Pragma →</a>
           </div>
-
-          <div class="product-stats">
+          <div class="prod-stats">
             <div>
-              <div class="product-stat-num cyan">&lt;5ms</div>
-              <div class="product-stat-label">L1 latency</div>
+              <div class="prod-stat-num a">&lt;5ms</div>
+              <div class="prod-stat-label">L1 latency</div>
             </div>
             <div>
-              <div class="product-stat-num">10+</div>
-              <div class="product-stat-label">Regulations covered</div>
+              <div class="prod-stat-num b">10+</div>
+              <div class="prod-stat-label">Regulations</div>
             </div>
             <div>
-              <div class="product-stat-num green">15</div>
-              <div class="product-stat-label">EU AI Act articles</div>
+              <div class="prod-stat-num g">15</div>
+              <div class="prod-stat-label">EU AI Act arts.</div>
             </div>
           </div>
         </div>
 
-        <!-- Live window -->
-        <div class="product-window">
-          <div class="window-header">Live evaluation</div>
-
-          <div class="check-row">
-            <span class="check-status fail">FAIL</span>
-            <span class="check-label">geo_redlining — HOLC historically redlined zip</span>
-          </div>
-          <div class="check-row">
-            <span class="check-status fail">FAIL</span>
-            <span class="check-label">ecoa_adverse_action — no written denial reason</span>
-          </div>
-          <div class="check-row">
-            <span class="check-status flag">FLAG</span>
-            <span class="check-label">compound_proxies — 2 proxy variables detected</span>
-          </div>
-          <div class="check-row">
-            <span class="check-status pass">PASS</span>
-            <span class="check-label">text_scanner_race — no direct language found</span>
-          </div>
-          <div class="check-row">
-            <span class="check-status pass">PASS</span>
-            <span class="check-label">state_overlay_il — Illinois HRA satisfied</span>
-          </div>
-
-          <div class="verdict-row">
-            <span style="font-size:15px;">🚫</span>
-            <span class="verdict-text">BLOCKED</span>
-            <span class="verdict-sub">audit_id #8821 · confidence 0.94</span>
+        <div class="prod-right">
+          <div class="prod-right-header">Live compliance checks</div>
+          <div class="check-row"><span class="ck f">FAIL</span><span class="ck-label">geo_redlining — HOLC historically redlined zip</span></div>
+          <div class="check-row"><span class="ck f">FAIL</span><span class="ck-label">ecoa_adverse_action — no written denial reason</span></div>
+          <div class="check-row"><span class="ck w">FLAG</span><span class="ck-label">compound_proxies — 2 proxy variables detected</span></div>
+          <div class="check-row"><span class="ck p">PASS</span><span class="ck-label">text_scanner_race — no direct language</span></div>
+          <div class="check-row"><span class="ck p">PASS</span><span class="ck-label">state_overlay_il — Illinois HRA satisfied</span></div>
+          <div class="verdict-box">
+            <span style="font-size:14px;">🚫</span>
+            <span class="vl">BLOCKED — firewall_action: "block"</span>
+            <span class="vs">audit #8821 · 0.94</span>
           </div>
         </div>
 
       </div>
     </div>
 
-    <!-- Future placeholder -->
     <div class="future-card">
       <div>
         <div class="future-label">Coming next</div>
@@ -673,67 +507,64 @@
       </div>
       <span class="future-tag">In stealth</span>
     </div>
-
   </div>
 </section>
 
 <!-- ── How we build ── -->
-<section class="how-section">
+<section class="how-section" id="how-we-build">
   <div class="container">
-    <div class="how-inner">
-
-      <div class="how-left">
-        <div class="how-eyebrow">How we build</div>
+    <div class="how-grid-wrap">
+      <div>
+        <div class="eyebrow">How we build</div>
         <div class="how-heading">Agentic development.<br>Unreasonable output.</div>
-        <p class="how-body">We run AI agents throughout our entire development loop — writing code, generating test suites, reviewing pull requests, catching regressions. A small team moves with the throughput of an engineering org ten times its size.</p>
+        <p class="how-body">We run AI agents throughout our entire development loop — writing code, generating test suites, reviewing pull requests, catching regressions before they ship. A small team moves with the throughput of an engineering org ten times its size.</p>
+        <p class="how-body" style="margin-top:14px;">This isn't a workflow tweak. It's how we ship full compliance engines, analytics dashboards, and regulatory coverage in days instead of quarters.</p>
       </div>
 
-      <div class="how-right">
-        <div class="how-grid">
+      <div>
+        <div class="how-stats">
           <div class="how-stat-card">
             <div class="how-stat-num">512</div>
-            <div class="how-stat-label">Automated tests</div>
-            <div class="how-stat-sub">agents write tests alongside features</div>
+            <div class="how-stat-title">Automated tests</div>
+            <div class="how-stat-sub">agents write tests alongside every feature</div>
           </div>
           <div class="how-stat-card">
-            <div class="how-stat-num">80<span class="how-stat-unit">%</span></div>
-            <div class="how-stat-label">Code coverage</div>
+            <div class="how-stat-num">80<span style="font-size:18px;">%</span></div>
+            <div class="how-stat-title">Code coverage</div>
             <div class="how-stat-sub">enforced in CI on every push</div>
           </div>
           <div class="how-stat-card">
             <div class="how-stat-num">Days</div>
-            <div class="how-stat-label">Feature cycle time</div>
-            <div class="how-stat-sub">idea to production, not weeks</div>
+            <div class="how-stat-title">Feature cycle time</div>
+            <div class="how-stat-sub">idea to production, not quarters</div>
           </div>
           <div class="how-stat-card">
             <div class="how-stat-num">&lt;2</div>
-            <div class="how-stat-label">Engineers</div>
+            <div class="how-stat-title">Engineers</div>
             <div class="how-stat-sub">with agents handling the rest</div>
           </div>
         </div>
 
-        <!-- Mini commit log -->
-        <div class="how-log">
-          <div class="how-log-header">Recent shipping</div>
-          <div class="how-log-item">
-            <span class="how-log-hash">f1487db</span>
-            <span class="how-log-msg">feat: customer analytics — PostHog + DB tracking, admin dashboard</span>
+        <div class="commit-log">
+          <div class="commit-log-header">Recent commits</div>
+          <div class="commit-row">
+            <span class="commit-hash">f1487db</span>
+            <span class="commit-msg">feat: customer analytics — PostHog + DB tracking, admin dashboard</span>
           </div>
-          <div class="how-log-item">
-            <span class="how-log-hash">3f0cbab</span>
-            <span class="how-log-msg">feat: dynamic rule engine, JSON-LD audit export, indirect phrasing patterns</span>
+          <div class="commit-row">
+            <span class="commit-hash">3f0cbab</span>
+            <span class="commit-msg">feat: dynamic rule engine, JSON-LD audit export, indirect phrasing</span>
           </div>
-          <div class="how-log-item">
-            <span class="how-log-hash">78f1d08</span>
-            <span class="how-log-msg">feat: adverse action notice generator, disparate impact UI</span>
+          <div class="commit-row">
+            <span class="commit-hash">78f1d08</span>
+            <span class="commit-msg">feat: adverse action notice generator, disparate impact UI</span>
           </div>
-          <div class="how-log-item">
-            <span class="how-log-hash">0f0ed02</span>
-            <span class="how-log-msg">feat: 500+ HOLC zips, compound proxy, ECOA §1002.9, state laws</span>
+          <div class="commit-row">
+            <span class="commit-hash">0f0ed02</span>
+            <span class="commit-msg">feat: 500+ HOLC zips, compound proxy, ECOA §1002.9, state laws</span>
           </div>
         </div>
       </div>
-
     </div>
   </div>
 </section>
@@ -743,22 +574,14 @@
   <div class="container">
     <div class="about-grid">
       <div>
-        <div class="about-left-label">About</div>
+        <div class="eyebrow">About</div>
         <div class="about-heading">Infrastructure for the regulated AI era.</div>
       </div>
       <div class="about-body">
-        <p>
-          <strong>Cosmos AI LLC</strong> builds developer-first compliance tools for companies deploying AI in regulated industries. We start with the problems that create the most liability — loan decisions, hiring screens, clinical recommendations — and build the infrastructure layer that sits between AI systems and the damage they can cause.
-        </p>
-        <p>
-          Our first product, <strong>Pragma</strong>, is a real-time AI compliance firewall covering the EU AI Act, ECOA, EEOC, FCRA, CFPB, and a growing library of state regulations. It ships as a single API endpoint — no compliance team required, no six-month implementation.
-        </p>
-        <p>
-          We're a small team with deep conviction: the next decade of enterprise AI adoption will be shaped by whoever builds the best trust infrastructure first.
-        </p>
-        <a href="mailto:hello@usepragma.co" class="about-contact">
-          Get in touch →
-        </a>
+        <p><strong>Cosmos AI LLC</strong> builds developer-first compliance tools for companies deploying AI in regulated industries. We start with the problems that create the most liability — loan decisions, hiring screens, clinical recommendations — and build the infrastructure layer that sits between AI systems and the damage they can cause.</p>
+        <p>Our first product, <strong>Pragma</strong>, is a real-time AI compliance firewall covering the EU AI Act, ECOA, EEOC, FCRA, CFPB, and a growing library of state regulations. It ships as a single API endpoint — no compliance team required, no six-month implementation.</p>
+        <p>We're a small team with deep conviction: the next decade of enterprise AI adoption will be shaped by whoever builds the best trust infrastructure first. And we're building it faster than anyone else.</p>
+        <a href="mailto:hello@usepragma.co" class="about-contact">Get in touch →</a>
       </div>
     </div>
   </div>
@@ -766,11 +589,22 @@
 
 <!-- ── Footer ── -->
 <footer>
-  <span class="footer-brand">Cosmos&nbsp;<span class="ai">AI</span></span>
-  <ul class="footer-links">
-    <li><a href="https://usepragma.co">Pragma</a></li>
-    <li><a href="https://usepragma.co/lending">Lending</a></li>
-    <li><a href="#about">About</a></li>
-  </ul>
-  <span class="footer-legal">© 2026 Cosmos AI LLC · Delaware</span>
+  <div class="container">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <span class="logo-mark">C</span>
+        Cosmos AI LLC
+      </div>
+      <div class="footer-links">
+        <a href="https://usepragma.co" class="footer-link">Pragma</a>
+        <a href="https://usepragma.co/lending" class="footer-link">Lending</a>
+        <a href="#about" class="footer-link">About</a>
+        <a href="mailto:hello@usepragma.co" class="footer-link">Contact</a>
+      </div>
+      <span class="footer-legal">© 2026 Cosmos AI LLC · Delaware</span>
+    </div>
+  </div>
 </footer>
+
+</body>
+</html>
