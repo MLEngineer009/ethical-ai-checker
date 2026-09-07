@@ -130,6 +130,7 @@ class EthicalAnalysis(BaseModel):
     firewall_action: str = "allow"     # "block" | "override_required" | "allow"
     audit_log_id: Optional[int] = None
     proxy_variables_detected: list[Dict[str, Any]] = []
+    semantic_flags: list[Dict[str, Any]] = []
 
 
 class ReportRequest(BaseModel):
@@ -321,7 +322,27 @@ async def evaluate_decision(
     analysis = _run_evaluation(request.decision, request.context, category, request.block_threshold)
 
     from .risk_detector import get_proxy_variable_report
+    from .semantic_layer import score_semantic_proxies
     proxy_report = get_proxy_variable_report(request.context)
+
+    # L1.5 — semantic proxy detection on combined decision + context text
+    combined_text = request.decision + " " + " ".join(
+        str(v) for v in request.context.values() if isinstance(v, str)
+    )
+    semantic_flags = score_semantic_proxies(combined_text)
+    if semantic_flags:
+        existing_flags = set(analysis.get("risk_flags", []))
+        for sf in semantic_flags:
+            label = f"[semantic] {sf['category'].replace('_', ' ')} (sim={sf['similarity_score']:.2f})"
+            if label not in existing_flags:
+                analysis.setdefault("risk_flags", []).append(label)
+                analysis.setdefault("regulatory_refs", []).append(sf["regulation"])
+        # Escalate firewall action if semantic flags found and action was allow
+        if analysis["firewall_action"] == "allow" and any(
+            sf["severity"] == "high" for sf in semantic_flags
+        ):
+            analysis["firewall_action"] = "override_required"
+    analysis["semantic_flags"] = semantic_flags
 
     action = analysis["firewall_action"]
     if action == "block":
@@ -1950,6 +1971,87 @@ async def docs_auditing():
     if page.exists():
         return FileResponse(page)
     raise HTTPException(status_code=404, detail="Page not found")
+
+
+# ── Disparate Impact Analytics ─────────────────────────────────────────────────
+
+class DIOutcomeRequest(BaseModel):
+    category: str                 # hiring | lending | healthcare
+    group_attribute: str          # gender | race | age_group | national_origin
+    group_value: str              # male | female | 25-34 | Hispanic
+    favorable: bool               # True = favorable outcome (hired, approved, etc.)
+
+
+@app.post("/disparate-impact/record", dependencies=[Depends(get_current_user)])
+async def record_di_outcome(request: DIOutcomeRequest, user: dict = Depends(get_current_user)):
+    """
+    Record a single decision outcome for disparate impact tracking.
+    Outcomes are stored as aggregated weekly counts — no individual PII stored.
+    """
+    valid_categories = {"hiring", "lending", "healthcare", "insurance", "other"}
+    if request.category not in valid_categories:
+        raise HTTPException(status_code=400, detail=f"category must be one of {sorted(valid_categories)}")
+    if not request.group_attribute.strip() or not request.group_value.strip():
+        raise HTTPException(status_code=400, detail="group_attribute and group_value are required")
+
+    database.record_di_outcome(
+        anon_id_val=database.anon_id(user["sub"]),
+        category=request.category,
+        group_attribute=request.group_attribute[:64],
+        group_value=request.group_value[:64],
+        favorable=request.favorable,
+    )
+    return {"status": "recorded"}
+
+
+@app.get("/disparate-impact/report", dependencies=[Depends(get_current_user)])
+async def get_di_report(
+    category: str = "hiring",
+    weeks: int = 12,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Return AIR (Adverse Impact Ratio) time-series per protected group attribute.
+    Groups with AIR < 0.8 for two consecutive weeks trigger a drift alert.
+    """
+    if weeks < 1 or weeks > 52:
+        raise HTTPException(status_code=400, detail="weeks must be between 1 and 52")
+    report = database.get_di_report(
+        anon_id_val=database.anon_id(user["sub"]),
+        category=category,
+        weeks=weeks,
+    )
+    return report
+
+
+# ── Policy Packs ───────────────────────────────────────────────────────────────
+
+@app.get("/policy-packs", dependencies=[Depends(get_current_user)])
+async def list_policy_packs(user: dict = Depends(get_current_user)):
+    """Return all available policy packs with their controls and enrollment status."""
+    packs = database.get_policy_packs()
+    enrolled = set(database.get_enrolled_packs(database.anon_id(user["sub"])))
+    for p in packs:
+        p["enrolled"] = p["pack_id"] in enrolled
+    return {"packs": packs}
+
+
+@app.post("/policy-packs/{pack_id}/enroll", dependencies=[Depends(get_current_user)])
+async def enroll_pack(pack_id: str, user: dict = Depends(get_current_user)):
+    """Enroll in a compliance policy pack."""
+    packs = database.get_policy_packs()
+    valid_ids = {p["pack_id"] for p in packs}
+    if pack_id not in valid_ids:
+        raise HTTPException(status_code=404, detail="Policy pack not found")
+    database.enroll_policy_pack(database.anon_id(user["sub"]), pack_id)
+    return {"status": "enrolled", "pack_id": pack_id}
+
+
+@app.post("/policy-packs/{pack_id}/unenroll", dependencies=[Depends(get_current_user)])
+async def unenroll_pack(pack_id: str, user: dict = Depends(get_current_user)):
+    """Leave a compliance policy pack."""
+    database.unenroll_policy_pack(database.anon_id(user["sub"]), pack_id)
+    return {"status": "unenrolled", "pack_id": pack_id}
 
 
 @app.get("/")

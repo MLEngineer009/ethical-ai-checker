@@ -318,6 +318,52 @@ org_rule_overrides = Table(
     Column("updated_at",      String,  nullable=False),
 )
 
+# Disparate Impact time-series analytics
+# Aggregated weekly outcome counts per protected group — never stores individual PII.
+disparate_impact_snapshots = Table(
+    "disparate_impact_snapshots", _meta,
+    Column("id",                  Integer, primary_key=True, autoincrement=True),
+    Column("anon_id",             String,  nullable=False),    # org or user identifier
+    Column("category",            String,  nullable=False),    # hiring | lending | healthcare
+    Column("group_attribute",     String,  nullable=False),    # gender | race | age_group | national_origin
+    Column("group_value",         String,  nullable=False),    # male | female | 25-34 | …
+    Column("decisions_total",     Integer, nullable=False, server_default="0"),
+    Column("decisions_favorable", Integer, nullable=False, server_default="0"),
+    Column("week_start",          String,  nullable=False),    # ISO date of Monday of the week
+    Column("created_at",          String,  nullable=False),
+    Column("updated_at",          String,  nullable=False),
+)
+
+# Policy Packs — compliance frameworks beyond EU AI Act
+policy_packs = Table(
+    "policy_packs", _meta,
+    Column("id",          Integer, primary_key=True, autoincrement=True),
+    Column("pack_id",     String,  nullable=False, unique=True),  # nist_ai_rmf | sr_11_7 | iso_42001
+    Column("name",        String,  nullable=False),
+    Column("description", String,  nullable=True),
+    Column("version",     String,  nullable=True),
+    Column("created_at",  String,  nullable=False),
+)
+
+policy_pack_controls = Table(
+    "policy_pack_controls", _meta,
+    Column("id",                Integer, primary_key=True, autoincrement=True),
+    Column("pack_id",           String,  nullable=False),
+    Column("control_id",        String,  nullable=False),   # GOVERN-1.1, SR11-7-SEC-3.1
+    Column("title",             String,  nullable=False),
+    Column("description",       String,  nullable=True),
+    Column("category",          String,  nullable=True),    # Govern | Map | Measure | Manage
+    Column("requirement_level", String,  nullable=True),    # MUST | SHOULD | MAY
+)
+
+org_policy_pack_enrollments = Table(
+    "org_policy_pack_enrollments", _meta,
+    Column("id",          Integer, primary_key=True, autoincrement=True),
+    Column("anon_id",     String,  nullable=False),
+    Column("pack_id",     String,  nullable=False),
+    Column("enrolled_at", String,  nullable=False),
+)
+
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
@@ -382,6 +428,8 @@ def init_db() -> None:
 
     # Seed default compliance rules if table is empty
     _seed_default_rules()
+    # Seed policy packs (NIST AI RMF, SR 11-7)
+    _seed_policy_packs()
 
     logger.info("Database schema up to date")
 
@@ -2069,3 +2117,358 @@ def get_analytics_summary() -> dict:
         "top_events": dict(top_events.most_common(20)),
         "generated_at": now,
     }
+
+
+# ── Disparate Impact Analytics ────────────────────────────────────────────────
+
+def _week_start(dt: datetime) -> str:
+    """Return ISO date string for the Monday of dt's week."""
+    monday = dt - __import__("datetime").timedelta(days=dt.weekday())
+    return monday.date().isoformat()
+
+
+def record_di_outcome(
+    anon_id_val: str,
+    category: str,
+    group_attribute: str,
+    group_value: str,
+    favorable: bool,
+) -> None:
+    """Record a single decision outcome for disparate impact tracking."""
+    now = datetime.now(timezone.utc)
+    week = _week_start(now)
+    now_iso = now.isoformat()
+    try:
+        with _engine.begin() as conn:
+            existing = conn.execute(
+                disparate_impact_snapshots.select().where(
+                    disparate_impact_snapshots.c.anon_id == anon_id_val,
+                    disparate_impact_snapshots.c.category == category,
+                    disparate_impact_snapshots.c.group_attribute == group_attribute,
+                    disparate_impact_snapshots.c.group_value == group_value,
+                    disparate_impact_snapshots.c.week_start == week,
+                )
+            ).fetchone()
+            if existing:
+                conn.execute(
+                    disparate_impact_snapshots.update()
+                    .where(disparate_impact_snapshots.c.id == existing.id)
+                    .values(
+                        decisions_total=existing.decisions_total + 1,
+                        decisions_favorable=existing.decisions_favorable + (1 if favorable else 0),
+                        updated_at=now_iso,
+                    )
+                )
+            else:
+                conn.execute(disparate_impact_snapshots.insert().values(
+                    anon_id=anon_id_val,
+                    category=category,
+                    group_attribute=group_attribute,
+                    group_value=group_value,
+                    decisions_total=1,
+                    decisions_favorable=1 if favorable else 0,
+                    week_start=week,
+                    created_at=now_iso,
+                    updated_at=now_iso,
+                ))
+    except Exception as e:
+        logger.error("record_di_outcome failed: %s", e)
+
+
+def get_di_report(anon_id_val: str, category: str, weeks: int = 12) -> dict:
+    """
+    Return AIR (Adverse Impact Ratio) per group attribute over the last N weeks.
+    AIR = (group favorable rate) / (highest favorable rate across all groups).
+    Flags groups where AIR < 0.8 (EEOC 4/5ths rule). Also flags if AIR < 0.8
+    for two consecutive weeks (drift alert).
+    """
+    try:
+        with _engine.connect() as conn:
+            rows = conn.execute(
+                disparate_impact_snapshots.select()
+                .where(
+                    disparate_impact_snapshots.c.anon_id == anon_id_val,
+                    disparate_impact_snapshots.c.category == category,
+                )
+                .order_by(disparate_impact_snapshots.c.week_start.asc())
+            ).fetchall()
+    except Exception as e:
+        logger.error("get_di_report failed: %s", e)
+        return {}
+
+    # Group by (group_attribute, group_value, week_start)
+    from collections import defaultdict
+    by_attr: dict = defaultdict(lambda: defaultdict(list))
+    for r in rows:
+        by_attr[r.group_attribute][r.group_value].append({
+            "week": r.week_start,
+            "total": r.decisions_total,
+            "favorable": r.decisions_favorable,
+            "rate": round(r.decisions_favorable / r.decisions_total, 4) if r.decisions_total else 0,
+        })
+
+    results = {}
+    for attr, groups in by_attr.items():
+        # Compute AIR per week across all groups for this attribute
+        all_weeks = sorted({w["week"] for g in groups.values() for w in g})
+        # Build rate matrix: week → group → rate
+        week_rates: dict = defaultdict(dict)
+        for gval, weeks_data in groups.items():
+            for wd in weeks_data:
+                week_rates[wd["week"]][gval] = wd["rate"]
+
+        weekly_air = []
+        alerts = []
+        prev_below_threshold = {}
+        for week in all_weeks[-weeks:]:
+            rates = week_rates.get(week, {})
+            if not rates:
+                continue
+            max_rate = max(rates.values()) or 1
+            airs = {gval: round(r / max_rate, 4) for gval, r in rates.items()}
+            weekly_air.append({"week": week, "rates": rates, "air": airs})
+            # Drift detection: two consecutive weeks below 0.8
+            for gval, air_val in airs.items():
+                if air_val < 0.8:
+                    if prev_below_threshold.get(gval):
+                        alerts.append({
+                            "group_attribute": attr,
+                            "group_value": gval,
+                            "air": air_val,
+                            "week": week,
+                            "type": "consecutive_drift",
+                            "message": f"{gval} AIR {air_val:.2f} below 0.8 threshold for 2+ consecutive weeks",
+                        })
+                    prev_below_threshold[gval] = True
+                else:
+                    prev_below_threshold[gval] = False
+
+        results[attr] = {
+            "groups": list(groups.keys()),
+            "weekly_air": weekly_air,
+            "alerts": alerts,
+            "latest_air": weekly_air[-1]["air"] if weekly_air else {},
+        }
+
+    return {"category": category, "attributes": results}
+
+
+# ── Policy Packs ──────────────────────────────────────────────────────────────
+
+POLICY_PACK_SEED: list[dict] = [
+    {
+        "pack_id": "nist_ai_rmf",
+        "name": "NIST AI Risk Management Framework",
+        "description": "NIST AI RMF 1.0 — Govern, Map, Measure, Manage functions for trustworthy AI",
+        "version": "1.0",
+        "controls": [
+            {"control_id": "GOVERN-1.1", "category": "Govern", "requirement_level": "MUST",
+             "title": "Policies and accountability structures for AI risk",
+             "description": "Organizational policies that define accountability for AI risk management are documented and implemented."},
+            {"control_id": "GOVERN-1.2", "category": "Govern", "requirement_level": "MUST",
+             "title": "AI risk tolerance defined",
+             "description": "Risk tolerance levels for AI systems are explicitly defined relative to organizational values and regulatory obligations."},
+            {"control_id": "GOVERN-2.1", "category": "Govern", "requirement_level": "MUST",
+             "title": "Roles and responsibilities assigned",
+             "description": "Teams and individuals accountable for AI risk are identified and empowered."},
+            {"control_id": "GOVERN-5.1", "category": "Govern", "requirement_level": "SHOULD",
+             "title": "Organizational culture supports AI risk management",
+             "description": "Mechanisms exist for AI practitioners to raise concerns without fear of retaliation."},
+            {"control_id": "MAP-1.1", "category": "Map", "requirement_level": "MUST",
+             "title": "Context established before deployment",
+             "description": "The intended context of use, stakeholders, and legal requirements are identified before AI deployment."},
+            {"control_id": "MAP-2.1", "category": "Map", "requirement_level": "MUST",
+             "title": "Scientific grounding verified",
+             "description": "AI methods are appropriate for the problem domain and scientific basis is validated."},
+            {"control_id": "MAP-3.1", "category": "Map", "requirement_level": "MUST",
+             "title": "Benefits and costs assessed",
+             "description": "Expected benefits and potential harms (including to third parties) are quantified before deployment."},
+            {"control_id": "MEASURE-1.1", "category": "Measure", "requirement_level": "MUST",
+             "title": "Metrics defined for AI risks",
+             "description": "Quantitative and qualitative metrics are defined to assess AI risk and trustworthiness."},
+            {"control_id": "MEASURE-2.2", "category": "Measure", "requirement_level": "MUST",
+             "title": "Bias evaluated across demographic groups",
+             "description": "AI systems are tested for bias and fairness across protected demographic groups before and after deployment."},
+            {"control_id": "MEASURE-2.5", "category": "Measure", "requirement_level": "MUST",
+             "title": "Explainability and interpretability assessed",
+             "description": "AI system outputs can be explained to the degree necessary for intended use."},
+            {"control_id": "MEASURE-4.1", "category": "Measure", "requirement_level": "SHOULD",
+             "title": "Measurement results shared",
+             "description": "AI risk measurement results are communicated to relevant stakeholders."},
+            {"control_id": "MANAGE-1.1", "category": "Manage", "requirement_level": "MUST",
+             "title": "Risk responses implemented",
+             "description": "Responses to identified AI risks are implemented and prioritized based on impact."},
+            {"control_id": "MANAGE-2.2", "category": "Manage", "requirement_level": "MUST",
+             "title": "Mechanisms for incident reporting",
+             "description": "Processes exist to detect, report, and respond to AI incidents and near-misses."},
+            {"control_id": "MANAGE-3.1", "category": "Manage", "requirement_level": "MUST",
+             "title": "Risks monitored continuously",
+             "description": "AI system performance and risk levels are monitored continuously post-deployment."},
+            {"control_id": "MANAGE-4.1", "category": "Manage", "requirement_level": "SHOULD",
+             "title": "Residual risk documented",
+             "description": "Risks that cannot be fully mitigated are documented and accepted by accountable leadership."},
+        ],
+    },
+    {
+        "pack_id": "sr_11_7",
+        "name": "SR 11-7 / SR 26-2 Model Risk Management",
+        "description": "Federal Reserve & OCC guidance on model risk management for banking and financial services AI",
+        "version": "SR 11-7 (2011) + SR 26-2 (2026)",
+        "controls": [
+            {"control_id": "SR11-7-DEV-1", "category": "Development", "requirement_level": "MUST",
+             "title": "Model purpose and limitations documented",
+             "description": "Model intended use, key assumptions, and known limitations are documented before production deployment."},
+            {"control_id": "SR11-7-DEV-2", "category": "Development", "requirement_level": "MUST",
+             "title": "Model conceptual soundness established",
+             "description": "The theoretical and empirical basis for the model is validated by persons independent of the development team."},
+            {"control_id": "SR11-7-VAL-1", "category": "Validation", "requirement_level": "MUST",
+             "title": "Independent model validation performed",
+             "description": "Model validation is performed by staff functionally independent of model developers and users."},
+            {"control_id": "SR11-7-VAL-2", "category": "Validation", "requirement_level": "MUST",
+             "title": "Outcomes analysis conducted",
+             "description": "Actual model outcomes are compared to predicted outcomes; backtesting and benchmarking performed."},
+            {"control_id": "SR11-7-VAL-3", "category": "Validation", "requirement_level": "MUST",
+             "title": "Sensitivity and stress testing",
+             "description": "Models are tested under stressed and adverse scenarios to evaluate robustness."},
+            {"control_id": "SR11-7-GOV-1", "category": "Governance", "requirement_level": "MUST",
+             "title": "Model inventory maintained",
+             "description": "A complete inventory of all models in use is maintained, including risk tier and validation status."},
+            {"control_id": "SR11-7-GOV-2", "category": "Governance", "requirement_level": "MUST",
+             "title": "Model risk tiering applied",
+             "description": "Models are tiered by risk level; high-risk models receive more rigorous oversight and validation."},
+            {"control_id": "SR11-7-GOV-3", "category": "Governance", "requirement_level": "MUST",
+             "title": "Board and senior management oversight",
+             "description": "Board and senior management are informed of model risk exposures and approve model risk policies."},
+            {"control_id": "SR11-7-MON-1", "category": "Monitoring", "requirement_level": "MUST",
+             "title": "Ongoing performance monitoring",
+             "description": "Model performance is monitored on an ongoing basis; deterioration triggers review and revalidation."},
+            {"control_id": "SR11-7-MON-2", "category": "Monitoring", "requirement_level": "MUST",
+             "title": "Audit trail for model decisions",
+             "description": "An immutable audit trail of model inputs, outputs, and overrides is maintained for regulatory examination."},
+            {"control_id": "SR26-2-AI-1", "category": "AI Governance", "requirement_level": "MUST",
+             "title": "AI-specific risk assessment (SR 26-2)",
+             "description": "AI/ML models receive supplemental risk assessment covering data bias, distributional shift, and explainability gaps."},
+            {"control_id": "SR26-2-AI-2", "category": "AI Governance", "requirement_level": "MUST",
+             "title": "Disparate impact testing for credit models",
+             "description": "Credit scoring AI models are tested for disparate impact on ECOA-protected groups before deployment and annually."},
+            {"control_id": "SR26-2-AI-3", "category": "AI Governance", "requirement_level": "SHOULD",
+             "title": "Explainability standard defined",
+             "description": "The institution defines and enforces a minimum explainability standard for adverse action decisions made by AI."},
+        ],
+    },
+]
+
+
+def _seed_policy_packs() -> None:
+    """Seed policy pack controls if not already present."""
+    try:
+        with _engine.begin() as conn:
+            for pack in POLICY_PACK_SEED:
+                existing = conn.execute(
+                    policy_packs.select().where(policy_packs.c.pack_id == pack["pack_id"])
+                ).fetchone()
+                if not existing:
+                    now = datetime.now(timezone.utc).isoformat()
+                    conn.execute(policy_packs.insert().values(
+                        pack_id=pack["pack_id"],
+                        name=pack["name"],
+                        description=pack["description"],
+                        version=pack["version"],
+                        created_at=now,
+                    ))
+                    for ctrl in pack["controls"]:
+                        conn.execute(policy_pack_controls.insert().values(
+                            pack_id=pack["pack_id"],
+                            control_id=ctrl["control_id"],
+                            title=ctrl["title"],
+                            description=ctrl["description"],
+                            category=ctrl["category"],
+                            requirement_level=ctrl["requirement_level"],
+                        ))
+                    logger.info("Policy pack seeded: %s (%d controls)", pack["pack_id"], len(pack["controls"]))
+    except Exception as e:
+        logger.error("_seed_policy_packs failed: %s", e)
+
+
+def get_policy_packs() -> list[dict]:
+    """Return all available policy packs with their controls."""
+    try:
+        with _engine.connect() as conn:
+            packs = conn.execute(policy_packs.select()).fetchall()
+            controls = conn.execute(policy_pack_controls.select()).fetchall()
+        ctrl_by_pack: dict = {}
+        for c in controls:
+            ctrl_by_pack.setdefault(c.pack_id, []).append({
+                "control_id": c.control_id,
+                "title": c.title,
+                "description": c.description,
+                "category": c.category,
+                "requirement_level": c.requirement_level,
+            })
+        return [
+            {
+                "pack_id": p.pack_id,
+                "name": p.name,
+                "description": p.description,
+                "version": p.version,
+                "controls": ctrl_by_pack.get(p.pack_id, []),
+                "control_count": len(ctrl_by_pack.get(p.pack_id, [])),
+            }
+            for p in packs
+        ]
+    except Exception as e:
+        logger.error("get_policy_packs failed: %s", e)
+        return []
+
+
+def enroll_policy_pack(anon_id_val: str, pack_id: str) -> bool:
+    """Enroll a user/org in a policy pack."""
+    try:
+        with _engine.begin() as conn:
+            existing = conn.execute(
+                org_policy_pack_enrollments.select().where(
+                    org_policy_pack_enrollments.c.anon_id == anon_id_val,
+                    org_policy_pack_enrollments.c.pack_id == pack_id,
+                )
+            ).fetchone()
+            if not existing:
+                conn.execute(org_policy_pack_enrollments.insert().values(
+                    anon_id=anon_id_val,
+                    pack_id=pack_id,
+                    enrolled_at=datetime.now(timezone.utc).isoformat(),
+                ))
+        return True
+    except Exception as e:
+        logger.error("enroll_policy_pack failed: %s", e)
+        return False
+
+
+def unenroll_policy_pack(anon_id_val: str, pack_id: str) -> bool:
+    """Remove a user/org from a policy pack."""
+    try:
+        with _engine.begin() as conn:
+            conn.execute(
+                org_policy_pack_enrollments.delete().where(
+                    org_policy_pack_enrollments.c.anon_id == anon_id_val,
+                    org_policy_pack_enrollments.c.pack_id == pack_id,
+                )
+            )
+        return True
+    except Exception as e:
+        logger.error("unenroll_policy_pack failed: %s", e)
+        return False
+
+
+def get_enrolled_packs(anon_id_val: str) -> list[str]:
+    """Return list of pack_ids the user is enrolled in."""
+    try:
+        with _engine.connect() as conn:
+            rows = conn.execute(
+                org_policy_pack_enrollments.select().where(
+                    org_policy_pack_enrollments.c.anon_id == anon_id_val
+                )
+            ).fetchall()
+        return [r.pack_id for r in rows]
+    except Exception as e:
+        logger.error("get_enrolled_packs failed: %s", e)
+        return []

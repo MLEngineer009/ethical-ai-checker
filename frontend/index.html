@@ -1802,6 +1802,43 @@
         <!-- ── Settings tab ── -->
         <div class="tab-pane" id="tab-settings">
 
+          <!-- Policy Packs -->
+          <div class="card settings-section" id="policyPacksCard">
+            <div class="settings-h">📦 Compliance Policy Packs</div>
+            <p class="settings-sub">Activate additional compliance frameworks beyond EU AI Act. Controls are tracked per-org and appear in audit reports.</p>
+            <div id="policyPacksList" style="display:flex;flex-direction:column;gap:10px;margin-top:12px;">
+              <div style="color:var(--text-muted);font-size:13px;">Loading…</div>
+            </div>
+          </div>
+
+          <!-- Disparate Impact -->
+          <div class="card settings-section" id="diCard">
+            <div class="settings-h" style="display:flex;align-items:center;justify-content:space-between;">
+              <span>📊 Disparate Impact Monitor</span>
+              <select id="diCategorySelect" style="background:var(--input-bg);border:1px solid var(--input-border);border-radius:6px;color:var(--text);font-size:12px;padding:4px 8px;" onchange="loadDIReport()">
+                <option value="hiring">Hiring</option>
+                <option value="lending">Lending</option>
+                <option value="healthcare">Healthcare</option>
+              </select>
+            </div>
+            <p class="settings-sub">EEOC 4/5ths rule — decision outcome rates across protected groups. Alerts fire when AIR &lt; 0.8 for two consecutive weeks.</p>
+            <div id="diReportContent" style="margin-top:12px;">
+              <div style="color:var(--text-muted);font-size:13px;">Loading…</div>
+            </div>
+            <div style="margin-top:14px;border-top:1px solid var(--card-border);padding-top:14px;">
+              <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Record a Decision Outcome</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                <input id="diGroupAttr" type="text" placeholder="Group attribute (e.g. gender)" style="background:var(--input-bg);border:1px solid var(--input-border);border-radius:6px;color:var(--text);font-size:13px;padding:7px 10px;" />
+                <input id="diGroupVal" type="text" placeholder="Group value (e.g. female)" style="background:var(--input-bg);border:1px solid var(--input-border);border-radius:6px;color:var(--text);font-size:13px;padding:7px 10px;" />
+              </div>
+              <div style="display:flex;gap:8px;">
+                <button class="btn-sm" style="background:rgba(74,222,128,0.12);border-color:rgba(74,222,128,0.3);color:#4ade80;" onclick="recordDIOutcome(true)">✓ Favorable</button>
+                <button class="btn-sm" style="background:rgba(248,113,113,0.12);border-color:rgba(248,113,113,0.3);color:#f87171;" onclick="recordDIOutcome(false)">✗ Adverse</button>
+              </div>
+              <div id="diRecordStatus" style="font-size:12px;color:var(--text-muted);margin-top:6px;"></div>
+            </div>
+          </div>
+
           <!-- Plan & Billing -->
           <div class="card settings-section" id="billingCard">
             <div class="settings-h">💳 Plan &amp; Billing</div>
@@ -3310,7 +3347,7 @@ if verdict["firewall_action"] == "block":
       if (name === 'demo') { renderDemoScenarios(); }
       if (name === 'compliance') loadComplianceTab();
       if (name === 'dashboard') loadDashboard();
-      if (name === 'settings') { loadOrgs(); loadAPIKeys(); loadBilling(); }
+      if (name === 'settings') { loadOrgs(); loadAPIKeys(); loadBilling(); loadPolicyPacks(); loadDIReport(); }
       if (name === 'dashboard' && _isAdmin) loadAdminAnalytics();
     }
 
@@ -4518,6 +4555,119 @@ if verdict["firewall_action"] == "block":
           </div>`;
       } catch(e) {
         el.innerHTML = `<div style="color:#f87171;font-size:13px;">Error: ${esc(e.message)}</div>`;
+      }
+    }
+
+    // ── Policy Packs ───────────────────────────────────────────────────────────
+    async function loadPolicyPacks() {
+      const el = document.getElementById('policyPacksList');
+      if (!el) return;
+      try {
+        const res = await fetch(`${API}/policy-packs`, { headers: authHeaders() });
+        if (!res.ok) { el.innerHTML = '<div style="color:#f87171;font-size:13px;">Failed to load.</div>'; return; }
+        const { packs } = await res.json();
+        if (!packs || packs.length === 0) { el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">No packs available.</div>'; return; }
+        el.innerHTML = packs.map(p => {
+          const categories = [...new Set(p.controls.map(c => c.category))];
+          const enrolledBadge = p.enrolled
+            ? `<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:rgba(74,222,128,0.15);color:#4ade80;border:1px solid rgba(74,222,128,0.25);">Active</span>`
+            : '';
+          return `<div style="background:var(--input-bg);border:1px solid var(--card-border);border-radius:10px;padding:16px;">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                  <span style="font-size:13px;font-weight:700;color:var(--text);">${esc(p.name)}</span>
+                  ${enrolledBadge}
+                </div>
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">${esc(p.description || '')}</div>
+                <div style="display:flex;gap:5px;flex-wrap:wrap;">
+                  <span style="font-size:10px;color:var(--text-subtle);background:rgba(255,255,255,0.05);border-radius:4px;padding:2px 6px;">${p.control_count} controls</span>
+                  <span style="font-size:10px;color:var(--text-subtle);background:rgba(255,255,255,0.05);border-radius:4px;padding:2px 6px;">v${esc(p.version || '')}</span>
+                  ${categories.map(c => `<span style="font-size:10px;color:var(--accent2);background:rgba(56,189,248,0.08);border-radius:4px;padding:2px 6px;">${esc(c)}</span>`).join('')}
+                </div>
+              </div>
+              <button class="btn-sm" onclick="togglePolicyPack('${esc(p.pack_id)}', ${p.enrolled})" style="${p.enrolled ? 'border-color:rgba(248,113,113,0.4);color:#f87171;' : ''}">
+                ${p.enrolled ? 'Deactivate' : 'Activate'}
+              </button>
+            </div>
+          </div>`;
+        }).join('');
+      } catch(e) {
+        el.innerHTML = `<div style="color:#f87171;font-size:13px;">Error: ${esc(e.message)}</div>`;
+      }
+    }
+
+    async function togglePolicyPack(packId, currentlyEnrolled) {
+      const action = currentlyEnrolled ? 'unenroll' : 'enroll';
+      try {
+        const res = await fetch(`${API}/policy-packs/${encodeURIComponent(packId)}/${action}`, {
+          method: 'POST', headers: authHeaders()
+        });
+        if (!res.ok) throw new Error('Request failed');
+        await loadPolicyPacks();
+      } catch(e) {
+        alert('Failed to update policy pack: ' + e.message);
+      }
+    }
+
+    // ── Disparate Impact Monitor ───────────────────────────────────────────────
+    async function loadDIReport() {
+      const el = document.getElementById('diReportContent');
+      if (!el) return;
+      const category = document.getElementById('diCategorySelect')?.value || 'hiring';
+      el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">Loading…</div>';
+      try {
+        const res = await fetch(`${API}/disparate-impact/report?category=${encodeURIComponent(category)}&weeks=12`, { headers: authHeaders() });
+        if (!res.ok) { el.innerHTML = '<div style="color:#f87171;font-size:13px;">Failed to load.</div>'; return; }
+        const data = await res.json();
+        const attrs = data.attributes || {};
+        if (Object.keys(attrs).length === 0) {
+          el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">No data recorded yet. Use the form below to record decision outcomes.</div>';
+          return;
+        }
+        const attrBlocks = Object.entries(attrs).map(([attr, info]) => {
+          const latestAir = info.latest_air || {};
+          const alerts = info.alerts || [];
+          const airRows = Object.entries(latestAir).map(([grp, air]) => {
+            const color = air < 0.8 ? '#f87171' : air < 0.9 ? '#fbbf24' : '#4ade80';
+            const flag = air < 0.8 ? ' ⚠️' : '';
+            return `<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+              <span style="font-size:12px;color:var(--text);">${esc(grp)}</span>
+              <span style="font-size:13px;font-weight:700;color:${color};">${(air * 100).toFixed(1)}%${flag}</span>
+            </div>`;
+          }).join('');
+          const alertBadges = alerts.map(a =>
+            `<div style="margin-top:6px;padding:8px 10px;border-radius:6px;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.25);font-size:11px;color:#f87171;">⚠️ ${esc(a.message)}</div>`
+          ).join('');
+          return `<div style="background:var(--input-bg);border:1px solid var(--card-border);border-radius:8px;padding:12px;margin-bottom:8px;">
+            <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">${esc(attr)}</div>
+            ${airRows}
+            ${alertBadges}
+          </div>`;
+        }).join('');
+        el.innerHTML = `<div style="font-size:11px;color:var(--text-subtle);margin-bottom:8px;">AIR = group favorable rate ÷ highest favorable rate. EEOC threshold: ≥ 0.80</div>${attrBlocks}`;
+      } catch(e) {
+        el.innerHTML = `<div style="color:#f87171;font-size:13px;">Error: ${esc(e.message)}</div>`;
+      }
+    }
+
+    async function recordDIOutcome(favorable) {
+      const category = document.getElementById('diCategorySelect')?.value || 'hiring';
+      const attr = document.getElementById('diGroupAttr')?.value?.trim();
+      const val  = document.getElementById('diGroupVal')?.value?.trim();
+      const status = document.getElementById('diRecordStatus');
+      if (!attr || !val) { if (status) status.textContent = 'Please enter group attribute and value.'; return; }
+      try {
+        const res = await fetch(`${API}/disparate-impact/record`, {
+          method: 'POST',
+          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ category, group_attribute: attr, group_value: val, favorable }),
+        });
+        if (!res.ok) throw new Error('Failed');
+        if (status) { status.textContent = `Recorded ${favorable ? 'favorable' : 'adverse'} outcome for ${val}.`; status.style.color = favorable ? '#4ade80' : '#f87171'; }
+        await loadDIReport();
+      } catch(e) {
+        if (status) { status.textContent = 'Error: ' + e.message; status.style.color = '#f87171'; }
       }
     }
   </script>
