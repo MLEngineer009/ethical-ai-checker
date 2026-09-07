@@ -1583,9 +1583,9 @@
                   </div>
                 </div>
 
-                <!-- Art. 25 -->
+                <!-- Art. 26 (DB columns labelled art25_* — legacy pre-final-text naming) -->
                 <div class="wiz-article-block">
-                  <div class="wiz-article-title">Article 25 — Deployer Obligations</div>
+                  <div class="wiz-article-title">Article 26 — Obligations of Deployers</div>
                   <label class="wiz-checkbox-row" style="margin-bottom:8px;">
                     <input type="checkbox" id="sysArt25Instructions">
                     Instructions for use provided to all deployers
@@ -1636,11 +1636,11 @@
 
               <!-- ── Step 5: Registration & Review ── -->
               <div id="wizStep5" style="display:none;">
-                <div class="wiz-step-hint"><b>Art. 30</b> requires registration in the EU AI public database before EU market placement. <b>Art. 33</b> requires a conformity assessment. Then review your answers and submit.</div>
+                <div class="wiz-step-hint"><b>Art. 49</b> requires registration in the EU AI public database (structure defined in Art. 71) before EU market placement. <b>Art. 43</b> requires a conformity assessment (Annex VI self-assessment for most Annex III systems; Annex VII third-party for biometrics/law enforcement). Then review your answers and submit.</div>
 
-                <!-- Art. 30 -->
+                <!-- Art. 49 (DB columns labelled art30_* — legacy pre-final-text naming) -->
                 <div class="wiz-article-block">
-                  <div class="wiz-article-title">Article 30 — EU AI Database Registration</div>
+                  <div class="wiz-article-title">Article 49 — Registration in EU AI Database</div>
                   <label class="wiz-checkbox-row" style="margin-bottom:8px;">
                     <input type="checkbox" id="sysArt30Registered">
                     System is registered in the EU AI Act public database
@@ -1658,9 +1658,9 @@
                   </div>
                 </div>
 
-                <!-- Art. 33 -->
+                <!-- Art. 43 (DB columns labelled art33_* — legacy pre-final-text naming) -->
                 <div class="wiz-article-block" style="margin-bottom:18px;">
-                  <div class="wiz-article-title">Article 33 — Conformity Assessment</div>
+                  <div class="wiz-article-title">Article 43 — Conformity Assessment</div>
                   <div class="wiz-field-label" style="margin-bottom:6px;">Assessment type</div>
                   <select id="sysArt33Conformity" class="wiz-input" style="margin-bottom:8px;">
                     <option value="">— Not yet started</option>
@@ -2823,25 +2823,25 @@ if verdict["firewall_action"] == "block":
       sysArt17QMS:              true,
       sysArt17EvidenceNotes:    '',
       sysArt17EvidenceDate:     '',
-      // Art. 25 Instructions → PASS
+      // Art. 26 Instructions → PASS (DB column: art25_*)
       sysArt25Instructions:     true,
       sysArt25InstrNotes:       'Deployer handbook v4.1 distributed to all EU branch managers — doc ref IFU-VF-2025-07',
       sysArt25InstrDate:        '2025-07-15',
-      // Art. 25 Monitoring → PASS
+      // Art. 26 Monitoring → PASS (DB column: art25_*)
       sysArt25Monitoring:       true,
       sysArt25MonNotes:         'Monthly AUROC dashboard + automated drift alerts active since Jan 2025 — ref. MON-VF-2025-001',
       sysArt25MonDate:          '2025-01-20',
-      // Art. 27 FRIA → FAIL (critical gap: mandatory for high-risk Annex III systems)
+      // Art. 27 FRIA → FAIL (critical gap: Veridian is a private financial institution deploying Annex III A.5 — banking AI; FRIA mandatory under Art. 27(1)(b))
       sysArt27FRIA:             false,
       sysArt27EvidenceNotes:    '',
       sysArt27EvidenceDate:     '',
       // Step 5 — Registration & Review
-      // Art. 30 → PARTIAL (declared but no EU database registration number)
+      // Art. 49 → PARTIAL (declared but no EU database registration number; DB column: art30_*)
       sysArt30Registered:       true,
       sysArt30RegNumber:        '',
       sysArt30EvidenceNotes:    '',
       sysArt30EvidenceDate:     '',
-      // Art. 33 → PARTIAL (self-assessment declared but no certificate docs)
+      // Art. 43 → PARTIAL (self-assessment declared but no certificate docs; DB column: art33_*)
       sysArt33Conformity:       'self-assessment',
       sysArt33EvidenceNotes:    '',
       sysArt33EvidenceDate:     '',
@@ -2998,11 +2998,11 @@ if verdict["firewall_action"] == "block":
           badge: _wizEvidenceBadge(g('sysArt17QMS').checked, g('sysArt17EvidenceNotes').value, g('sysArt17EvidenceDate').value),
         },
         {
-          label: 'Art. 25 — Instructions',
+          label: 'Art. 26 — Instructions',
           badge: _wizEvidenceBadge(g('sysArt25Instructions').checked, g('sysArt25InstrNotes').value, g('sysArt25InstrDate').value),
         },
         {
-          label: 'Art. 25 — Monitoring',
+          label: 'Art. 26 — Monitoring',
           badge: _wizEvidenceBadge(g('sysArt25Monitoring').checked, g('sysArt25MonNotes').value, g('sysArt25MonDate').value),
         },
         {
@@ -3010,11 +3010,11 @@ if verdict["firewall_action"] == "block":
           badge: _wizEvidenceBadge(g('sysArt27FRIA').checked, g('sysArt27EvidenceNotes').value, g('sysArt27EvidenceDate').value),
         },
         {
-          label: 'Art. 30 — EU DB',
+          label: 'Art. 49 — EU DB',
           badge: _wizEvidenceBadge(g('sysArt30Registered').checked, g('sysArt30EvidenceNotes').value, g('sysArt30EvidenceDate').value),
         },
         {
-          label: 'Art. 33 — Conformity',
+          label: 'Art. 43 — Conformity',
           badge: _wizEvidenceBadge(
             ['self-assessment','third-party'].includes(g('sysArt33Conformity').value),
             g('sysArt33EvidenceNotes').value, g('sysArt33EvidenceDate').value
@@ -3653,10 +3653,10 @@ if verdict["firewall_action"] == "block":
       art_14: 'Art. 14 — Human Oversight',
       art_15: 'Art. 15 — Accuracy & Robustness',
       art_17: 'Art. 17 — Quality Management',
-      art_25: 'Art. 25 — Deployer Obligations',
+      art_25: 'Art. 26 — Deployer Obligations',
       art_27: 'Art. 27 — FRIA',
-      art_30: 'Art. 30 — EU DB Registration',
-      art_33: 'Art. 33 — Conformity Assessment',
+      art_30: 'Art. 49 — EU DB Registration',
+      art_33: 'Art. 43 — Conformity Assessment',
     };
 
     const _DEADLINE = new Date('2026-08-01T00:00:00Z');

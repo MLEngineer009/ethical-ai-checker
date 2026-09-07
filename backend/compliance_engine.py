@@ -10,22 +10,27 @@ assessment by a notified body or qualified legal counsel. Article descriptions
 reflect Pragma's interpretation of the Regulation as of 2024 and may not
 capture jurisdiction-specific implementing measures or subsequent guidance.
 
-Articles covered:
+Articles covered (final text of Regulation (EU) 2024/1689):
   Art. 4  — AI Literacy (from 2 Feb 2025)
   Art. 5  — Prohibited practices (from 2 Aug 2025)
   Art. 6  — High-risk classification (Annex III)
   Art. 9  — Risk management system
   Art. 10 — Data and data governance
-  Art. 11 — Technical documentation
-  Art. 12 — Record-keeping / logging
-  Art. 13 — Transparency
+  Art. 11 — Technical documentation (Annex IV)
+  Art. 12 — Record-keeping / automated logging
+  Art. 13 — Transparency and provision of information to users
   Art. 14 — Human oversight
   Art. 15 — Accuracy, robustness, cybersecurity
   Art. 17 — Quality management system
-  Art. 25 — Deployer obligations
+  Art. 26 — Obligations of deployers of high-risk AI systems
   Art. 27 — Fundamental Rights Impact Assessment (FRIA)
-  Art. 30 — EU AI database registration
-  Art. 33 — Conformity assessment
+            (applies to public-law deployers + banking/insurance Annex III)
+  Art. 49 — Registration in the EU AI database (Art. 71 defines the DB)
+  Art. 43 — Conformity assessment procedures (Annex VI self-assessment;
+            Annex VII third-party notified body for biometrics/law enforcement)
+
+Internal note: DB column names use art25_*/art30_*/art33_* identifiers
+(legacy naming from a pre-final-text draft). Do not rename DB columns.
 """
 
 import logging
@@ -195,11 +200,11 @@ def _check_art9(system: Dict, stats: Dict) -> Dict:
     partial = stats["total"] >= 1  and stats["has_risk_flags"]
     return {
         "title": "Article 9 — Risk Management System",
-        "description": "Regulation (EU) 2024/1689, Art. 9. A continuous risk management process must be established, documented, and maintained throughout the AI system lifecycle.",
-        "requirement": "At least 10 compliance evaluations run with risk flags detected and assessed.",
+        "description": "Regulation (EU) 2024/1689, Art. 9. A continuous, iterative risk management system must be established, implemented, documented, and maintained throughout the AI system lifecycle — independent of evaluation count. This includes identification and analysis of known/foreseeable risks, estimation of risks in foreseeable misuse scenarios, and adoption of suitable risk management measures.",
+        "requirement": "Risk management process documented and operational. Pragma measures this via evaluation activity and risk flag detection as proxy indicators — full Art. 9 compliance requires a documented lifecycle process beyond system logs.",
         "legal_citation": "Regulation (EU) 2024/1689, Art. 9",
         "status": "pass" if passed else ("partial" if partial else "fail"),
-        "evidence": f"{stats['total']} evaluations logged; risk flags detected: {stats['has_risk_flags']}",
+        "evidence": f"{stats['total']} evaluations logged; risk flags actively detected: {stats['has_risk_flags']} (proxy indicator — Art. 9 requires a documented lifecycle risk management process)",
     }
 
 
@@ -239,11 +244,11 @@ def _check_art12(system: Dict, stats: Dict) -> Dict:
     passed = stats["total"] >= 1
     return {
         "title": "Article 12 — Record-Keeping",
-        "description": "Regulation (EU) 2024/1689, Art. 12. High-risk AI systems must be designed to enable automatic recording of events throughout their lifetime, to a degree appropriate to the intended purpose.",
-        "requirement": "Immutable audit trail active with at least 1 logged evaluation.",
+        "description": "Regulation (EU) 2024/1689, Art. 12. High-risk AI systems must be designed to enable automated event logging throughout their operational lifetime, to a degree appropriate to the intended purpose. Logs must support post-market monitoring and enable traceability of system decisions throughout the system's lifetime — not merely confirm that one log entry exists.",
+        "requirement": "Automated event logging capability active and producing immutable records for post-market monitoring and regulatory traceability. At least 1 logged evaluation confirms capability is functional.",
         "legal_citation": "Regulation (EU) 2024/1689, Art. 12",
         "status": "pass" if passed else "fail",
-        "evidence": f"{stats['total']} audit log entries; proxy variables caught: {stats['proxy_vars_caught']}",
+        "evidence": f"{stats['total']} audit log entries (SHA-256 hashed, immutable); proxy variables logged: {stats['proxy_vars_caught']}",
     }
 
 
@@ -252,11 +257,11 @@ def _check_art13(system: Dict, stats: Dict) -> Dict:
     partial = stats["total"] >= 1
     return {
         "title": "Article 13 — Transparency and Provision of Information",
-        "description": "Regulation (EU) 2024/1689, Art. 13. High-risk AI systems must be designed to ensure sufficient transparency so deployers can interpret outputs and use the system appropriately. Instructions for use must include capabilities, limitations, and human oversight measures.",
-        "requirement": "Regulatory references mapped in at least one evaluation.",
+        "description": "Regulation (EU) 2024/1689, Art. 13. High-risk AI systems must be designed to ensure sufficient transparency that deployers can interpret outputs and use the system appropriately. Instructions for use must be provided in a clear and understandable format and include: the system's intended purpose, performance levels, known limitations, technical capabilities, and measures required for human oversight.",
+        "requirement": "Instructions for use provided to deployers covering capabilities, performance limits, and human oversight parameters. Regulatory references mapped to AI decisions (Pragma proxy: regulatory citations present in evaluation output).",
         "legal_citation": "Regulation (EU) 2024/1689, Art. 13",
         "status": "pass" if passed else ("partial" if partial else "fail"),
-        "evidence": f"Regulatory references mapped: {stats['has_regulatory_refs']}; evaluations run: {stats['total']}",
+        "evidence": f"Regulatory references mapped in evaluations: {stats['has_regulatory_refs']} (Art. 13 also requires documented instructions for use — declare these separately); evaluations run: {stats['total']}",
     }
 
 
@@ -265,11 +270,11 @@ def _check_art14(system: Dict, stats: Dict) -> Dict:
     partial = stats["total"] >= 1
     return {
         "title": "Article 14 — Human Oversight",
-        "description": "Regulation (EU) 2024/1689, Art. 14. High-risk AI systems must allow natural persons to effectively oversee, understand, and where necessary intervene or halt operation. Deployers must assign oversight to competent individuals.",
-        "requirement": "At least one human-in-the-loop override recorded in audit trail.",
+        "description": "Regulation (EU) 2024/1689, Art. 14. High-risk AI systems must be designed so that natural persons can effectively oversee, understand, correctly interpret outputs, and where necessary intervene or halt system operation. This is a structural design requirement: oversight mechanisms must be built into the system's interface and operational procedures, not merely available in theory.",
+        "requirement": "System designed with structural human oversight capability (override and halt mechanisms). Deployers must assign oversight responsibility to competent, trained individuals. Pragma verifies via HITL override mechanism active in audit trail.",
         "legal_citation": "Regulation (EU) 2024/1689, Art. 14",
         "status": "pass" if passed else ("partial" if partial else "fail"),
-        "evidence": f"{stats['hitl_overrides']} human override(s) recorded in audit trail",
+        "evidence": f"{stats['hitl_overrides']} human override(s) recorded (confirms override mechanism active); Art. 14 also requires training of oversight personnel — declare this in Art. 26 evidence",
     }
 
 
@@ -330,10 +335,10 @@ def _check_art25(system: Dict, stats: Dict) -> Dict:
     else:
         combined = "partial"
     return {
-        "title": "Article 25 — Obligations of Deployers",
-        "description": "Regulation (EU) 2024/1689, Art. 25. Deployers must use AI systems in accordance with instructions for use, implement appropriate human oversight measures, and monitor performance.",
+        "title": "Article 26 — Obligations of Deployers of High-Risk AI Systems",
+        "description": "Regulation (EU) 2024/1689, Art. 26. Deployers must use high-risk AI systems in accordance with the provider's instructions for use, implement appropriate technical and organisational measures to ensure human oversight, and monitor AI system operation for risks to health, safety, or fundamental rights. (Note: Art. 25 covers responsibilities along the AI value chain — importer/distributor becoming a provider.)",
         "requirement": "Instructions for use provided to all deployers; post-deployment monitoring active.",
-        "legal_citation": "Regulation (EU) 2024/1689, Art. 25",
+        "legal_citation": "Regulation (EU) 2024/1689, Art. 26",
         "status": combined,
         "evidence": f"Instructions: {instr_ev}; Monitoring: {mon_ev}",
     }
@@ -351,8 +356,8 @@ def _check_art27(system: Dict, stats: Dict) -> Dict:
     )
     return {
         "title": "Article 27 — Fundamental Rights Impact Assessment (FRIA)",
-        "description": "Regulation (EU) 2024/1689, Art. 27. Deployers that are public bodies or private bodies providing public services must conduct a FRIA before deploying high-risk AI systems.",
-        "requirement": "Fundamental Rights Impact Assessment completed and documented.",
+        "description": "Regulation (EU) 2024/1689, Art. 27. FRIAs are required for deployers governed by public law or private bodies providing public services (e.g. utilities, transport, education). Also mandatory for deployers of AI systems covered by Annex III points 1, 6, and 7 (biometrics, banking/insurance, law enforcement). Private-sector deployers in other categories are strongly encouraged but not legally required to conduct a FRIA.",
+        "requirement": "Fundamental Rights Impact Assessment completed and documented where legally required (public-law deployers, public service providers, and banking/insurance/law-enforcement Annex III systems).",
         "legal_citation": "Regulation (EU) 2024/1689, Art. 27",
         "status": status,
         "evidence": evidence,
@@ -377,10 +382,10 @@ def _check_art30(system: Dict, stats: Dict) -> Dict:
         status = "fail"
         evidence = ev_text
     return {
-        "title": "Article 30 — Registration in EU AI Database",
-        "description": "Regulation (EU) 2024/1689, Art. 30. Providers of high-risk AI systems must register in the EU AI public database (managed by the EU AI Office) before placing on the EU market.",
-        "requirement": "System registered in official EU AI database with valid registration number.",
-        "legal_citation": "Regulation (EU) 2024/1689, Art. 30; Art. 71",
+        "title": "Article 49 — Registration in EU AI Database",
+        "description": "Regulation (EU) 2024/1689, Art. 49. Providers of high-risk AI systems must register in the EU AI public database (managed by the EU AI Office) before placing on the EU market or putting the system into service. The database structure and content requirements are defined in Art. 71. (Note: Art. 30 in the final text governs the notification procedure for notified bodies.)",
+        "requirement": "System registered in official EU AI database with valid registration number (Art. 49; database structure per Art. 71).",
+        "legal_citation": "Regulation (EU) 2024/1689, Art. 49; Art. 71",
         "status": status,
         "evidence": evidence,
     }
@@ -412,10 +417,10 @@ def _check_art33(system: Dict, stats: Dict) -> Dict:
         status  = ev_status
         evidence = f"{base_label}; {ev_text}" if ev_text else base_label
     return {
-        "title": "Article 33 — Conformity Assessment",
-        "description": "Regulation (EU) 2024/1689, Art. 33. High-risk AI systems must undergo a conformity assessment before being placed on the market. Most categories use self-assessment (Annex VI); biometric and law-enforcement systems require third-party notified body assessment (Annex VII).",
-        "requirement": "Conformity assessment completed (self-assessment or third-party notified body).",
-        "legal_citation": "Regulation (EU) 2024/1689, Art. 33; Annex VI; Annex VII",
+        "title": "Article 43 — Conformity Assessment",
+        "description": "Regulation (EU) 2024/1689, Art. 43. High-risk AI systems must undergo a conformity assessment before being placed on the market or put into service. Most Annex III categories use internal self-assessment (Annex VI); AI systems for biometric identification (Annex III point 1) and certain law-enforcement uses require third-party notified body assessment (Annex VII). (Note: Art. 33 in the final text covers subsidiaries and subcontracting by notified bodies.)",
+        "requirement": "Conformity assessment completed: self-assessment (Annex VI) for most Annex III systems; third-party notified body (Annex VII) for biometrics and law enforcement.",
+        "legal_citation": "Regulation (EU) 2024/1689, Art. 43; Annex VI; Annex VII",
         "status": status,
         "evidence": evidence,
     }

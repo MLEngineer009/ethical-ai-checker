@@ -83,7 +83,7 @@ INTERVIEW_ARTICLES: Dict[str, Dict] = {
         ],
     },
     "art_25": {
-        "title": "Article 25 — Deployer Obligations",
+        "title": "Article 26 — Obligations of Deployers",
         "requirement": (
             "Deployers must use the AI system in accordance with instructions for use, assign human oversight "
             "to competent persons, and implement post-deployment monitoring proportionate to the risks."
@@ -112,7 +112,7 @@ INTERVIEW_ARTICLES: Dict[str, Dict] = {
         ],
     },
     "art_30": {
-        "title": "Article 30 — EU AI Database Registration",
+        "title": "Article 49 — Registration in EU AI Database",
         "requirement": (
             "Providers of high-risk AI systems must register in the EU AI public database before "
             "placing the system on the EU market or putting it into service."
@@ -125,7 +125,7 @@ INTERVIEW_ARTICLES: Dict[str, Dict] = {
         ],
     },
     "art_33": {
-        "title": "Article 33 — Conformity Assessment",
+        "title": "Article 43 — Conformity Assessment",
         "requirement": (
             "Providers must carry out a conformity assessment before placing the system on the market. "
             "For most Annex III systems this is internal (Annex VI); biometric systems require a "
