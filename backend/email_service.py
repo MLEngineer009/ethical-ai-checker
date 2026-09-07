@@ -298,3 +298,77 @@ def countdown_html(
 
 def countdown_subject(days_remaining: int) -> str:
     return f"⏰ EU AI Act deadline: {days_remaining} days — check your compliance status"
+
+
+# ── Template: payment success ──────────────────────────────────────────────────
+
+def payment_success_html(name: str, plan: str, period_end: str, unsubscribe_token: str) -> str:
+    plan_label = plan.capitalize()
+    body = f"""
+<h2 style="margin:0 0 16px 0;font-size:22px;font-weight:800;color:#fff;line-height:1.2;">
+  You're on the {plan_label} plan
+</h2>
+<p style="margin:0 0 20px 0;font-size:15px;color:rgba(255,255,255,0.7);line-height:1.6;">
+  Payment confirmed. Your {plan_label} subscription is now active.
+</p>
+
+<div style="background:#0d1a14;border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:20px;margin:0 0 20px 0;">
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+      <td style="padding:6px 0;font-size:13px;color:rgba(255,255,255,0.5);">Plan</td>
+      <td style="padding:6px 0;font-size:13px;color:#22c55e;font-weight:700;text-align:right;">{plan_label}</td>
+    </tr>
+    <tr>
+      <td style="padding:6px 0;font-size:13px;color:rgba(255,255,255,0.5);">Monthly evaluations</td>
+      <td style="padding:6px 0;font-size:13px;color:#fff;font-weight:600;text-align:right;">2,000</td>
+    </tr>
+    <tr>
+      <td style="padding:6px 0;font-size:13px;color:rgba(255,255,255,0.5);">Next renewal</td>
+      <td style="padding:6px 0;font-size:13px;color:#fff;font-weight:600;text-align:right;">{period_end}</td>
+    </tr>
+  </table>
+</div>
+
+<p style="margin:0 0 0 0;font-size:13px;color:rgba(255,255,255,0.5);line-height:1.6;">
+  You can manage or cancel your subscription at any time from the Billing tab in Settings.
+</p>
+
+{_btn("Open Pragma →", _APP_URL)}
+"""
+    return _layout(name, body, unsubscribe_token)
+
+
+def payment_success_subject(plan: str) -> str:
+    return f"Payment confirmed — you're on the {plan.capitalize()} plan"
+
+
+# ── Template: payment failed ───────────────────────────────────────────────────
+
+def payment_failed_html(name: str, retry_url: str, unsubscribe_token: str) -> str:
+    body = f"""
+<h2 style="margin:0 0 16px 0;font-size:22px;font-weight:800;color:#fff;line-height:1.2;">
+  Payment failed
+</h2>
+<p style="margin:0 0 20px 0;font-size:15px;color:rgba(255,255,255,0.7);line-height:1.6;">
+  We couldn't process your payment. Your account has been downgraded to the free plan (100 evaluations/month)
+  until payment is resolved.
+</p>
+
+<div style="background:#1a0a0a;border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:16px;margin:0 0 20px 0;">
+  <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.7);line-height:1.6;">
+    Common causes: expired card, insufficient funds, or bank block on recurring charges.
+    Update your payment method to restore full access.
+  </p>
+</div>
+
+{_btn("Update payment method →", retry_url)}
+
+<p style="margin:16px 0 0 0;font-size:12px;color:rgba(255,255,255,0.35);line-height:1.6;">
+  If you believe this is an error, reply to this email and we'll sort it out.
+</p>
+"""
+    return _layout(name, body, unsubscribe_token)
+
+
+def payment_failed_subject() -> str:
+    return "Action required — Pragma payment failed"

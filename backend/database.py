@@ -676,6 +676,111 @@ def get_anon_id_by_stripe_customer(stripe_customer_id: str) -> str | None:
     return row.anon_id if row else None
 
 
+def get_subscription_by_anon_id(aid: str) -> Dict[str, Any]:
+    """Same as get_subscription but accepts an already-hashed anon_id (for API key auth)."""
+    now = datetime.now(timezone.utc).isoformat()
+    with _engine.begin() as conn:
+        row = conn.execute(
+            subscriptions.select().where(subscriptions.c.anon_id == aid)
+        ).fetchone()
+        if not row:
+            conn.execute(subscriptions.insert().values(
+                anon_id=aid, plan="free", status="active", created_at=now, updated_at=now,
+            ))
+            return {"plan": "free", "status": "active", "stripe_customer_id": None,
+                    "stripe_subscription_id": None, "current_period_end": None,
+                    "evals_this_month": 0, "eval_limit": PLAN_LIMITS["free"]}
+    month_prefix = datetime.now(timezone.utc).strftime("%Y-%m")
+    with _engine.connect() as conn:
+        evals = conn.execute(
+            select(func.count()).select_from(request_logs).where(
+                request_logs.c.anon_id == aid,
+                request_logs.c.timestamp.like(f"{month_prefix}%"),
+            )
+        ).scalar() or 0
+    limit = PLAN_LIMITS.get(row.plan, 100)
+    return {
+        "plan": row.plan, "status": row.status,
+        "stripe_customer_id": row.stripe_customer_id,
+        "stripe_subscription_id": row.stripe_subscription_id,
+        "current_period_end": row.current_period_end,
+        "evals_this_month": evals, "eval_limit": limit,
+    }
+
+
+def get_user_by_google_sub(google_sub: str) -> Dict[str, Any] | None:
+    """Return the users row for a given google_sub, or None."""
+    with _engine.connect() as conn:
+        row = conn.execute(users.select().where(users.c.google_sub == google_sub)).fetchone()
+    return dict(row._mapping) if row else None
+
+
+def get_user_email_by_anon_id(aid: str) -> str | None:
+    """Look up a user's email from their anon_id — for transactional emails after webhook events."""
+    with _engine.connect() as conn:
+        row = conn.execute(users.select().where(users.c.google_sub.in_(
+            select(users.c.google_sub).where(
+                users.c.google_sub != ""
+            )
+        ))).fetchall()
+        # Scan for matching anon_id (can't reverse the hash; must scan)
+        for r in row:
+            if anon_id(r.google_sub) == aid:
+                return r.email
+    return None
+
+
+def delete_user_data(google_sub: str) -> None:
+    """GDPR Art. 17 — erase all PII linked to this user. Anonymized logs are retained."""
+    aid = anon_id(google_sub)
+    with _engine.begin() as conn:
+        conn.execute(users.delete().where(users.c.google_sub == google_sub))
+        conn.execute(notification_log.delete().where(notification_log.c.google_sub == google_sub))
+        conn.execute(compliance_snapshots.delete().where(compliance_snapshots.c.google_sub == google_sub))
+        conn.execute(subscriptions.delete().where(subscriptions.c.anon_id == aid))
+        conn.execute(user_profiles.delete().where(user_profiles.c.anon_id == aid))
+        conn.execute(api_keys.delete().where(api_keys.c.owner_anon_id == aid))
+        conn.execute(ai_systems.delete().where(ai_systems.c.owner_sub == google_sub))
+    logger.info("User data deleted — anon_id=%s", aid[:8])
+
+
+def export_user_data(google_sub: str) -> Dict[str, Any]:
+    """GDPR Art. 20 — return a portable snapshot of the user's data."""
+    aid = anon_id(google_sub)
+    with _engine.connect() as conn:
+        user_row = conn.execute(users.select().where(users.c.google_sub == google_sub)).fetchone()
+        sub_row  = conn.execute(subscriptions.select().where(subscriptions.c.anon_id == aid)).fetchone()
+        systems  = conn.execute(ai_systems.select().where(ai_systems.c.owner_sub == google_sub)).fetchall()
+        snapshots = conn.execute(
+            compliance_snapshots.select().where(compliance_snapshots.c.google_sub == google_sub)
+            .order_by(compliance_snapshots.c.taken_at.desc()).limit(100)
+        ).fetchall()
+        eval_count = conn.execute(
+            select(func.count()).select_from(request_logs).where(request_logs.c.anon_id == aid)
+        ).scalar() or 0
+    return {
+        "profile": {
+            "name": user_row.name if user_row else None,
+            "email": user_row.email if user_row else None,
+            "created_at": user_row.created_at if user_row else None,
+        },
+        "subscription": {
+            "plan": sub_row.plan if sub_row else "free",
+            "status": sub_row.status if sub_row else "active",
+        },
+        "ai_systems": [
+            {"name": s.system_name, "risk_tier": s.risk_tier, "created_at": s.created_at}
+            for s in systems
+        ],
+        "compliance_snapshots": [
+            {"system_id": s.system_id, "score": s.score, "verdict": s.verdict, "taken_at": s.taken_at}
+            for s in snapshots
+        ],
+        "total_evaluations": eval_count,
+        "exported_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 def log_request(
     google_sub: str,
     decision: str,

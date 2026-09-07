@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Terms of Service — Pragma</title>
+<style>
+  :root {
+    --bg: #0a0b0f;
+    --surface: #111318;
+    --border: #1e2232;
+    --text: rgba(255,255,255,0.85);
+    --muted: rgba(255,255,255,0.45);
+    --accent: #6366f1;
+    --heading: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+    padding: 0 16px 80px;
+  }
+  header {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 32px 0 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo { font-size: 20px; font-weight: 800; color: var(--heading); letter-spacing: -0.5px; }
+  .logo span { color: var(--accent); }
+  nav a { font-size: 13px; color: var(--muted); text-decoration: none; margin-left: 20px; }
+  nav a:hover { color: var(--text); }
+  main { max-width: 720px; margin: 0 auto; padding-top: 48px; }
+  .meta { font-size: 13px; color: var(--muted); margin-bottom: 40px; }
+  h1 { font-size: 32px; font-weight: 800; color: var(--heading); line-height: 1.2; margin-bottom: 8px; }
+  h2 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--heading);
+    margin: 40px 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  p { margin-bottom: 14px; }
+  ul { padding-left: 20px; margin-bottom: 14px; }
+  li { margin-bottom: 6px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .callout {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 20px 0;
+    font-size: 14px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f8f9fb;
+      --surface: #ffffff;
+      --border: #e2e6ef;
+      --text: #1a1d27;
+      --muted: #6b7280;
+      --heading: #0a0b0f;
+    }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Pragma<span>.</span></div>
+  <nav>
+    <a href="/legal/privacy">Privacy Policy</a>
+    <a href="/">Back to app</a>
+  </nav>
+</header>
+
+<main>
+  <h1>Terms of Service</h1>
+  <p class="meta">Cosmos AI LLC d/b/a Pragma &nbsp;·&nbsp; Effective date: September 1, 2026 &nbsp;·&nbsp; Version 1.0</p>
+
+  <div class="callout">
+    By using Pragma you agree to these terms. If you are using Pragma on behalf of an organization, you represent that you have authority to bind that organization.
+  </div>
+
+  <h2>1. Who We Are</h2>
+  <p>Pragma is operated by Cosmos AI LLC, a Texas limited liability company ("Cosmos AI," "we," "us," or "our"). Pragma provides an AI compliance monitoring platform that helps organizations evaluate AI-driven decisions against applicable regulations including the EU AI Act (Regulation EU 2024/1689), the Equal Credit Opportunity Act, the Fair Housing Act, and related laws.</p>
+
+  <h2>2. The Service</h2>
+  <p>Pragma provides:</p>
+  <ul>
+    <li>A real-time compliance firewall that evaluates AI decisions against legal frameworks</li>
+    <li>An EU AI Act compliance wizard and evidence management dashboard</li>
+    <li>Disparate impact analytics and compliance reporting</li>
+    <li>Downloadable compliance certificates and audit documentation</li>
+    <li>An API for programmatic access to the evaluation engine</li>
+  </ul>
+
+  <h2>3. Accounts and Access</h2>
+  <p>You access Pragma by authenticating with a Google account. You are responsible for all activity under your account. You must not share credentials or allow unauthorized access. We reserve the right to suspend or terminate accounts that violate these terms.</p>
+  <p>API keys are issued per account and inherit the account's plan limits. Keys must not be shared publicly or embedded in client-side code.</p>
+
+  <h2>4. Plans and Billing</h2>
+  <p>Pragma offers the following plans:</p>
+  <ul>
+    <li><strong>Free:</strong> 100 decision evaluations per calendar month, no charge.</li>
+    <li><strong>Growth:</strong> 2,000 decision evaluations per calendar month, billed monthly via Stripe.</li>
+    <li><strong>Enterprise:</strong> Unlimited evaluations; custom pricing. Contact us.</li>
+  </ul>
+  <p>Paid plans renew automatically. You may cancel at any time from the Billing tab in Settings; cancellation takes effect at the end of the current billing period and you retain access until then. All charges are non-refundable except where required by law or at our sole discretion.</p>
+  <p>We reserve the right to change pricing with 30 days' notice to your registered email address.</p>
+
+  <h2>5. Acceptable Use</h2>
+  <p>You agree not to:</p>
+  <ul>
+    <li>Use Pragma to make or automate final legal or regulatory determinations without human review</li>
+    <li>Submit content that contains personal data of third parties without a lawful basis for processing</li>
+    <li>Attempt to reverse-engineer, scrape, or extract the underlying models or compliance logic</li>
+    <li>Use Pragma in any way that violates applicable law or regulation</li>
+    <li>Exceed API rate limits or attempt to circumvent usage quotas</li>
+    <li>Use Pragma's output as a substitute for qualified legal counsel</li>
+  </ul>
+
+  <h2>6. Compliance Output is Informational, Not Legal Advice</h2>
+  <p>Pragma's compliance scores, article assessments, and recommendations are informational tools to assist your compliance program. They do not constitute legal advice and do not create an attorney-client relationship. You are solely responsible for ensuring your AI systems comply with all applicable laws and regulations. We strongly recommend engaging qualified legal counsel for regulatory compliance matters.</p>
+
+  <h2>7. Data and Privacy</h2>
+  <p>Decision inputs are processed to produce compliance analysis and are not retained in identifiable form. Usage metadata is stored in anonymized form. Your account profile (name, email) is stored to deliver the service. See our <a href="/legal/privacy">Privacy Policy</a> for full details.</p>
+
+  <h2>8. Intellectual Property</h2>
+  <p>Pragma and all associated technology, models, and content are owned by Cosmos AI LLC. Nothing in these terms grants you any rights in our intellectual property. Compliance reports and certificates you generate from your own data are yours to use for your internal compliance purposes.</p>
+
+  <h2>9. Limitation of Liability</h2>
+  <p>To the maximum extent permitted by law, Cosmos AI LLC's total liability for any claim arising from your use of Pragma is limited to the fees you paid in the 12 months preceding the claim. In no event shall we be liable for indirect, incidental, special, consequential, or punitive damages, including lost profits or regulatory fines, even if we have been advised of the possibility of such damages.</p>
+
+  <h2>10. Warranty Disclaimer</h2>
+  <p>Pragma is provided "as is" and "as available" without warranty of any kind. We do not warrant that the service will be error-free, uninterrupted, or that compliance outputs will meet any specific regulatory standard.</p>
+
+  <h2>11. Termination</h2>
+  <p>We may suspend or terminate your access at any time for violation of these terms. You may stop using the service and delete your account at any time from Settings → Account. On termination, your right to access the service ceases immediately. Provisions that by their nature should survive termination (including liability limitations and IP ownership) will do so.</p>
+
+  <h2>12. Governing Law</h2>
+  <p>These terms are governed by the laws of the State of Texas, without regard to conflict-of-law principles. Any disputes shall be resolved in the courts of Dallas County, Texas, and you consent to personal jurisdiction there.</p>
+
+  <h2>13. Changes to These Terms</h2>
+  <p>We may update these terms from time to time. Material changes will be communicated to your registered email address at least 14 days before taking effect. Continued use after the effective date constitutes acceptance of the updated terms.</p>
+
+  <h2>14. Contact</h2>
+  <p>Questions about these terms: <a href="mailto:legal@usepragma.co">legal@usepragma.co</a></p>
+</main>
+</body>
+</html>

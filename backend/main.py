@@ -18,6 +18,9 @@ from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, Req
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from .llm_orchestrator import LLMOrchestrator
 from .report_generator import generate_pdf
@@ -26,6 +29,7 @@ from .regulations import get_regulatory_refs
 from .compliance_engine import run_compliance_checks
 from . import auth
 from . import database
+from . import email_service
 from . import questions as questions_module
 
 logging.basicConfig(
@@ -34,6 +38,14 @@ logging.basicConfig(
     datefmt="%Y-%m-%dT%H:%M:%S",
 )
 logger = logging.getLogger(__name__)
+
+# ── Sentry error monitoring ───────────────────────────────────────────────────
+_SENTRY_DSN = os.getenv("SENTRY_DSN", "")
+if _SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+    sentry_sdk.init(dsn=_SENTRY_DSN, integrations=[FastApiIntegration()], traces_sample_rate=0.2)
+    logger.info("Sentry initialised")
 
 
 @asynccontextmanager
@@ -57,8 +69,10 @@ _ALLOWED_ORIGINS = [
     "http://localhost:8000",
     "http://127.0.0.1:8000",
     "http://localhost:3000",
+    "https://usepragma.co",
+    "https://www.usepragma.co",
 ]
-_extra = os.getenv("ALLOWED_ORIGINS", "")  # comma-separated, set in Railway
+_extra = os.getenv("ALLOWED_ORIGINS", "")  # comma-separated extra origins
 if _extra:
     _ALLOWED_ORIGINS.extend(o.strip() for o in _extra.split(",") if o.strip())
 
@@ -68,6 +82,10 @@ app.add_middleware(
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 orchestrator = LLMOrchestrator()
 _bearer = HTTPBearer(auto_error=False)
@@ -245,6 +263,23 @@ async def my_stats(user: dict = Depends(get_current_user)):
     return database.get_stats(user["sub"])
 
 
+@app.get("/account/export", dependencies=[Depends(get_current_user)])
+async def export_account_data(user: dict = Depends(get_current_user)):
+    """GDPR Art. 20 — portable export of all user data."""
+    if user.get("via_api_key"):
+        raise HTTPException(status_code=403, detail="Use the web app to export your data")
+    return database.export_user_data(user["sub"])
+
+
+@app.delete("/account", dependencies=[Depends(get_current_user)])
+async def delete_account(user: dict = Depends(get_current_user)):
+    """GDPR Art. 17 — erase all PII. Anonymized aggregate logs are retained per our privacy policy."""
+    if user.get("via_api_key"):
+        raise HTTPException(status_code=403, detail="Use the web app to delete your account")
+    database.delete_user_data(user["sub"])
+    return {"deleted": True}
+
+
 class TrackEventRequest(BaseModel):
     event_name: str
     properties: Optional[Dict] = {}
@@ -284,7 +319,9 @@ async def admin_analytics(user: dict = Depends(get_current_user)):
 # ── Protected endpoints ───────────────────────────────────────────────────────
 
 @app.post("/evaluate-decision", response_model=EthicalAnalysis, dependencies=[Depends(get_current_user)])
+@limiter.limit("30/minute")
 async def evaluate_decision(
+    req_obj: Request,
     request: DecisionRequest,
     user: dict = Depends(get_current_user),
 ) -> EthicalAnalysis:
@@ -303,7 +340,11 @@ async def evaluate_decision(
         if database.count_evaluations(user["sub"]) >= GUEST_EVAL_LIMIT:
             raise HTTPException(status_code=429, detail=f"Guest accounts are limited to {GUEST_EVAL_LIMIT} evaluations. Sign in with Google for unlimited access.")
     else:
-        sub = database.get_subscription(user["sub"])
+        # API key users have sub=anon_id (already hashed); use direct lookup to avoid double-hash
+        if user.get("via_api_key"):
+            sub = database.get_subscription_by_anon_id(user["sub"])
+        else:
+            sub = database.get_subscription(user["sub"])
         limit = sub.get("eval_limit")
         if limit is not None and sub["evals_this_month"] >= limit:
             plan = sub["plan"]
@@ -1299,6 +1340,7 @@ async def stripe_webhook(request: Request):
     """
     Stripe webhook — verifies signature then updates subscription records.
     Must be registered in Stripe dashboard pointing to /billing/webhook.
+    Events: checkout.session.completed, customer.subscription.*, invoice.payment_failed
     No auth — Stripe calls this directly.
     """
     payload = await request.body()
@@ -1323,27 +1365,35 @@ def _handle_stripe_event(event: Dict) -> None:
     data  = event["data"]["object"]
 
     if etype == "checkout.session.completed":
-        anon_id_val   = data.get("metadata", {}).get("anon_id")
-        customer_id   = data.get("customer")
+        anon_id_val     = data.get("metadata", {}).get("anon_id")
+        customer_id     = data.get("customer")
         subscription_id = data.get("subscription")
+        customer_email  = data.get("customer_details", {}).get("email") or data.get("customer_email")
+        customer_name   = data.get("customer_details", {}).get("name", "there")
         if not anon_id_val:
             logger.warning("checkout.session.completed missing anon_id metadata")
             return
-        # Retrieve full subscription to get price and period
         if subscription_id:
             stripe_sub = _stripe.Subscription.retrieve(subscription_id)
             price_id   = stripe_sub["items"]["data"][0]["price"]["id"]
             plan       = _PRICE_TO_PLAN.get(price_id, "growth")
             period_end = datetime.fromtimestamp(
                 stripe_sub["current_period_end"], tz=timezone.utc
+            ).strftime("%B %-d, %Y")
+            period_end_iso = datetime.fromtimestamp(
+                stripe_sub["current_period_end"], tz=timezone.utc
             ).isoformat()
             database.upsert_subscription(
                 anon_id_val=anon_id_val, plan=plan, status="active",
                 stripe_customer_id=customer_id,
                 stripe_subscription_id=subscription_id,
-                current_period_end=period_end,
+                current_period_end=period_end_iso,
             )
             logger.info("Checkout completed — anon_id=%s plan=%s", anon_id_val[:8], plan)
+            if customer_email:
+                unsub_token = secrets.token_urlsafe(24)
+                html = email_service.payment_success_html(customer_name, plan, period_end, unsub_token)
+                email_service.send(customer_email, email_service.payment_success_subject(plan), html)
 
     elif etype in ("customer.subscription.updated", "customer.subscription.created"):
         customer_id     = data.get("customer")
@@ -1374,6 +1424,16 @@ def _handle_stripe_event(event: Dict) -> None:
                 current_period_end=None,
             )
             logger.info("Subscription canceled — anon_id=%s downgraded to free", anon_id_val[:8])
+
+    elif etype == "invoice.payment_failed":
+        customer_email = data.get("customer_email")
+        customer_name  = "there"
+        billing_url    = f"{os.getenv('APP_URL', 'https://usepragma.co')}/#settings"
+        if customer_email:
+            unsub_token = secrets.token_urlsafe(24)
+            html = email_service.payment_failed_html(customer_name, billing_url, unsub_token)
+            email_service.send(customer_email, email_service.payment_failed_subject(), html)
+            logger.info("Payment failed email sent — email=%s", customer_email.split("@")[0] + "@…")
 
     else:
         logger.debug("Unhandled Stripe event type: %s", etype)
@@ -1970,6 +2030,22 @@ async def docs_auditing():
     page = Path(__file__).parent.parent / "docs" / "auditing.html"
     if page.exists():
         return FileResponse(page)
+    raise HTTPException(status_code=404, detail="Page not found")
+
+
+@app.get("/legal/terms")
+async def terms_of_service():
+    page = Path(__file__).parent.parent / "frontend" / "tos.html"
+    if page.exists():
+        return FileResponse(page, media_type="text/html")
+    raise HTTPException(status_code=404, detail="Page not found")
+
+
+@app.get("/legal/privacy")
+async def privacy_policy():
+    page = Path(__file__).parent.parent / "frontend" / "privacy.html"
+    if page.exists():
+        return FileResponse(page, media_type="text/html")
     raise HTTPException(status_code=404, detail="Page not found")
 
 
