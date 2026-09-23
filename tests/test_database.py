@@ -164,3 +164,78 @@ class TestLogFeedback:
         # Fresh DB from conftest — no feedback yet
         stats = db.get_feedback_stats()
         assert stats["total"] == 0
+
+
+class TestGDPRDeleteExport:
+    """GDPR Art. 17 (delete_user_data) and Art. 20 (export_user_data).
+
+    Both previously crashed with AttributeError on nonexistent columns
+    (api_keys.owner_anon_id, ai_systems.owner_sub) — these tests lock the fix.
+    """
+
+    SUB = "google-gdpr-test-sub"
+    EMAIL = "gdpr-test@example.com"
+
+    def _seed_user(self):
+        db.upsert_user(self.SUB, self.EMAIL, "GDPR Test")
+        db.create_api_key(self.SUB, "test-key")
+        db.create_ai_system(self.SUB, "Hiring Screener", "Acme Corp", "high", "screening resumes")
+
+    @staticmethod
+    def _count(table, column, value):
+        from sqlalchemy import select, func
+        with db._engine.connect() as conn:
+            return conn.execute(
+                select(func.count()).select_from(table).where(column == value)
+            ).scalar()
+
+    def test_delete_user_data_removes_all_pii_rows(self):
+        self._seed_user()
+        aid = db.anon_id(self.SUB)
+        # Sanity: rows exist before deletion
+        assert db.get_user_by_google_sub(self.SUB) is not None
+        assert len(db.get_api_keys(self.SUB)) == 1
+        assert self._count(db.ai_systems, db.ai_systems.c.anon_id, aid) == 1
+
+        db.delete_user_data(self.SUB)  # must not raise
+
+        assert db.get_user_by_google_sub(self.SUB) is None
+        assert len(db.get_api_keys(self.SUB)) == 0
+        assert self._count(db.ai_systems, db.ai_systems.c.anon_id, aid) == 0
+
+    def test_delete_user_data_is_idempotent(self):
+        self._seed_user()
+        db.delete_user_data(self.SUB)
+        db.delete_user_data(self.SUB)  # second call must not raise
+
+    def test_delete_user_data_does_not_touch_other_users(self):
+        self._seed_user()
+        other = "google-gdpr-other-sub"
+        db.upsert_user(other, "other@example.com", "Other User")
+        db.create_api_key(other, "other-key")
+        other_aid = db.anon_id(other)
+
+        db.delete_user_data(self.SUB)
+
+        assert db.get_user_by_google_sub(other) is not None
+        assert len(db.get_api_keys(other)) == 1
+        # Other user's data untouched
+        assert db.get_user_by_google_sub(self.SUB) is None
+
+    def test_export_user_data_returns_snapshot(self):
+        self._seed_user()
+
+        snap = db.export_user_data(self.SUB)  # must not raise
+
+        assert snap["profile"]["email"] == self.EMAIL
+        assert snap["profile"]["name"] == "GDPR Test"
+        assert len(snap["ai_systems"]) == 1
+        assert snap["ai_systems"][0]["name"] == "Hiring Screener"
+        assert snap["ai_systems"][0]["risk_tier"] == "high"
+        assert "exported_at" in snap
+
+    def test_export_user_data_unknown_user_returns_empty_snapshot(self):
+        snap = db.export_user_data("google-nonexistent-sub")
+        assert snap["profile"]["email"] is None
+        assert snap["ai_systems"] == []
+        assert snap["total_evaluations"] == 0

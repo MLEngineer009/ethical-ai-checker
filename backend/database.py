@@ -739,8 +739,8 @@ def delete_user_data(google_sub: str) -> None:
         conn.execute(compliance_snapshots.delete().where(compliance_snapshots.c.google_sub == google_sub))
         conn.execute(subscriptions.delete().where(subscriptions.c.anon_id == aid))
         conn.execute(user_profiles.delete().where(user_profiles.c.anon_id == aid))
-        conn.execute(api_keys.delete().where(api_keys.c.owner_anon_id == aid))
-        conn.execute(ai_systems.delete().where(ai_systems.c.owner_sub == google_sub))
+        conn.execute(api_keys.delete().where(api_keys.c.anon_id == aid))
+        conn.execute(ai_systems.delete().where(ai_systems.c.anon_id == aid))
     logger.info("User data deleted — anon_id=%s", aid[:8])
 
 
@@ -750,7 +750,7 @@ def export_user_data(google_sub: str) -> Dict[str, Any]:
     with _engine.connect() as conn:
         user_row = conn.execute(users.select().where(users.c.google_sub == google_sub)).fetchone()
         sub_row  = conn.execute(subscriptions.select().where(subscriptions.c.anon_id == aid)).fetchone()
-        systems  = conn.execute(ai_systems.select().where(ai_systems.c.owner_sub == google_sub)).fetchall()
+        systems  = conn.execute(ai_systems.select().where(ai_systems.c.anon_id == aid)).fetchall()
         snapshots = conn.execute(
             compliance_snapshots.select().where(compliance_snapshots.c.google_sub == google_sub)
             .order_by(compliance_snapshots.c.taken_at.desc()).limit(100)

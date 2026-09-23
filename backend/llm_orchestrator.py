@@ -9,7 +9,9 @@ Production provider chain:
   1. Pragma model  — our fine-tuned model (HF Inference API); primary in production
   2. Claude        — fallback while Pragma model is still being trained/improved
   3. OpenAI        — fallback if Claude is rate-limited or out of credits
-  4. Mock          — last resort; clearly signals no model is configured
+  4. Mock          — LAST RESORT, only when explicitly enabled via PRAGMA_ALLOW_MOCK=true.
+                     Every mock response is labeled "provider": "mock" so it can
+                     never be mistaken for a real model analysis in audit trails.
 
 Claude and OpenAI are OFFLINE teachers: they generate labelled training data
 (ml/generate_data.py) and are not meant to be the long-term production path.
@@ -36,6 +38,22 @@ _CLAUDE_FALLBACK_ERRORS = (
 )
 
 _CLAUDE_CREDIT_MSG = "credit balance is too low"
+
+
+class NoLLMProviderError(RuntimeError):
+    """Raised when no LLM provider is configured and mock mode is not enabled.
+
+    This is a fail-loud configuration error, not a runtime hiccup: returning a
+    heuristic mock as if it were a real model analysis would corrupt the audit
+    trail of a compliance product. Set ANTHROPIC_API_KEY / OPENAI_API_KEY /
+    CUSTOM_MODEL_REPO, or explicitly opt into degraded mode with
+    PRAGMA_ALLOW_MOCK=true.
+    """
+
+
+def _mock_enabled() -> bool:
+    """Explicit opt-in for heuristic mock mode (dev/demo only — never production)."""
+    return os.getenv("PRAGMA_ALLOW_MOCK", "").strip().lower() in ("1", "true", "yes")
 
 
 
@@ -181,7 +199,12 @@ class LLMOrchestrator:
     def evaluate(self, decision: str, context: Dict[str, Any], category: str = "other") -> Dict[str, Any]:
         """
         Returns analysis dict with an extra 'provider' key indicating
-        which LLM was used: 'claude', 'openai', or 'mock'.
+        which LLM was used: 'pragma', 'claude', 'openai', or 'mock'.
+
+        'mock' is ONLY ever returned when the operator explicitly opted in via
+        PRAGMA_ALLOW_MOCK=true. Otherwise, when no provider is available, this
+        raises NoLLMProviderError instead of silently fabricating an analysis —
+        a compliance product must never present heuristic output as model output.
         """
         user_prompt = build_user_prompt(decision, context, category)
 
@@ -223,11 +246,26 @@ class LLMOrchestrator:
             except Exception as e:
                 logger.error("OpenAI error: %s", e)
 
-        # --- Heuristic fallback ---
-        logger.warning("No LLM available — returning heuristic mock response")
-        from .risk_detector import detect_all_risks
-        flags = detect_all_risks(decision, context)
-        return self._mock_response(decision=decision, flags=flags)
+        # --- Heuristic fallback: explicit opt-in only ---
+        # A compliance product must NEVER silently substitute template text for a
+        # real model analysis. Mock mode exists for local dev/demo; in production
+        # a missing LLM configuration is a loud, blocking error.
+        if _mock_enabled():
+            logger.warning(
+                "PRAGMA_ALLOW_MOCK=true — returning HEURISTIC MOCK response "
+                "(provider='mock'). Do NOT use for real compliance decisions."
+            )
+            from .risk_detector import detect_all_risks
+            flags = detect_all_risks(decision, context)
+            return self._mock_response(decision=decision, flags=flags)
+
+        raise NoLLMProviderError(
+            "No LLM provider is configured and PRAGMA_ALLOW_MOCK is not set. "
+            "Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or CUSTOM_MODEL_REPO "
+            "(see backend/custom_model.py) — or set PRAGMA_ALLOW_MOCK=true to "
+            "explicitly allow degraded heuristic mock responses (dev/demo only, "
+            "never for real compliance decisions)."
+        )
 
     def _call_claude(self, user_prompt: str) -> Dict[str, Any]:
         with self._claude.messages.stream(
@@ -259,7 +297,11 @@ class LLMOrchestrator:
 
     @staticmethod
     def _mock_response(decision: str = "", flags: list = []) -> Dict[str, Any]:
-        """Heuristic-driven fallback — gives realistic responses without an LLM."""
+        """Heuristic-driven fallback — dev/demo only. NEVER label as a real model.
+
+        The 'provider': 'mock' label flows into API responses and the audit
+        trail so mock output is unmistakable everywhere it lands.
+        """
         has_risk = len(flags) >= 2
         flag_str = ", ".join(flags) if flags else "none detected"
 
@@ -312,5 +354,5 @@ class LLMOrchestrator:
             "confidence_score":      confidence,
             "recommendation":        recommendation,
             "compliance_checks":     [],
-            "provider":              "pragma",
+            "provider":              "mock",
         }

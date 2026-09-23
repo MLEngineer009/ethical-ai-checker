@@ -209,37 +209,74 @@ class TestOrchestratorEvaluate:
                 result = orch.evaluate("decision", {"x": 1})
         assert result["provider"] == "openai"
 
-    def test_both_fail_returns_mock(self):
+    def test_both_fail_returns_mock_when_opted_in(self):
         orch = _make_orchestrator(claude=MagicMock(), openai=MagicMock())
         err_c = anthropic.RateLimitError.__new__(anthropic.RateLimitError)
         err_o = Exception("openai down")
         with patch.object(orch, "_call_claude", side_effect=err_c):
             with patch.object(orch, "_call_openai", side_effect=err_o):
-                result = orch.evaluate("decision", {"x": 1})
-        assert result["provider"] == "pragma"
+                with patch.dict("os.environ", {"PRAGMA_ALLOW_MOCK": "true"}):
+                    result = orch.evaluate("decision", {"x": 1})
+        assert result["provider"] == "mock"
         assert result["confidence_score"] in (0.3, 0.85)  # heuristic mock: 0.3 = no risk, 0.85 = risky
 
-    def test_no_clients_returns_mock(self):
-        orch = _make_orchestrator(claude=None, openai=None)
-        result = orch.evaluate("decision", {"x": 1})
-        assert result["provider"] == "pragma"
+    def test_both_fail_raises_when_mock_not_opted_in(self):
+        from backend.llm_orchestrator import NoLLMProviderError
+        orch = _make_orchestrator(claude=MagicMock(), openai=MagicMock())
+        err_c = anthropic.RateLimitError.__new__(anthropic.RateLimitError)
+        err_o = Exception("openai down")
+        with patch.object(orch, "_call_claude", side_effect=err_c):
+            with patch.object(orch, "_call_openai", side_effect=err_o):
+                with patch.dict("os.environ", {}, clear=False):
+                    # Ensure the opt-in var is absent even if the ambient env sets it
+                    import os
+                    os.environ.pop("PRAGMA_ALLOW_MOCK", None)
+                    with pytest.raises(NoLLMProviderError, match="PRAGMA_ALLOW_MOCK"):
+                        orch.evaluate("decision", {"x": 1})
 
-    def test_openai_rate_limit_returns_mock(self):
+    def test_no_clients_returns_mock_when_opted_in(self):
+        orch = _make_orchestrator(claude=None, openai=None)
+        with patch.dict("os.environ", {"PRAGMA_ALLOW_MOCK": "1"}):
+            result = orch.evaluate("decision", {"x": 1})
+        assert result["provider"] == "mock"
+
+    def test_no_clients_raises_when_mock_not_opted_in(self):
+        from backend.llm_orchestrator import NoLLMProviderError
+        import os
+        orch = _make_orchestrator(claude=None, openai=None)
+        os.environ.pop("PRAGMA_ALLOW_MOCK", None)
+        with pytest.raises(NoLLMProviderError):
+            orch.evaluate("decision", {"x": 1})
+
+    def test_openai_rate_limit_returns_mock_when_opted_in(self):
         orch = _make_orchestrator(claude=None, openai=MagicMock())
         # Build a minimal OpenAI RateLimitError
         response_mock = MagicMock()
         response_mock.status_code = 429
         err = OpenAIRateLimitError("rate limited", response=response_mock, body={})
         with patch.object(orch, "_call_openai", side_effect=err):
-            result = orch.evaluate("decision", {"x": 1})
-        assert result["provider"] == "pragma"
+            with patch.dict("os.environ", {"PRAGMA_ALLOW_MOCK": "yes"}):
+                result = orch.evaluate("decision", {"x": 1})
+        assert result["provider"] == "mock"
 
     def test_mock_response_structure(self):
         result = LLMOrchestrator._mock_response()
         for key in ("kantian_analysis", "utilitarian_analysis", "virtue_ethics_analysis",
                     "risk_flags", "confidence_score", "recommendation", "provider"):
             assert key in result
-        assert result["provider"] == "pragma"
+        assert result["provider"] == "mock"
+
+    def test_mock_opt_in_env_parsing(self):
+        from backend.llm_orchestrator import _mock_enabled
+        for truthy in ("1", "true", "True", "TRUE", "yes", "YES"):
+            with patch.dict("os.environ", {"PRAGMA_ALLOW_MOCK": truthy}):
+                assert _mock_enabled() is True
+        for falsy in ("0", "false", "no", "", "banana"):
+            with patch.dict("os.environ", {"PRAGMA_ALLOW_MOCK": falsy}):
+                assert _mock_enabled() is False
+        import os
+        with patch.dict("os.environ", {}, clear=True):
+            assert _mock_enabled() is False
 
     def test_claude_not_configured_skips_to_openai(self):
         orch = _make_orchestrator(claude=None, openai=MagicMock())
