@@ -22,7 +22,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-from .llm_orchestrator import LLMOrchestrator
+from .llm_orchestrator import LLMOrchestrator, NoLLMProviderError, _mock_enabled
 from .report_generator import generate_pdf
 from .risk_detector import detect_all_risks
 from .regulations import get_regulatory_refs
@@ -149,6 +149,9 @@ class EthicalAnalysis(BaseModel):
     audit_log_id: Optional[int] = None
     proxy_variables_detected: list[Dict[str, Any]] = []
     semantic_flags: list[Dict[str, Any]] = []
+    # ── Degraded-coverage fields ──────────────────────────────────────────────
+    degraded: bool = False            # True → one or more rule checkers crashed
+    degraded_checks: list[str] = []   # names of checkers that failed this run
 
 
 class ReportRequest(BaseModel):
@@ -360,7 +363,11 @@ async def evaluate_decision(
                 )
 
     category = request.category if request.category in VALID_CATEGORIES else "other"
-    analysis = _run_evaluation(request.decision, request.context, category, request.block_threshold)
+    try:
+        analysis = _run_evaluation(request.decision, request.context, category, request.block_threshold)
+    except NoLLMProviderError as e:
+        # Server misconfiguration, not a client error: no model to evaluate with.
+        raise HTTPException(status_code=503, detail=str(e))
 
     from .risk_detector import get_proxy_variable_report
     from .semantic_layer import score_semantic_proxies
@@ -818,6 +825,7 @@ async def health_check():
             "pragma":  orchestrator._custom.available,   # our model — primary
             "claude":  orchestrator._claude is not None, # fallback
             "openai":  orchestrator._openai is not None, # fallback
+            "mock_allowed": _mock_enabled(),             # heuristic mock (dev/demo only)
         }
     }
 
@@ -901,8 +909,12 @@ def _run_evaluation(decision: str, context: Dict[str, Any], category: str, block
     except Exception:
         rule_config = None
 
-    # Always run deterministic rule-based compliance checks
-    rule_checks = run_compliance_checks(decision, context, category, rule_config=rule_config)
+    # Always run deterministic rule-based compliance checks.
+    # run_compliance_checks never fails silently: crashed checkers are reported
+    # in failed_checkers and surfaced to the caller as degraded coverage.
+    rule_result = run_compliance_checks(decision, context, category, rule_config=rule_config)
+    rule_checks = rule_result["checks"]
+    degraded_checks = rule_result["failed_checkers"]
     compliance_checks = _merge_compliance_checks(rule_checks, llm_analysis.get("compliance_checks", []))
 
     return {
@@ -915,6 +927,8 @@ def _run_evaluation(decision: str, context: Dict[str, Any], category: str, block
         "provider":              llm_analysis.get("provider", "unknown"),
         "regulatory_refs":       get_regulatory_refs(risk_flags, category),
         "compliance_checks":     compliance_checks,
+        "degraded":              bool(degraded_checks),
+        "degraded_checks":       degraded_checks,
         **_compute_firewall(risk_flags, confidence_score, block_threshold),
     }
 

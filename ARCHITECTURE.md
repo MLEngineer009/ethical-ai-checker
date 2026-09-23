@@ -28,7 +28,7 @@ Pragma is a single-deployment SaaS application: one FastAPI backend serves the w
      │     └── State law overlays (CA, NY, IL)
      │
      ├──► L2 LLM Orchestrator (optional, waterfall)
-     │     └── Pragma model → Claude → GPT-4o-mini → heuristic mock
+     │     └── Pragma model → Claude → GPT-4o-mini → heuristic mock (opt-in only)
      │
      ├──► EU AI Act Compliance Engine (15-article scoring)
      │
@@ -99,10 +99,13 @@ Waterfall fallback chain for deeper risk analysis (L2). Runs after L1 when enabl
 Pragma (custom fine-tuned model on Ollama/HuggingFace)
   → Claude Sonnet (Anthropic SDK)
     → GPT-4o-mini (OpenAI SDK)
-      → heuristic mock (always available)
+      → heuristic mock (ONLY when PRAGMA_ALLOW_MOCK=true; otherwise a
+         missing LLM configuration raises NoLLMProviderError instead of
+         silently fabricating an analysis)
 ```
 
 Provider recorded in the response so clients know which model scored the decision.
+Mock responses are labeled "provider": "mock" so they are unmistakable in audit trails.
 
 ### 5. EU AI Act Compliance Engine (`backend/compliance_engine.py`)
 

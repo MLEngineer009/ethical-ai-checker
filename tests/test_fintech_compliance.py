@@ -544,16 +544,18 @@ class TestRunComplianceChecksIntegration:
             "adverse_action_notice": "not sent",
             "consumer_report_used": "yes",
         }
-        results = run_compliance_checks("Deny this loan.", ctx, "finance")
-        regs = [r["regulation"] for r in results]
+        result = run_compliance_checks("Deny this loan.", ctx, "finance")
+        assert result["failed_checkers"] == []
+        regs = [r["regulation"] for r in result["checks"]]
         assert any("ECOA" in r for r in regs)
         assert any("FCRA" in r for r in regs)
         assert any("Fair Housing" in r for r in regs)
 
     def test_hiring_category_runs_eeoc(self):
         ctx = {"graduation_year": "1979", "role_applied": "Engineer"}
-        results = run_compliance_checks("Reject this candidate.", ctx, "hiring")
-        assert any("ADEA" in r["regulation"] or "EEOC" in r["regulation"] for r in results)
+        result = run_compliance_checks("Reject this candidate.", ctx, "hiring")
+        assert result["failed_checkers"] == []
+        assert any("ADEA" in r["regulation"] or "EEOC" in r["regulation"] for r in result["checks"])
 
     def test_clean_finance_decision_mostly_passes(self):
         ctx = {
@@ -562,6 +564,28 @@ class TestRunComplianceChecksIntegration:
             "adverse_action_notice": "process in place",
             "denial_factors": "not applicable — approval",
         }
-        results = run_compliance_checks("Approve this loan application.", ctx, "finance")
-        fails = [r for r in results if r["status"] == "FAIL"]
+        result = run_compliance_checks("Approve this loan application.", ctx, "finance")
+        fails = [r for r in result["checks"] if r["status"] == "FAIL"]
         assert len(fails) == 0
+
+    def test_crashed_checker_is_reported_not_silent(self):
+        """A checker that raises must be logged, counted, and named — never swallowed."""
+        import backend.compliance_engine as ce
+        def _boom(decision, context):
+            raise RuntimeError("simulated checker bug")
+        _boom.__name__ = "_check_boom"
+        original = ce._DECISION_CHECKERS["other"]
+        ce._DECISION_CHECKERS["other"] = original + [_boom]
+        try:
+            result = run_compliance_checks("Deny this loan.", {"zip_code": "60620"}, "other")
+        finally:
+            ce._DECISION_CHECKERS["other"] = original
+        # The crash is reported…
+        assert result["failed_checkers"] == ["_check_boom"]
+        # …and the surviving checkers still ran
+        assert len(result["checks"]) > 0
+
+    def test_healthy_run_reports_no_degradation(self):
+        result = run_compliance_checks("Approve.", {"zip_code": "94025"}, "other")
+        assert result["failed_checkers"] == []
+        assert isinstance(result["checks"], list)

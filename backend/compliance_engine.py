@@ -1221,7 +1221,7 @@ def run_compliance_checks(
     context: dict,
     category: str = "other",
     rule_config: dict | None = None,
-) -> list:
+) -> dict:
     """
     Run all deterministic compliance checks for the given category.
     Always runs — no LLM or API key required.
@@ -1229,11 +1229,18 @@ def run_compliance_checks(
     rule_config: optional dict keyed by rule_key, values are the config dicts
                  loaded from the DB via database.get_effective_rules(). When
                  None, built-in defaults are used (backward compatible).
+
+    Returns {"checks": [...], "failed_checkers": [...]}. A checker that raises
+    is NEVER silently skipped: the exception is logged with its traceback, the
+    checker name is recorded in "failed_checkers", and callers surface that
+    list so everyone knows the compliance net narrowed for this evaluation.
     """
     import inspect as _inspect
     checkers = _DECISION_CHECKERS.get(category.lower(), _DECISION_CHECKERS["other"])
     results = []
+    failed = []
     for checker in checkers:
+        name = getattr(checker, "__name__", repr(checker))
         try:
             sig = _inspect.signature(checker)
             if "rule_config" in sig.parameters:
@@ -1241,5 +1248,16 @@ def run_compliance_checks(
             else:
                 results.extend(checker(decision, context))
         except Exception:
-            pass
-    return results
+            # Loud, not silent: a broken rule narrows coverage and the caller
+            # must know. The evaluation still returns 200 with what ran.
+            logger.exception(
+                "Compliance checker %s crashed — excluded from this evaluation "
+                "(coverage reduced)", name
+            )
+            failed.append(name)
+    if failed:
+        logger.warning(
+            "run_compliance_checks degraded: %d of %d checkers failed: %s",
+            len(failed), len(checkers), ", ".join(failed),
+        )
+    return {"checks": results, "failed_checkers": failed}
