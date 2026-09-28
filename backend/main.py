@@ -2036,7 +2036,7 @@ async def architecture_alias():
     raise HTTPException(status_code=404, detail="Page not found")
 
 
-@app.get("/docs/architecture")
+@app.get("/pages/architecture")
 async def docs_architecture():
     """Serve the architecture documentation page."""
     page = Path(__file__).parent.parent / "docs" / "architecture.html"
@@ -2045,7 +2045,7 @@ async def docs_architecture():
     raise HTTPException(status_code=404, detail="Page not found")
 
 
-@app.get("/docs/business")
+@app.get("/pages/business")
 async def docs_business():
     """Serve the business case documentation page."""
     page = Path(__file__).parent.parent / "docs" / "business.html"
@@ -2054,7 +2054,7 @@ async def docs_business():
     raise HTTPException(status_code=404, detail="Page not found")
 
 
-@app.get("/docs/auditing")
+@app.get("/pages/auditing")
 async def docs_auditing():
     """Serve the auditing documentation page."""
     page = Path(__file__).parent.parent / "docs" / "auditing.html"
