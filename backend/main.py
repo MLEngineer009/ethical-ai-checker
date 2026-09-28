@@ -2028,6 +2028,14 @@ async def business_alias():
     raise HTTPException(status_code=404, detail="Page not found")
 
 
+@app.get("/architecture")
+async def architecture_alias():
+    page = Path(__file__).parent.parent / "docs" / "architecture.html"
+    if page.exists():
+        return FileResponse(page)
+    raise HTTPException(status_code=404, detail="Page not found")
+
+
 @app.get("/docs/architecture")
 async def docs_architecture():
     """Serve the architecture documentation page."""
