@@ -2022,7 +2022,7 @@ async def cosmos_landing():
 
 @app.get("/business")
 async def business_alias():
-    page = Path(__file__).parent.parent / "docs" / "business.html"
+    page = Path(__file__).parent.parent / "frontend" / "business.html"
     if page.exists():
         return FileResponse(page)
     raise HTTPException(status_code=404, detail="Page not found")
@@ -2030,7 +2030,7 @@ async def business_alias():
 
 @app.get("/architecture")
 async def architecture_alias():
-    page = Path(__file__).parent.parent / "docs" / "architecture.html"
+    page = Path(__file__).parent.parent / "frontend" / "architecture.html"
     if page.exists():
         return FileResponse(page)
     raise HTTPException(status_code=404, detail="Page not found")
@@ -2039,7 +2039,7 @@ async def architecture_alias():
 @app.get("/pages/architecture")
 async def docs_architecture():
     """Serve the architecture documentation page."""
-    page = Path(__file__).parent.parent / "docs" / "architecture.html"
+    page = Path(__file__).parent.parent / "frontend" / "architecture.html"
     if page.exists():
         return FileResponse(page)
     raise HTTPException(status_code=404, detail="Page not found")
@@ -2048,7 +2048,7 @@ async def docs_architecture():
 @app.get("/pages/business")
 async def docs_business():
     """Serve the business case documentation page."""
-    page = Path(__file__).parent.parent / "docs" / "business.html"
+    page = Path(__file__).parent.parent / "frontend" / "business.html"
     if page.exists():
         return FileResponse(page)
     raise HTTPException(status_code=404, detail="Page not found")
@@ -2057,7 +2057,7 @@ async def docs_business():
 @app.get("/pages/auditing")
 async def docs_auditing():
     """Serve the auditing documentation page."""
-    page = Path(__file__).parent.parent / "docs" / "auditing.html"
+    page = Path(__file__).parent.parent / "frontend" / "auditing.html"
     if page.exists():
         return FileResponse(page)
     raise HTTPException(status_code=404, detail="Page not found")

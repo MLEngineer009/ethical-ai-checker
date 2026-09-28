@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pragma — Business Case</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: rgba(255,255,255,0.04);
+    --border: rgba(255,255,255,0.08);
+    --accent: #7c6fe0;
+    --accent2: #4ecdc4;
+    --accent3: #f7931e;
+    --text: #e8e8f0;
+    --muted: #888;
+    --green: #4ade80;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --purple: #a78bfa;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(10,10,15,0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 40px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .nav-logo { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }
+  .nav-logo span { color: var(--accent); }
+  .nav-links { display: flex; gap: 28px; }
+  .nav-links a { color: var(--muted); text-decoration: none; font-size: 14px; transition: color .2s; }
+  .nav-links a:hover { color: var(--text); }
+
+  .hero {
+    text-align: center;
+    padding: 80px 40px 60px;
+    background: radial-gradient(ellipse 800px 400px at 50% 0%, rgba(124,111,224,0.12) 0%, transparent 70%);
+  }
+  .hero-badge {
+    display: inline-block;
+    background: rgba(124,111,224,0.15);
+    border: 1px solid rgba(124,111,224,0.3);
+    color: var(--accent);
+    font-size: 12px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+    padding: 5px 14px; border-radius: 20px; margin-bottom: 24px;
+  }
+  .hero h1 {
+    font-size: clamp(32px, 5vw, 56px);
+    font-weight: 800;
+    letter-spacing: -1.5px;
+    background: linear-gradient(135deg, #fff 30%, var(--accent) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 16px;
+  }
+  .hero p { color: var(--muted); font-size: 18px; max-width: 600px; margin: 0 auto; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 40px; }
+  section { padding: 60px 0; border-top: 1px solid var(--border); }
+  h2 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 8px; }
+  .section-sub { color: var(--muted); font-size: 15px; margin-bottom: 36px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+  }
+  .card-grid { display: grid; gap: 16px; }
+  .card-grid.cols-3 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .card-grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); }
+  .card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .card p { color: var(--muted); font-size: 14px; }
+  .card ul { color: var(--muted); font-size: 14px; padding-left: 18px; }
+  .card ul li { margin-bottom: 4px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot.purple { background: var(--accent); }
+  .dot.teal   { background: var(--accent2); }
+  .dot.orange { background: var(--accent3); }
+  .dot.green  { background: var(--green); }
+
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 5px;
+    font-size: 11px; font-weight: 600;
+  }
+  code {
+    background: rgba(255,255,255,0.07); border-radius: 5px;
+    padding: 2px 6px; font-family: 'SF Mono', 'Menlo', monospace; font-size: 12px;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left; padding: 10px 14px;
+    color: var(--muted); font-weight: 600; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border);
+  }
+  td { padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .data-table { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+
+  footer {
+    text-align: center; padding: 40px;
+    color: var(--muted); font-size: 13px;
+    border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo"><span>Pragma</span> <span style="font-size:12px;font-weight:500;color:var(--muted);margin-left:8px;">by Cosmos AI</span></div>
+  <div class="nav-links">
+    <a href="#problem">Problem</a>
+    <a href="#value">Value</a>
+    <a href="#market">Market</a>
+    <a href="#usecases">Use Cases</a>
+    <a href="#revenue">Revenue</a>
+    <a href="#competitive">Competitive</a>
+    <a href="#roadmap">Roadmap</a>
+    <a href="auditing.html">AI Auditing AI →</a>
+    <a href="testing-guide.html">Testing Guide →</a>
+    <a href="architecture.html">Architecture →</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-badge">Business Case</div>
+  <h1>Pragma</h1>
+  <p style="color:var(--muted);font-size:13px;margin-bottom:8px;">A product of <strong style="color:var(--text);">Cosmos AI LLC</strong> · Texas</p>
+  <p>Stop ECOA violations, HOLC redlining, and EU AI Act breaches before they execute. Pre-execution blocking, ECOA adverse action notices, disparate impact analysis, immutable audit trail, compliance certificates — built for fintech and enterprise AI teams.</p>
+</div>
+
+<div class="container">
+
+  <!-- PROBLEM -->
+  <section id="problem">
+    <h2>The Problem</h2>
+    <p class="section-sub">AI is making credit, hiring, and healthcare decisions at scale — with no automated guardrails against the specific regulations that carry real fines.</p>
+    <div class="card-grid cols-3">
+      <div class="card">
+        <h3><span class="dot" style="background:#f87171"></span> Regulatory Liability</h3>
+        <p>ECOA, EEOC, GDPR, and the EU AI Act carry fines up to €35M or 7% of global revenue. The CFPB and EEOC are actively pursuing AI discrimination cases — Workday's class action covers millions of applicants.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot" style="background:#fbbf24"></span> Monitoring Is Too Late</h3>
+        <p>Every compliance tool on the market monitors after the fact. By the time a report flags a biased loan denial, the harm has happened and the liability is already created.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot" style="background:#f97316"></span> Proxy Variables Are Invisible</h3>
+        <p>Zip code, last name, and email domain are race and national origin proxies under ECOA. Models use them routinely. No existing tool detects them in real-time and blocks the decision before it executes.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- VALUE PROPOSITION -->
+  <section id="value">
+    <h2>Value Proposition</h2>
+    <p class="section-sub">Pre-execution blocking, not post-hoc reporting. Every AI decision is screened against specific regulations before it executes.</p>
+    <div class="card-grid cols-2">
+      <div class="card">
+        <h3 style="font-size:20px; margin-bottom:16px;">For Engineering Teams</h3>
+        <ul style="line-height:2;">
+          <li><strong>Python SDK</strong> — one-line integration: <code>client = Pragma(OpenAI(), policy_id="hr-v1")</code></li>
+          <li>Firewall verdict on every call: block / override_required / allow</li>
+          <li>Automatic risk flag detection (bias, discrimination, fairness, transparency)</li>
+          <li>Regulatory mapping — EEOC, GDPR, EU AI Act, NYC LL144, CFPB auto-cited</li>
+          <li>Batch CSV evaluation, counterfactual bias audit, PDF audit report</li>
+          <li>Compliance-aware chat API for conversational AI use cases</li>
+          <li><strong>Proxy Variable Guard</strong> — ECOA/Reg B proxy field detection on every evaluation</li>
+          <li><strong>EU AI Act data lineage</strong> — register AI systems, track all 15 articles (Arts. 4–6, 9–15, 17, 25, 27, 30, 33), issue compliance certificates</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3 style="font-size:20px; margin-bottom:16px;">For Legal &amp; Compliance Teams</h3>
+        <ul style="line-height:2;">
+          <li>Proactive enforcement — blocks violations before they execute</li>
+          <li><strong>Immutable audit trail</strong> — sha256-hashed inputs, firewall verdicts, proxy vars detected</li>
+          <li><strong>HITL Override</strong> — human investigators record override reasons per EU AI Act Art. 14</li>
+          <li><strong>EU AI Act Compliance Certificate</strong> — PDF readiness report for all 15 articles, SELF-ASSESSMENT ONLY watermark, valid 1 year</li>
+          <li>Explainable output non-technical stakeholders can read and defend</li>
+          <li>No PII stored — anonymous metadata only, GDPR-safe by design</li>
+          <li>VPC-deployable — sensitive data never leaves your infrastructure</li>
+          <li>August 2026 EU AI Act deadline coverage out of the box</li>
+          <li><strong>AI-powered evidence collection</strong> — upload compliance docs (PDF, CSV) or take a guided interview; Claude validates evidence against the specific article's legal requirement</li>
+          <li><strong>Compliance dashboard</strong> — track score trends across all registered systems, article heatmap, EU AI Act deadline countdown</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card-grid cols-3" style="margin-top:16px;">
+      <div class="card" style="text-align:center; padding:32px;">
+        <div style="font-size:40px; font-weight:800; background:linear-gradient(135deg,#f87171,#f97316); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">Pre</div>
+        <div style="font-weight:600; margin-top:4px;">Execution Blocking</div>
+        <div style="color:var(--muted); font-size:13px; margin-top:4px;">Decision halted before it reaches your model — not flagged in a report afterward</div>
+      </div>
+      <div class="card" style="text-align:center; padding:32px;">
+        <div style="font-size:40px; font-weight:800; background:linear-gradient(135deg,#a78bfa,#7c6fe0); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">7</div>
+        <div style="font-weight:600; margin-top:4px;">Regulations Enforced</div>
+        <div style="color:var(--muted); font-size:13px; margin-top:4px;">EEOC · ECOA · GDPR · EU AI Act · NYC LL144 · CFPB · NIST</div>
+      </div>
+      <div class="card" style="text-align:center; padding:32px;">
+        <div style="font-size:40px; font-weight:800; background:linear-gradient(135deg,#4ade80,#4ecdc4); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">0</div>
+        <div style="font-weight:600; margin-top:4px;">PII Stored</div>
+        <div style="color:var(--muted); font-size:13px; margin-top:4px;">SHA-256 hashed audit trail — GDPR-safe, regulator-ready</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TARGET MARKET -->
+  <section id="market">
+    <h2>Target Market</h2>
+    <p class="section-sub">Any team deploying automated decision-making that affects people.</p>
+    <div class="card-grid cols-2">
+      <div class="card">
+        <h3><span class="dot purple"></span> Primary Targets</h3>
+        <ul style="margin-top:12px; line-height:2.2; color:var(--muted); font-size:14px;">
+          <li><strong style="color:var(--text);">HR Tech Companies</strong> — AI hiring tools, resume screeners, interview scoring</li>
+          <li><strong style="color:var(--text);">Fintech &amp; Banking</strong> — Loan approvals, credit scoring, fraud detection</li>
+          <li><strong style="color:var(--text);">Enterprise AI Teams</strong> — Internal copilots, automated workflows, policy engines</li>
+          <li><strong style="color:var(--text);">AI Governance Teams</strong> — Chief AI Officers, Legal, Compliance, Risk</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3><span class="dot teal"></span> Market Opportunity</h3>
+        <ul style="margin-top:12px; line-height:2.2; color:var(--muted); font-size:14px;">
+          <li><strong style="color:var(--text);">$40B+</strong> — AI governance &amp; risk management market by 2028</li>
+          <li><strong style="color:var(--text);">EU AI Act</strong> — Mandatory risk assessments for high-risk AI systems from 2026</li>
+          <li><strong style="color:var(--text);">EEOC &amp; CFPB</strong> — Increased US enforcement on algorithmic bias</li>
+          <li><strong style="color:var(--text);">78% of enterprises</strong> — plan to expand AI use in decisions by 2026</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- USE CASES -->
+  <section id="usecases">
+    <h2>Use Cases</h2>
+    <p class="section-sub">Real scenarios where the engine detects risk and provides actionable guidance.</p>
+    <div class="card-grid cols-2">
+      <div class="card">
+        <h3><span class="dot" style="background:#f87171"></span> Hiring Decision</h3>
+        <p style="margin-top:8px; font-size:13px; color:var(--muted);">Input decision:</p>
+        <code style="display:block; margin:8px 0; padding:10px;">"Reject job candidate" + context: gender=female, education=non-elite</code>
+        <p style="font-size:13px; color:var(--muted);">Output:</p>
+        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+          <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">bias flagged</span>
+          <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">fairness flagged</span>
+        </div>
+        <p style="font-size:13px; color:var(--muted); margin-top:10px;">Recommendation: Remove gender from evaluation criteria. Apply structured scoring on skills and experience only.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot" style="background:#f97316"></span> Loan Approval</h3>
+        <p style="margin-top:8px; font-size:13px; color:var(--muted);">Input decision:</p>
+        <code style="display:block; margin:8px 0; padding:10px;">"Reject loan application" + context: zip_code=90210, income=75000</code>
+        <p style="font-size:13px; color:var(--muted);">Output:</p>
+        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+          <span class="badge" style="background:rgba(249,115,22,0.15); color:#fdba74;">discrimination flagged</span>
+          <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">bias flagged</span>
+        </div>
+        <p style="font-size:13px; color:var(--muted); margin-top:10px;">Recommendation: Zip code is a proxy for race and protected class. Replace with income, credit score, and debt-to-income ratio.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot" style="background:#fbbf24"></span> Promotion Decision</h3>
+        <p style="margin-top:8px; font-size:13px; color:var(--muted);">Input decision:</p>
+        <code style="display:block; margin:8px 0; padding:10px;">"Promote employee" + context: performance=excellent, years=3, gender=male</code>
+        <p style="font-size:13px; color:var(--muted);">Output:</p>
+        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+          <span class="badge" style="background:rgba(251,191,36,0.15); color:#fde68a;">bias detected</span>
+          <span class="badge" style="background:rgba(74,222,128,0.15); color:#6ee7b7;">merit criteria present</span>
+        </div>
+        <p style="font-size:13px; color:var(--muted); margin-top:10px;">Recommendation: Proceed, but remove gender from criteria. Decision appears merit-based — verify against team-wide promotion rates.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot green"></span> AI Policy Rollout</h3>
+        <p style="margin-top:8px; font-size:13px; color:var(--muted);">Input decision:</p>
+        <code style="display:block; margin:8px 0; padding:10px;">"Implement AI performance monitoring" + context: scope=keystrokes, consent=not required</code>
+        <p style="font-size:13px; color:var(--muted);">Output:</p>
+        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+          <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">transparency flagged</span>
+          <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">harm potential</span>
+        </div>
+        <p style="font-size:13px; color:var(--muted); margin-top:10px;">Recommendation: Require explicit employee consent. Disclose scope fully. Implement opt-out process and data retention limits.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- REVENUE MODEL -->
+  <section id="revenue">
+    <h2>Revenue Model</h2>
+    <p class="section-sub">Free for developer adoption. Self-serve Growth tier for teams. Enterprise contracts for the compliance budget where real revenue lives.</p>
+    <div class="card-grid cols-3" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+      <div class="card" style="border-color: rgba(255,255,255,0.12);">
+        <div style="font-size:11px; font-weight:700; letter-spacing:1px; color:var(--muted); text-transform:uppercase; margin-bottom:12px;">Free</div>
+        <div style="font-size:32px; font-weight:800; margin-bottom:4px;">$0</div>
+        <div style="color:var(--muted); font-size:13px; margin-bottom:20px;">forever — no credit card</div>
+        <ul style="color:var(--muted); font-size:13px; line-height:2;">
+          <li>100 evaluations / month</li>
+          <li>Web &amp; mobile app access</li>
+          <li>PDF report downloads</li>
+          <li>Guest access (no sign-in)</li>
+          <li>Firewall verdict + regulatory refs</li>
+          <li style="opacity:0.4;">API key access</li>
+          <li style="opacity:0.4;">Team / org accounts</li>
+        </ul>
+      </div>
+      <div class="card" style="border-color: rgba(124,111,224,0.5); background: rgba(124,111,224,0.05);">
+        <div style="font-size:11px; font-weight:700; letter-spacing:1px; color:var(--accent); text-transform:uppercase; margin-bottom:12px;">Growth — Self-Serve</div>
+        <div style="font-size:32px; font-weight:800; margin-bottom:4px;">$299</div>
+        <div style="color:var(--muted); font-size:13px; margin-bottom:20px;">per month · Stripe Checkout</div>
+        <ul style="color:var(--muted); font-size:13px; line-height:2;">
+          <li>2,000 evaluations / month</li>
+          <li>Web &amp; mobile app access</li>
+          <li><strong style="color:var(--text);">API key access</strong> — SDK integration</li>
+          <li><strong style="color:var(--text);">EU AI Act Certificate</strong> — 15-article PDF</li>
+          <li><strong style="color:var(--text);">ECOA Proxy Variable Guard</strong></li>
+          <li><strong style="color:var(--text);">Immutable audit trail</strong> — HITL override</li>
+          <li>Org accounts + shared decision history</li>
+          <li>Manage via Stripe Customer Portal</li>
+        </ul>
+      </div>
+      <div class="card" style="border-color: rgba(247,147,30,0.5); background: rgba(247,147,30,0.05);">
+        <div style="font-size:11px; font-weight:700; letter-spacing:1px; color:var(--accent3); text-transform:uppercase; margin-bottom:12px;">Enterprise — Talk to us</div>
+        <div style="font-size:32px; font-weight:800; margin-bottom:4px;">$10K–$100K</div>
+        <div style="color:var(--muted); font-size:13px; margin-bottom:20px;">annual contract · usage-based API tier</div>
+        <ul style="color:var(--muted); font-size:13px; line-height:2;">
+          <li>Unlimited evaluations + API keys</li>
+          <li><strong style="color:var(--text);">Pre-execution firewall</strong> — embedded in your AI pipeline</li>
+          <li><strong style="color:var(--text);">ECOA Proxy Variable Guard</strong> — 20+ fields auto-detected</li>
+          <li><strong style="color:var(--text);">EU AI Act Certificate</strong> — 15-article compliance PDF, valid 1 year</li>
+          <li><strong style="color:var(--text);">Immutable audit trail</strong> — SHA-256 hashed, regulator-ready export</li>
+          <li>Custom block thresholds &amp; risk policies per team</li>
+          <li>Self-hosted / VPC deployment — data never leaves your infrastructure</li>
+          <li>SAML SSO + org accounts + shared decision history</li>
+          <li>SLA + dedicated compliance engineering support</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMPETITIVE ADVANTAGE -->
+  <section id="competitive">
+    <h2>Competitive Advantage</h2>
+    <p class="section-sub">Every other tool generates a compliance report after the decision runs. Pragma blocks the decision before it executes.</p>
+    <div class="data-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Capability</th>
+            <th>Pragma</th>
+            <th>FairNow / Saidot / KomplyAI</th>
+            <th>Holistic AI / Credo AI</th>
+            <th>Manual Compliance Review</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Pre-execution decision blocking</strong></td>
+            <td style="color:var(--green);">Yes — decision halted before it executes</td>
+            <td style="color:var(--red);">No — compliance assessment only, no runtime firewall</td>
+            <td style="color:var(--red);">No — model inventory &amp; risk governance, no blocking</td>
+            <td style="color:var(--red);">No</td>
+          </tr>
+          <tr>
+            <td><strong>ECOA proxy variable guard</strong></td>
+            <td style="color:var(--green);">Yes — 35+ fields auto-detected, compound risk detection, CFPB-cited</td>
+            <td style="color:var(--red);">No</td>
+            <td style="color:var(--red);">No</td>
+            <td style="color:var(--red);">No</td>
+          </tr>
+          <tr>
+            <td><strong>EU AI Act 15-article certificate</strong></td>
+            <td style="color:var(--green);">Yes — live checklist + AI-validated evidence + PDF certificate</td>
+            <td style="color:var(--muted);">Partial — assessment without AI evidence validation</td>
+            <td style="color:var(--muted);">Partial — enterprise scope, no self-serve certificate</td>
+            <td style="color:var(--muted);">Expensive consulting, months</td>
+          </tr>
+          <tr>
+            <td><strong>AI-powered evidence collection</strong></td>
+            <td style="color:var(--green);">Yes — document upload + guided interview scored by Claude</td>
+            <td style="color:var(--red);">No — self-declaration only</td>
+            <td style="color:var(--red);">No — checkbox-based</td>
+            <td style="color:var(--red);">No</td>
+          </tr>
+          <tr>
+            <td><strong>HOLC redlining geo detection</strong></td>
+            <td style="color:var(--green);">Yes — 500+ zip codes, 35 US cities (deterministic, L1)</td>
+            <td style="color:var(--red);">No</td>
+            <td style="color:var(--red);">No</td>
+            <td style="color:var(--red);">No</td>
+          </tr>
+          <tr>
+            <td><strong>ECOA adverse action notice generator</strong></td>
+            <td style="color:var(--green);">Yes — §1002.9 + FCRA §615(a), one API call</td>
+            <td style="color:var(--red);">No</td>
+            <td style="color:var(--red);">No</td>
+            <td style="color:var(--red);">No</td>
+          </tr>
+          <tr>
+            <td><strong>Disparate impact analysis (EEOC 4/5ths)</strong></td>
+            <td style="color:var(--green);">Yes — group-level pass rates, flagged automatically</td>
+            <td style="color:var(--muted);">Partial (some tools)</td>
+            <td style="color:var(--muted);">Partial (model-level)</td>
+            <td style="color:var(--red);">No</td>
+          </tr>
+          <tr>
+            <td><strong>Dynamic rule engine (DB-backed, per-org)</strong></td>
+            <td style="color:var(--green);">Yes — live config, per-org overrides, no redeploy</td>
+            <td style="color:var(--red);">No</td>
+            <td style="color:var(--red);">No</td>
+            <td style="color:var(--red);">No</td>
+          </tr>
+          <tr>
+            <td>Compliance dashboard + trend charts</td>
+            <td style="color:var(--green);">Yes — score snapshots, sparklines, heatmap, deadline countdown</td>
+            <td style="color:var(--muted);">Limited</td>
+            <td style="color:var(--muted);">Partial</td>
+            <td style="color:var(--red);">No</td>
+          </tr>
+          <tr>
+            <td>Immutable audit trail</td>
+            <td style="color:var(--green);">Yes — SHA-256 hashed, HITL override</td>
+            <td style="color:var(--red);">No</td>
+            <td style="color:var(--muted);">Partial</td>
+            <td style="color:var(--muted);">Manual logs</td>
+          </tr>
+          <tr>
+            <td>API-first, one-line SDK integration</td>
+            <td style="color:var(--green);">Yes — <code>Pragma(OpenAI(), ...)</code></td>
+            <td style="color:var(--red);">No</td>
+            <td style="color:var(--red);">No</td>
+            <td style="color:var(--red);">No</td>
+          </tr>
+          <tr>
+            <td>Speed to first compliance check</td>
+            <td style="color:var(--green);">Under 5 minutes</td>
+            <td style="color:var(--muted);">Days (setup required)</td>
+            <td style="color:var(--muted);">Weeks (enterprise onboarding)</td>
+            <td style="color:var(--red);">Months</td>
+          </tr>
+          <tr>
+            <td>Price</td>
+            <td style="color:var(--green);">Free / $299/mo / Enterprise</td>
+            <td style="color:var(--muted);">Enterprise only</td>
+            <td style="color:var(--muted);">Enterprise only ($500+/seat/mo)</td>
+            <td style="color:var(--muted);">$50K+ consulting</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ROADMAP -->
+  <section id="roadmap">
+    <h2>Product Roadmap</h2>
+    <p class="section-sub">From feedback flywheel to enterprise AI governance platform.</p>
+    <div class="card-grid cols-2">
+      <div class="card" style="border-color:rgba(74,222,128,0.3);">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+          <span class="badge" style="background:rgba(74,222,128,0.15); color:#6ee7b7; font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">Done — MVP</span>
+        </div>
+        <ul style="color:var(--muted); font-size:14px; line-height:2.2;">
+          <li>AI Decision Firewall — block / override_required / allow verdict on every call</li>
+          <li>POST /evaluate-decision with 7 categories, 3 ethical frameworks, regulatory mapping</li>
+          <li>Compliance-aware Chat API — firewall intercepts before response is generated</li>
+          <li>Batch CSV evaluation (100 rows), counterfactual bias audit, PDF audit reports</li>
+          <li>Python SDK — Pragma(OpenAI(), policy_id=...) one-line integration, sync + async</li>
+          <li>Provider chain: Custom Pragma model → Claude → OpenAI → heuristic mock</li>
+          <li><strong style="color:var(--text);">Proxy Variable Guard</strong> — ECOA/Reg B fintech proxy field detection (zip_code, last_name, ip_country, email_domain…)</li>
+          <li><strong style="color:var(--text);">Immutable Audit Trail</strong> — sha256-hashed audit log, firewall verdicts, proxy vars, per-record HITL override</li>
+          <li><strong style="color:var(--text);">EU AI Act 15-Article Framework</strong> — Arts. 4–6, 9–15, 17, 25, 27, 30, 33 compliance checklist with evidence-based scoring</li>
+          <li><strong style="color:var(--text);">5-Step Assessment Wizard</strong> — guided AI system registration replacing flat form (Step 1: System Info → Step 2: Risk → Step 3: Data → Step 4: Declaration → Step 5: Review)</li>
+          <li><strong style="color:var(--text);">Certificate Hardening</strong> — SELF-ASSESSMENT ONLY diagonal watermark; DECLARATION ONLY badges on articles without supporting documentation</li>
+          <li><strong style="color:var(--text);">Stripe Billing</strong> — Growth plan ($299/mo, self-serve Checkout), Customer Portal, webhook lifecycle management, plan rate limiting</li>
+          <li><strong style="color:var(--text);">Rate Limiting</strong> — Free: 100 evals/month; Growth: 2,000; Enterprise: unlimited — enforced on both single and batch evaluation</li>
+          <li><strong style="color:var(--text);">Security Hardening</strong> — XSS prevention (esc() helper), CORS explicit allowlist, input size limits, SQL injection guard, Stripe webhook signature verification</li>
+          <li>Structured logging across all backend modules (main.py, compliance_engine.py, database.py)</li>
+          <li><strong style="color:var(--text);">Demo System</strong> — "Try Demo — LoanSight AI" one-click button pre-fills wizard with a realistic EU credit-scoring system</li>
+          <li>Mobile bottom navigation bar for web dashboard on phones (scrollable, 8 tabs, iOS Safari compatible)</li>
+          <li>SaaS web dashboard (Evaluate, History, Batch, Audit Log 🔐, Compliance 🏛️, Dashboard, Scenarios, Settings tabs)</li>
+          <li>Google SSO + guest sessions, org accounts, API key management + traffic dashboard</li>
+          <li><strong style="color:var(--text);">Email Notifications</strong> — welcome, compliance gap reminders (30-day cadence), EU AI Act countdown (weekly); Railway cron at 09:00 UTC; Resend integration</li>
+          <li><strong style="color:var(--text);">Compliance Dashboard</strong> — daily score snapshots, SVG sparkline trend charts, 15-article heatmap, days-to-deadline countdown bar</li>
+          <li><strong style="color:var(--text);">AI-Powered Evidence Collection</strong> — document upload + guided interview (Claude scores and surfaces gaps)</li>
+          <li><strong style="color:var(--text);">HOLC Geo Redlining Detection</strong> — 500+ historically redlined zip codes across 35 US cities; deterministic L1 rule</li>
+          <li><strong style="color:var(--text);">ECOA §1002.9 Adverse Action Notice Generator</strong> — production-ready notices from one API call; FCRA §615(a) included</li>
+          <li><strong style="color:var(--text);">Disparate Impact Analysis</strong> — EEOC 4/5ths rule, group-level pass rates, flagged automatically</li>
+          <li><strong style="color:var(--text);">Dynamic Rule Engine</strong> — compliance rules in DB, per-org overrides, live config without redeploy</li>
+          <li><strong style="color:var(--text);">Indirect Phrasing Detection</strong> — 14 pattern categories ("that part of town", "near retirement", "family obligations"…)</li>
+          <li><strong style="color:var(--text);">State Law Overlays</strong> — California FEHA, New York HRL, Illinois HRA on top of federal baseline</li>
+          <li><strong style="color:var(--text);">W3C PROV JSON-LD Audit Export</strong> — machine-readable provenance document for regulators and GRC tools</li>
+          <li><strong style="color:var(--text);">Customer Analytics</strong> — PostHog (behavioral) + own DB (DAU/WAU/MAU, feature adoption, plan distribution); admin-only in-app dashboard</li>
+          <li><strong style="color:var(--text);">Lending Vertical Landing Page</strong> — lending.usepragma.co with ECOA/HOLC/FCRA positioning</li>
+          <li><strong style="color:var(--text);">Cosmos AI LLC branding</strong> — Pragma is a Cosmos AI product; cosmos.html company page at /cosmos</li>
+          <li>512 tests, all passing · 80.46% coverage</li>
+        </ul>
+      </div>
+      <div class="card" style="border-color:rgba(124,111,224,0.3);">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+          <span class="badge" style="background:rgba(124,111,224,0.15); color:var(--accent); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">Near-term — Growth</span>
+        </div>
+        <ul style="color:var(--muted); font-size:14px; line-height:2.2;">
+          <li>First pilot enterprise customer integration</li>
+          <li>Evidence staleness tracking — flag evidence older than 12 months</li>
+          <li>Remediation action plans — step-by-step gap resolution per article</li>
+          <li>Webhook delivery — push compliance alerts to customer systems</li>
+          <li>Node.js SDK — <code>Pragma(openai, { policyId: "..." })</code></li>
+          <li>NIST AI RMF framework support</li>
+        </ul>
+      </div>
+      <div class="card" style="border-color:rgba(247,147,30,0.3);">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+          <span class="badge" style="background:rgba(247,147,30,0.15); color:#f7b75e; font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">Scale</span>
+        </div>
+        <ul style="color:var(--muted); font-size:14px; line-height:2.2;">
+          <li>EU AI Act regulatory update feed — auto-update as guidance evolves</li>
+          <li>Conformity assessment workflow — full Annex VI self-assessment form</li>
+          <li>SAML / SSO enterprise integration</li>
+          <li>VPC-deployable Docker container + Helm chart for enterprise</li>
+          <li>HIPAA / healthcare vertical overlays</li>
+          <li>Multi-language support — EU market</li>
+        </ul>
+      </div>
+      <div class="card" style="border-color:rgba(78,205,196,0.3);">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+          <span class="badge" style="background:rgba(78,205,196,0.15); color:var(--accent2); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">Platform</span>
+        </div>
+        <ul style="color:var(--muted); font-size:14px; line-height:2.2;">
+          <li>Regulatory change monitoring &amp; alerts</li>
+          <li>Partner integrations (Workday, Salesforce, SAP)</li>
+          <li>Marketplace of compliance policy templates</li>
+          <li>Explainability graph — decision reasoning trace</li>
+          <li>Cosmos AI product #2 — stealth</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  Pragma &mdash; Business Case &mdash; &copy; 2026 &nbsp;&nbsp;|&nbsp;&nbsp; <a href="auditing.html" style="color:var(--accent); text-decoration:none;">AI Auditing AI →</a> &nbsp;&nbsp;|&nbsp;&nbsp; <a href="architecture.html" style="color:var(--accent); text-decoration:none;">Architecture →</a>
+</footer>
+
+</body>
+</html>
