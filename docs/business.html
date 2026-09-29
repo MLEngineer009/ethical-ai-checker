@@ -494,7 +494,9 @@
           <li><strong style="color:var(--text);">AI-Powered Evidence Collection</strong> — document upload + guided interview (Claude scores and surfaces gaps)</li>
           <li><strong style="color:var(--text);">HOLC Geo Redlining Detection</strong> — 500+ historically redlined zip codes across 35 US cities; deterministic L1 rule</li>
           <li><strong style="color:var(--text);">ECOA §1002.9 Adverse Action Notice Generator</strong> — production-ready notices from one API call; FCRA §615(a) included</li>
-          <li><strong style="color:var(--text);">Disparate Impact Analysis</strong> — EEOC 4/5ths rule, group-level pass rates, flagged automatically</li>
+          <li><strong style="color:var(--text);">Disparate Impact Analysis</strong> — EEOC 4/5ths rule, group-level weekly pass rates, time-series drift detection; automatic alert when AIR &lt; 0.8 for two consecutive weeks</li>
+          <li><strong style="color:var(--text);">L1.5 Semantic Embedding Layer</strong> — sentence-transformers (all-MiniLM-L6-v2) computes cosine similarity against 70+ proxy phrase embeddings across 8 categories (geographic redlining, age, gender, disability, national origin, religion, race/ethnicity, family status); fires between deterministic L1 and LLM L2</li>
+          <li><strong style="color:var(--text);">Compliance Policy Packs</strong> — NIST AI RMF 1.0 (15 controls: Govern/Map/Measure/Manage) and SR 11-7 + SR 26-2 (13 controls); DB-seeded, per-org enrollment, activate/deactivate from dashboard</li>
           <li><strong style="color:var(--text);">Dynamic Rule Engine</strong> — compliance rules in DB, per-org overrides, live config without redeploy</li>
           <li><strong style="color:var(--text);">Indirect Phrasing Detection</strong> — 14 pattern categories ("that part of town", "near retirement", "family obligations"…)</li>
           <li><strong style="color:var(--text);">State Law Overlays</strong> — California FEHA, New York HRL, Illinois HRA on top of federal baseline</li>
@@ -502,7 +504,7 @@
           <li><strong style="color:var(--text);">Customer Analytics</strong> — PostHog (behavioral) + own DB (DAU/WAU/MAU, feature adoption, plan distribution); admin-only in-app dashboard</li>
           <li><strong style="color:var(--text);">Lending Vertical Landing Page</strong> — lending.usepragma.co with ECOA/HOLC/FCRA positioning</li>
           <li><strong style="color:var(--text);">Cosmos AI LLC branding</strong> — Pragma is a Cosmos AI product; cosmos.html company page at /cosmos</li>
-          <li>512 tests, all passing · 80.46% coverage</li>
+          <li>508 tests, all passing · 80.46% coverage</li>
         </ul>
       </div>
       <div class="card" style="border-color:rgba(124,111,224,0.3);">
@@ -515,7 +517,6 @@
           <li>Remediation action plans — step-by-step gap resolution per article</li>
           <li>Webhook delivery — push compliance alerts to customer systems</li>
           <li>Node.js SDK — <code>Pragma(openai, { policyId: "..." })</code></li>
-          <li>NIST AI RMF framework support</li>
         </ul>
       </div>
       <div class="card" style="border-color:rgba(247,147,30,0.3);">
