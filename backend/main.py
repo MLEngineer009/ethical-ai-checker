@@ -1710,7 +1710,7 @@ async def gemini_chat_demo(request: GeminiScenarioRequest, user: dict = Depends(
     try:
         from google import genai as google_genai
         client = google_genai.Client(api_key=gemini_key)
-        gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+        gemini_model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
         last_exc = None
         for attempt in range(3):
             try:
