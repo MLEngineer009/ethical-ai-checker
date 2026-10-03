@@ -399,6 +399,103 @@ PROXY_FIELD_REGISTRY: Dict[str, Dict[str, Any]] = {
         "replace_with": "household_income, not dependent count",
     },
 
+    # ── Employment history (age / disability / sex proxy) ────────────────────
+    "graduation_year": {
+        "protected_class": "Age (ADEA)",
+        "mechanism": (
+            "Graduation year allows precise age inference (e.g., graduation_year=2001 → ~45 years old). "
+            "Models using graduation year directly penalise workers 40+ in violation of the ADEA, "
+            "even without an explicit age field. Consistently flagged by EEOC guidance on algorithmic hiring tools."
+        ),
+        "severity": "high",
+        "regulations": [
+            "ADEA — 29 U.S.C. § 623(a); EEOC guidance on disparate impact in automated selection",
+            "EEOC Title VII — 42 U.S.C. § 2000e-2 (intersectional age + sex claims)",
+        ],
+        "replace_with": "years_of_experience (computed from role start, not degree year)",
+    },
+    "grad_year": {
+        "protected_class": "Age (ADEA)",
+        "mechanism": "Alias for graduation_year — see graduation_year.",
+        "severity": "high",
+        "regulations": ["ADEA — 29 U.S.C. § 623(a)"],
+        "replace_with": "years_of_experience",
+    },
+    "class_year": {
+        "protected_class": "Age (ADEA)",
+        "mechanism": "Alias for graduation_year — see graduation_year.",
+        "severity": "high",
+        "regulations": ["ADEA — 29 U.S.C. § 623(a)"],
+        "replace_with": "years_of_experience",
+    },
+    "employment_gap": {
+        "protected_class": "Sex / Disability / Age (Title VII, ADA, ADEA)",
+        "mechanism": (
+            "Employment gaps are disproportionately held by women (caregiving, parental leave), "
+            "workers with disabilities or chronic illness, and older workers displaced from industries. "
+            "Penalising gaps without individual-level assessment creates disparate impact across "
+            "at least three protected classes simultaneously."
+        ),
+        "severity": "high",
+        "regulations": [
+            "EEOC Title VII — 42 U.S.C. § 2000e-2 (sex / national origin disparate impact)",
+            "ADA — 42 U.S.C. § 12112 (disability-related absence proxy)",
+            "ADEA — 29 U.S.C. § 623(a) (age proxy for long gaps in older workers)",
+            "EEOC UGESP — 29 C.F.R. Part 1607 § 4D (job-relatedness required for selection procedures)",
+        ],
+        "replace_with": "skills_assessment, structured_interview_score",
+    },
+    "career_gap": {
+        "protected_class": "Sex / Disability / Age",
+        "mechanism": "Alias for employment_gap — see employment_gap.",
+        "severity": "high",
+        "regulations": ["EEOC Title VII — 42 U.S.C. § 2000e-2", "ADA — 42 U.S.C. § 12112"],
+        "replace_with": "skills_assessment, structured_interview_score",
+    },
+    "resume_gap": {
+        "protected_class": "Sex / Disability / Age",
+        "mechanism": "Alias for employment_gap — see employment_gap.",
+        "severity": "high",
+        "regulations": ["EEOC Title VII — 42 U.S.C. § 2000e-2", "ADA — 42 U.S.C. § 12112"],
+        "replace_with": "skills_assessment, structured_interview_score",
+    },
+    "military_status": {
+        "protected_class": "Military Status (USERRA / Illinois HRA)",
+        "mechanism": (
+            "Military or veteran status is a protected class under USERRA federally and under "
+            "state laws (Illinois HRA, California FEHA). Using it as a disqualifying criterion "
+            "in automated hiring is a direct violation. Conversely, it may also encode "
+            "demographic signals (race, sex, national origin) in certain candidate pools."
+        ),
+        "severity": "high",
+        "regulations": [
+            "USERRA — 38 U.S.C. § 4311 (prohibits employment discrimination based on military service)",
+            "Illinois Human Rights Act — 775 ILCS 5/2-102 (military status protected class)",
+            "California FEHA — Cal. Gov. Code § 12940",
+        ],
+        "replace_with": "Remove from decision criteria; note separately for veterans-preference programs only",
+    },
+    "veteran_status": {
+        "protected_class": "Military Status (USERRA)",
+        "mechanism": "Alias for military_status — see military_status.",
+        "severity": "high",
+        "regulations": ["USERRA — 38 U.S.C. § 4311"],
+        "replace_with": "Remove from automated decision criteria",
+    },
+    "pronouns": {
+        "protected_class": "Sex / Gender Identity (Title VII post-Bostock)",
+        "mechanism": (
+            "Pronouns directly signal gender identity. Since Bostock v. Clayton County (2020), "
+            "Title VII protects against discrimination based on gender identity and sexual orientation. "
+            "Using pronouns as a field in automated hiring decisions is a direct sex-discrimination risk."
+        ),
+        "severity": "high",
+        "regulations": [
+            "EEOC Title VII — 42 U.S.C. § 2000e-2 (sex, post-Bostock v. Clayton County, 590 U.S. 644 (2020))",
+        ],
+        "replace_with": "Remove from all decision inputs",
+    },
+
     # ── Educational background (socioeconomic / racial proxy) ────────────────
     "school_name": {
         "protected_class": "Race / Socioeconomic Status",
@@ -447,6 +544,16 @@ PROXY_FIELD_REGISTRY: Dict[str, Dict[str, Any]] = {
         ],
         "replace_with": "Remove institution name; use degree level and GPA only",
     },
+    "university_name": {
+        "protected_class": "Race / Socioeconomic Status",
+        "mechanism": "Alias for university — see university.",
+        "severity": "medium",
+        "regulations": [
+            "ECOA / Regulation B — 15 U.S.C. § 1691",
+            "EEOC Title VII — 42 U.S.C. § 2000e-2 (if employment context)",
+        ],
+        "replace_with": "highest_degree_level only",
+    },
 }
 
 # Backward-compatible set for fast membership checks
@@ -466,7 +573,17 @@ _PROTECTED_CLASS_GROUPS: Dict[str, List[str]] = {
         "device_language", "browser_language",
         "email_domain", "social_media_handle",
     ],
-    "Age": ["birth_date", "dob", "date_of_birth", "telephone_type"],
+    "Age": [
+        "birth_date", "dob", "date_of_birth", "telephone_type",
+        "graduation_year", "grad_year", "class_year",
+        "employment_gap", "career_gap", "resume_gap",
+    ],
+    "Sex / Gender": [
+        "pronouns", "maiden_name",
+    ],
+    "Military Status": [
+        "military_status", "veteran_status",
+    ],
 }
 
 # Historically redlined zip code prefixes (US)
