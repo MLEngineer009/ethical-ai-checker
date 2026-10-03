@@ -252,14 +252,13 @@
       <div class="card">
         <h3><span class="dot" style="background:#f87171"></span> Hiring Decision</h3>
         <p style="margin-top:8px; font-size:13px; color:var(--muted);">Input decision:</p>
-        <code style="display:block; margin:8px 0; padding:10px;">"Reject candidate" + context: graduation_year=2001, university=community_college, employment_gap=3_years, zip_code=10037</code>
+        <code style="display:block; margin:8px 0; padding:10px;">"Reject job candidate" + context: gender=female, education=non-elite</code>
         <p style="font-size:13px; color:var(--muted);">Output:</p>
         <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
-          <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">age proxy — ADEA</span>
-          <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">race proxy — Title VII</span>
-          <span class="badge" style="background:rgba(251,191,36,0.15); color:#fde68a;">NYC LL144 — AEDT audit required</span>
+          <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">bias flagged</span>
+          <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">fairness flagged</span>
         </div>
-        <p style="font-size:13px; color:var(--muted); margin-top:10px;"><strong style="color:var(--text);">Proxy fields detected:</strong> graduation_year (age proxy, ADEA), zip_code (race/national origin proxy, Title VII), employment_gap (pregnancy/disability proxy). Recommendation: evaluate on skills, certifications, and structured interview scores only. Candidate notification required before AEDT runs (NYC LL144).</p>
+        <p style="font-size:13px; color:var(--muted); margin-top:10px;">Recommendation: Remove gender from evaluation criteria. Apply structured scoring on skills and experience only.</p>
       </div>
       <div class="card">
         <h3><span class="dot" style="background:#f97316"></span> Loan Approval</h3>
@@ -374,22 +373,8 @@
             <td style="color:var(--red);">No</td>
           </tr>
           <tr>
-            <td><strong>Proxy variable guard — lending</strong></td>
-            <td style="color:var(--green);">Yes — 35+ fields (zip_code, last_name, email_domain…), ECOA/Reg B cited</td>
-            <td style="color:var(--red);">No</td>
-            <td style="color:var(--red);">No</td>
-            <td style="color:var(--red);">No</td>
-          </tr>
-          <tr>
-            <td><strong>Proxy variable guard — hiring (HR-specific)</strong></td>
-            <td style="color:var(--green);">Yes — graduation_year (ADEA), employment_gap, university_name, zip_code on resume (Title VII)</td>
-            <td style="color:var(--red);">No</td>
-            <td style="color:var(--red);">No</td>
-            <td style="color:var(--red);">No</td>
-          </tr>
-          <tr>
-            <td><strong>FCRA employment adverse action notice</strong></td>
-            <td style="color:var(--green);">Yes — Pre-Adverse + Adverse Action Notice templates for background-check-driven rejections</td>
+            <td><strong>ECOA proxy variable guard</strong></td>
+            <td style="color:var(--green);">Yes — 35+ fields auto-detected, compound risk detection, CFPB-cited</td>
             <td style="color:var(--red);">No</td>
             <td style="color:var(--red);">No</td>
             <td style="color:var(--red);">No</td>
@@ -514,19 +499,15 @@
       <div class="card-grid cols-3">
         <div class="card">
           <div style="font-weight:700; font-size:14px; margin-bottom:6px;">Title VII — Civil Rights Act</div>
-          <div style="color:var(--muted); font-size:13px; line-height:1.7;">42 U.S.C. §2000e-2. Prohibits employment discrimination based on race, color, religion, sex, or national origin. Pragma enforces UGESP (Uniform Guidelines on Employee Selection Procedures) — detects disparate impact using the 4/5ths rule, flags criteria lacking job-relatedness evidence, and surfaces business necessity validation gaps when a selection procedure screens out a protected group.</div>
+          <div style="color:var(--muted); font-size:13px; line-height:1.7;">42 U.S.C. §2000e-2. Prohibits employment discrimination based on race, color, religion, sex, or national origin. Pragma detects discriminatory language and criteria in AI hiring decisions.</div>
         </div>
         <div class="card">
           <div style="font-weight:700; font-size:14px; margin-bottom:6px;">ADEA — Age Discrimination in Employment Act</div>
-          <div style="color:var(--muted); font-size:13px; line-height:1.7;">29 U.S.C. §623. Prohibits discrimination against workers 40+. Pragma detects HR-specific age proxies: <strong style="color:var(--text);">graduation year</strong> (infers age from degree year), <strong style="color:var(--text);">employment gaps</strong> (longer gaps disproportionately penalize older workers and caregivers), years to retirement, and "digital native" or "recent grad" language in criteria.</div>
+          <div style="color:var(--muted); font-size:13px; line-height:1.7;">29 U.S.C. §623. Prohibits discrimination against workers 40+. Pragma detects age proxies — graduation year, years to retirement, "digital native" requirements.</div>
         </div>
         <div class="card">
           <div style="font-weight:700; font-size:14px; margin-bottom:6px;">ADA — Americans with Disabilities Act</div>
-          <div style="color:var(--muted); font-size:13px; line-height:1.7;">42 U.S.C. §12112. Prohibits discrimination based on disability. Pragma detects disability-related proxy fields (employment gaps from illness, medical leave history) and criteria that screen out protected applicants without job-related justification.</div>
-        </div>
-        <div class="card">
-          <div style="font-weight:700; font-size:14px; margin-bottom:6px;">FCRA §604 / §615(a) — Employment Background Checks</div>
-          <div style="color:var(--muted); font-size:13px; line-height:1.7;">15 U.S.C. §1681b/§1681m. When an employment decision is based on a consumer report, employers must issue a <strong style="color:var(--text);">Pre-Adverse Action Notice</strong> (provide the report + A Summary of Your Rights + a reasonable dispute window) before making final rejection, then an <strong style="color:var(--text);">Adverse Action Notice</strong> with the CRA identity and dispute rights. Pragma detects background-check-driven rejections lacking these notices and generates compliant FCRA employment notice templates.</div>
+          <div style="color:var(--muted); font-size:13px; line-height:1.7;">42 U.S.C. §12112. Prohibits discrimination based on disability. Pragma detects disability-related proxy fields and criteria that screen out protected applicants.</div>
         </div>
       </div>
     </div>
@@ -538,8 +519,8 @@
       </div>
       <div class="card-grid cols-3">
         <div class="card">
-          <div style="font-weight:700; font-size:14px; margin-bottom:6px;">NYC Local Law 144 — AEDT</div>
-          <div style="color:var(--muted); font-size:13px; line-height:1.7;">Requires annual independent bias audits for Automated Employment Decision Tools used in NYC hiring and promotion. Three distinct enforcement workflows Pragma enforces: <strong style="color:var(--text);">(1) Annual bias audit</strong> — AEDT must be audited by an independent auditor; Pragma flags tools lacking a current-year audit on file. <strong style="color:var(--text);">(2) Candidate notification</strong> — applicants must be notified at least 10 business days before the AEDT is used, with opt-out option; Pragma flags decisions that bypass this notice. <strong style="color:var(--text);">(3) Public posting</strong> — audit summary must be publicly posted. Fine: <strong style="color:var(--text);">$1,500/day</strong> per violation.</div>
+          <div style="font-weight:700; font-size:14px; margin-bottom:6px;">NYC Local Law 144</div>
+          <div style="color:var(--muted); font-size:13px; line-height:1.7;">Requires annual independent bias audits for automated employment decision tools used in NYC hiring. Pragma flags when an AI hiring tool lacks a required bias audit.</div>
         </div>
         <div class="card">
           <div style="font-weight:700; font-size:14px; margin-bottom:6px;">NY DFS — AI Fairness Guidance</div>
@@ -550,8 +531,8 @@
           <div style="color:var(--muted); font-size:13px; line-height:1.7;">Expands CCPA. Requires disclosure of automated decision logic and consumer opt-out rights. Pragma flags decisions lacking required CPRA transparency disclosures.</div>
         </div>
         <div class="card">
-          <div style="font-weight:700; font-size:14px; margin-bottom:6px;">Multi-State Salary History &amp; Pay Transparency Bans</div>
-          <div style="color:var(--muted); font-size:13px; line-height:1.7;">Salary history is a known proxy for the gender pay gap. Pragma detects prior compensation as a hiring input across active state bans: <strong style="color:var(--text);">California AB-168</strong> (statewide ban on salary history inquiry), <strong style="color:var(--text);">New York Lab. Law §194-a</strong> (NYC + state ban + pay range disclosure in job posts), <strong style="color:var(--text);">Colorado EPEWA</strong> (salary range required in postings), <strong style="color:var(--text);">Washington SB 5761</strong> (salary range + benefits disclosure). Flags decisions using current/prior salary as a screening criterion in any covered jurisdiction.</div>
+          <div style="font-weight:700; font-size:14px; margin-bottom:6px;">California AB-168 — Salary History Ban</div>
+          <div style="color:var(--muted); font-size:13px; line-height:1.7;">Prohibits using prior salary history in hiring decisions — a known proxy for the gender pay gap. Pragma detects salary history as a decision factor.</div>
         </div>
         <div class="card">
           <div style="font-weight:700; font-size:14px; margin-bottom:6px;">Illinois AIVIA — AI Video Interview Act</div>
@@ -672,9 +653,6 @@
           <li>Remediation action plans — step-by-step gap resolution per article</li>
           <li>Webhook delivery — push compliance alerts to customer systems</li>
           <li>Node.js SDK — <code>Pragma(openai, { policyId: "..." })</code></li>
-          <li><strong style="color:var(--text);">FCRA Employment Pre-Adverse / Adverse Action Notice Generator</strong> — compliant templates for background-check-driven rejections; mirrors ECOA §1002.9 AAN for hiring context</li>
-          <li><strong style="color:var(--text);">HR proxy field expansion</strong> — name-based origin inference, military status, pronouns flagging; UGESP job-relatedness scoring</li>
-          <li><strong style="color:var(--text);">ATS platform webhooks</strong> — inbound events from Greenhouse, Lever, iCIMS; fire Pragma firewall on each candidate stage change, return verdict + block/allow back to ATS</li>
         </ul>
       </div>
       <div class="card" style="border-color:rgba(247,147,30,0.3);">
@@ -688,8 +666,6 @@
           <li>VPC-deployable Docker container + Helm chart for enterprise</li>
           <li>HIPAA / healthcare vertical overlays</li>
           <li>Multi-language support — EU market</li>
-          <li><strong style="color:var(--text);">Resume &amp; unstructured input ingestion</strong> — PDF/Word resume parsing, video interview transcript evaluation, recruiter note analysis; extract structured fields before firewall evaluation</li>
-          <li><strong style="color:var(--text);">NYC LL144 AEDT audit workflow</strong> — annual audit scheduling, independent auditor report intake, public posting checklist, candidate opt-out record-keeping</li>
         </ul>
       </div>
       <div class="card" style="border-color:rgba(78,205,196,0.3);">
