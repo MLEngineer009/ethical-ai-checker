@@ -1149,7 +1149,6 @@
             <div class="category-pills" id="categoryPills">
               <div class="cat-pill" data-cat="hiring">🧑‍💼 Hiring</div>
               <div class="cat-pill" data-cat="workplace">🏢 Workplace</div>
-              <div class="cat-pill" data-cat="finance">💰 Finance</div>
               <div class="cat-pill" data-cat="healthcare">🏥 Healthcare</div>
               <div class="cat-pill" data-cat="policy">📋 Policy</div>
               <div class="cat-pill" data-cat="personal">👤 Personal</div>
@@ -2256,7 +2255,6 @@ if verdict["firewall_action"] == "block":
     const _DECISION_SAMPLES = {
       hiring:    "Reject this resume — the candidate has a 3-year employment gap and attended a community college rather than a 4-year university.",
       workplace: "Terminate the employment of a call-center agent who has missed their performance targets for 4 consecutive quarters.",
-      finance:   "Deny this personal loan — the applicant has a credit score of 610, income $48 k, and is located in zip code 60620.",
       healthcare:"Deprioritize this uninsured patient for an elective procedure because the hospital is operating at 95% ICU capacity.",
       policy:    "Implement a mandatory return-to-office policy requiring all staff to work on-site 5 days a week starting next quarter.",
       personal:  "I'm considering quitting my stable job to start a company with my co-founder — we have 6 months of runway and one paying pilot customer.",
@@ -2574,11 +2572,7 @@ if verdict["firewall_action"] == "block":
         hitlSection.style.display = 'none';
       }
 
-      // Adverse Action Notice button — show for finance denials
-      const aanBtn = document.getElementById('btnAdverseAction');
-      const isDenial = data.firewall_action === 'block' || data.firewall_action === 'override_required';
-      const isFinance = (selectedCategory || '').toLowerCase() === 'finance';
-      aanBtn.style.display = (isDenial && isFinance) ? 'inline-flex' : 'none';
+      document.getElementById('btnAdverseAction').style.display = 'none';
 
       const resultsEl = document.getElementById('resultsSection');
       resultsEl.style.display = 'block';

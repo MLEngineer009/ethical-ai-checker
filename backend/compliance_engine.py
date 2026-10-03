@@ -713,6 +713,80 @@ def _check_fcra_decision(decision: str, ctx: dict) -> list:
              "reason":"No adverse action notice violation detected."}]
 
 
+def _check_fcra_employment_decision(decision: str, ctx: dict) -> list:
+    """FCRA §604(b) / §615(a) — two-step adverse action workflow for employment background checks."""
+    denial = _is_denial(decision, ctx)
+    consumer_report = _s(ctx.get("consumer_report_used", ctx.get("background_check_used", "")))
+    pre_adverse = _s(ctx.get("pre_adverse_action_notice", ctx.get("pre_adverse_sent", "")))
+    adverse = _s(ctx.get("adverse_action_notice", ""))
+
+    if not denial:
+        return [{"regulation": "FCRA — Fair Credit Reporting Act",
+                 "article": "15 U.S.C. § 1681b(b)(3) — Pre-Adverse Action Notice",
+                 "status": "PASS",
+                 "reason": "No adverse employment action detected — FCRA pre-adverse notice not required."}]
+
+    if consumer_report and _has(consumer_report, {"yes", "used", "obtained", "ran", "completed"}):
+        results = []
+        pre_not_sent = _has(pre_adverse, {"not sent", "not provided", "not issued", "not yet", "no notice", "missing"})
+        pre_sent = _has(pre_adverse, {"yes", "sent", "provided", "issued"}) and not pre_not_sent
+        adverse_not_sent = _has(adverse, {"not sent", "not provided", "not yet", "no notice", "missing"})
+        adverse_sent = _has(adverse, {"yes", "sent", "provided"}) and not adverse_not_sent
+
+        if not pre_sent:
+            results.append({
+                "regulation": "FCRA — Fair Credit Reporting Act",
+                "article": "15 U.S.C. § 1681b(b)(3)(A) — Pre-Adverse Action Notice",
+                "status": "FAIL",
+                "reason": (
+                    "Background check used in employment denial but no Pre-Adverse Action Notice issued. "
+                    "FCRA § 604(b)(3) requires: (1) provide the applicant a copy of the consumer report "
+                    "and 'A Summary of Your Rights Under the FCRA', (2) allow a reasonable dispute window "
+                    "(typically 5+ business days) before making the final decision."
+                ),
+            })
+        else:
+            results.append({
+                "regulation": "FCRA — Fair Credit Reporting Act",
+                "article": "15 U.S.C. § 1681b(b)(3)(A) — Pre-Adverse Action Notice",
+                "status": "PASS",
+                "reason": "Pre-Adverse Action Notice issued as required by FCRA § 604(b)(3).",
+            })
+
+        if not adverse_sent:
+            results.append({
+                "regulation": "FCRA — Fair Credit Reporting Act",
+                "article": "15 U.S.C. § 1681m(a) — Adverse Action Notice",
+                "status": "FAIL",
+                "reason": (
+                    "Final Adverse Action Notice not documented. After the dispute window, "
+                    "FCRA § 615(a) requires written notice to the applicant including: "
+                    "the consumer reporting agency name, address, and phone number; "
+                    "a statement that the CRA did not make the decision; "
+                    "and the applicant's right to obtain a free copy of the report within 60 days."
+                ),
+            })
+        else:
+            results.append({
+                "regulation": "FCRA — Fair Credit Reporting Act",
+                "article": "15 U.S.C. § 1681m(a) — Adverse Action Notice",
+                "status": "PASS",
+                "reason": "Adverse Action Notice issued per FCRA § 615(a).",
+            })
+        return results
+
+    if denial:
+        return [{"regulation": "FCRA — Fair Credit Reporting Act",
+                 "article": "15 U.S.C. § 1681b(b)(3) — Pre-Adverse Action Notice",
+                 "status": "FLAG",
+                 "reason": (
+                     "Employment denial detected — verify whether a background check (consumer report) "
+                     "was used. If so, a Pre-Adverse Action Notice and final Adverse Action Notice "
+                     "are required under FCRA §§ 604(b)(3) and 615(a)."
+                 )}]
+    return []
+
+
 def _check_fha_decision(decision: str, ctx: dict) -> list:
     zip_code = _s(ctx.get("zip_code", ""))
     geo_risk = ctx.get("geo_risk_score", "")
@@ -1049,12 +1123,28 @@ _IL_ZIPS = {str(z) for z in range(60001, 62999)}   # Illinois zip range
 def _detect_state(ctx: dict) -> str | None:
     """Infer applicant state from context fields."""
     loc = _s(ctx.get("applicant_location", ctx.get("applicant_state", ctx.get("state", ""))))
-    if any(kw in loc for kw in ["california", " ca", "ca ", "los angeles", "san francisco", "san diego", "sacramento"]):
+    # Exact two-letter abbreviation match (standalone field value)
+    if loc in ("ca", "california"):
         return "CA"
-    if any(kw in loc for kw in ["new york", " ny", "ny ", "nyc", "brooklyn", "bronx", "manhattan", "queens"]):
+    if loc in ("ny", "new york"):
         return "NY"
-    if any(kw in loc for kw in ["illinois", " il", "il ", "chicago"]):
+    if loc in ("il", "illinois"):
         return "IL"
+    if loc in ("co", "colorado"):
+        return "CO"
+    if loc in ("wa", "washington"):
+        return "WA"
+    # Keyword substring matching for free-text location strings
+    if any(kw in loc for kw in ["california", " ca,", "ca ", "los angeles", "san francisco", "san diego", "sacramento"]):
+        return "CA"
+    if any(kw in loc for kw in ["new york", "nyc", "brooklyn", "bronx", "manhattan", "queens"]):
+        return "NY"
+    if any(kw in loc for kw in ["illinois", "chicago"]):
+        return "IL"
+    if any(kw in loc for kw in ["colorado", "denver", "boulder", "aurora"]):
+        return "CO"
+    if any(kw in loc for kw in ["washington state", "seattle", "spokane", "tacoma", "bellevue", " wa,", "wa "]):
+        return "WA"
     zip_code = _s(ctx.get("zip_code", ""))
     if zip_code:
         if zip_code.startswith(("900","901","902","903","904","905","906","907","908","909","910","911","912","913","914","915","916","917","918","919","920","921","922","923","924","925","926","927","928","929","930","931","932","933","934","935","936","937","938","939","940","941","942","943","944","945","946","947","948","949","950","951","952","953","954","955","956","957","958","959","960","961")):
@@ -1063,6 +1153,10 @@ def _detect_state(ctx: dict) -> str | None:
             return "NY"
         if zip_code.startswith(("600","601","602","603","604","605","606","607","608","609","610","611","612","613","614","615","616","617","618","619","620","621","622","623","624","625","626","627","628","629")):
             return "IL"
+        if zip_code.startswith(("800","801","802","803","804","805","806","807","808","809","810","811","812","813","814","815","816")):
+            return "CO"
+        if zip_code.startswith(("980","981","982","983","984","985","986","988","989","990","991","992","993","994")):
+            return "WA"
     return None
 
 
@@ -1109,16 +1203,43 @@ def _check_state_laws(decision: str, ctx: dict) -> list:
         # NYC Local Law 144 — automated employment decision tools
         bias_audit = _s(ctx.get("bias_audit_on_file", ""))
         screening_tool = ctx.get("screening_tool", "")
-        if screening_tool and not _has(bias_audit, {"yes","completed","on file"}):
+        candidate_notified = _s(ctx.get("candidate_notified", ctx.get("aedt_notice_sent", "")))
+        if screening_tool and not _has(bias_audit, {"yes", "completed", "on file"}):
             results.append({
                 "regulation": "NYC Local Law 144 — Automated Employment Decisions",
-                "article": "NYC Admin. Code § 20-871 — Annual Bias Audit",
+                "article": "NYC Admin. Code § 20-871 — Annual Independent Bias Audit",
                 "status": "FAIL",
                 "reason": (
                     "New York City Local Law 144 requires an annual independent bias audit for any "
                     "automated employment decision tool used for NYC candidates. "
                     f"Tool '{screening_tool}' is in use but no bias audit is on file. "
                     "Violations carry civil penalties up to $1,500/day."
+                ),
+            })
+        notif_negative = _has(candidate_notified, {"not sent","not provided","not notified","no notice","no","missing"})
+        notif_positive = _has(candidate_notified, {"yes","sent","provided","notified"}) and not notif_negative
+        if screening_tool and (notif_negative or (candidate_notified and not notif_positive) or not candidate_notified):
+            results.append({
+                "regulation": "NYC Local Law 144 — Automated Employment Decisions",
+                "article": "NYC Admin. Code § 20-871(b)(1) — Candidate Notice Requirement",
+                "status": "FAIL",
+                "reason": (
+                    "NYC LL144 requires employers to notify candidates at least 10 business days "
+                    "before an automated employment decision tool is used, and to provide an opt-out "
+                    "pathway upon request. No candidate notification is documented for this evaluation. "
+                    "Violations carry civil penalties up to $1,500/day."
+                ),
+            })
+        # New York Salary History Ban (Labor Law §194-a)
+        if ctx.get("prior_compensation") and denial:
+            results.append({
+                "regulation": "New York Salary History Ban",
+                "article": "N.Y. Lab. Law § 194-a — Prohibition on Salary History Inquiry",
+                "status": "FAIL",
+                "reason": (
+                    "New York law (effective statewide 2019) prohibits employers from asking about "
+                    "or relying on prior salary history in compensation or hiring decisions. "
+                    "Prior compensation was a factor in this denial."
                 ),
             })
         # NY DFS Insurance Circular Letter 1 — AI fairness in insurance/lending
@@ -1161,6 +1282,59 @@ def _check_state_laws(decision: str, ctx: dict) -> list:
             ),
         })
 
+    elif state == "CO":
+        # Colorado Equal Pay for Equal Work Act (EPEWA)
+        if ctx.get("prior_compensation") and denial:
+            results.append({
+                "regulation": "Colorado Equal Pay for Equal Work Act (EPEWA)",
+                "article": "Colo. Rev. Stat. § 8-5-102 — Wage Discrimination Prohibition",
+                "status": "FAIL",
+                "reason": (
+                    "Colorado EPEWA prohibits reliance on prior salary history in employment "
+                    "compensation decisions. Prior compensation was used as a factor in this denial."
+                ),
+            })
+        # EPEWA also requires salary range disclosure in job postings
+        job_post = _s(ctx.get("job_posting", ctx.get("job_post", "")))
+        salary_range_disclosed = _s(ctx.get("salary_range_disclosed", ctx.get("pay_range_posted", "")))
+        if job_post and not _has(salary_range_disclosed, {"yes", "included", "posted", "disclosed"}):
+            results.append({
+                "regulation": "Colorado Equal Pay for Equal Work Act (EPEWA)",
+                "article": "Colo. Rev. Stat. § 8-5-201 — Pay Range Disclosure in Job Postings",
+                "status": "FLAG",
+                "reason": (
+                    "Colorado EPEWA requires employers to include a salary range in all job postings "
+                    "for positions that could be performed in Colorado. "
+                    "Verify the job posting includes the required compensation range."
+                ),
+            })
+
+    elif state == "WA":
+        # Washington Equal Pay and Opportunities Act (RCW 49.58)
+        if ctx.get("prior_compensation") and denial:
+            results.append({
+                "regulation": "Washington Equal Pay and Opportunities Act",
+                "article": "RCW § 49.58.110 — Prohibition on Salary History Reliance",
+                "status": "FAIL",
+                "reason": (
+                    "Washington law (RCW § 49.58.110) prohibits employers from seeking or relying on "
+                    "prior salary history to determine compensation. Prior compensation was a factor "
+                    "in this denial."
+                ),
+            })
+        job_post = _s(ctx.get("job_posting", ctx.get("job_post", "")))
+        salary_range_disclosed = _s(ctx.get("salary_range_disclosed", ctx.get("pay_range_posted", "")))
+        if job_post and not _has(salary_range_disclosed, {"yes", "included", "posted", "disclosed"}):
+            results.append({
+                "regulation": "Washington Equal Pay and Opportunities Act",
+                "article": "RCW § 49.58.110 — Pay Scale Disclosure",
+                "status": "FLAG",
+                "reason": (
+                    "Washington law requires employers with 15+ employees to include a wage scale "
+                    "or salary range in all job postings. Verify the posting includes the required range."
+                ),
+            })
+
     return results
 
 
@@ -1196,15 +1370,19 @@ _DECISION_CHECKERS = {
     "hiring": [
         _check_decision_text,
         _check_eeoc_decision,
+        _check_fcra_employment_decision,
         _check_eu_ai_act_decision,
         _check_compound_proxies,
+        _check_disparate_impact_risk,
         _check_state_laws,
     ],
     "hr": [
         _check_decision_text,
         _check_eeoc_decision,
+        _check_fcra_employment_decision,
         _check_eu_ai_act_decision,
         _check_compound_proxies,
+        _check_disparate_impact_risk,
         _check_state_laws,
     ],
     "other": [

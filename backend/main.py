@@ -1854,7 +1854,7 @@ async def export_audit_jsonld(
 class AdverseActionRequest(BaseModel):
     applicant_name: str
     applicant_address: Optional[str] = ""
-    creditor_name: str
+    creditor_name: str                          # also used as employer_name for employment notices
     creditor_address: Optional[str] = ""
     denial_date: str
     denial_reasons: List[str]
@@ -1862,6 +1862,8 @@ class AdverseActionRequest(BaseModel):
     cra_name: Optional[str] = ""
     cra_address: Optional[str] = ""
     cra_phone: Optional[str] = ""
+    # "credit" (default) | "employment_pre_adverse" | "employment_adverse"
+    notice_type: str = "credit"
     # Pre-populated from compliance check output
     ecoa_violations: Optional[List[str]] = []
 
@@ -1869,19 +1871,137 @@ class AdverseActionRequest(BaseModel):
 @app.post("/adverse-action-notice", dependencies=[Depends(get_current_user)])
 async def adverse_action_notice(request: AdverseActionRequest):
     """
-    Generate a legally compliant Adverse Action Notice per ECOA §1002.9 and FCRA §615(a).
+    Generate adverse action notice HTML.
 
-    Required elements (ECOA §1002.9):
-      - Statement of action taken and date
-      - Specific reasons for the action (up to 4-5 principal reasons)
-      - Creditor's name and address
-      - Federal supervisory agency
-
-    Additional elements if consumer report used (FCRA §615(a)):
-      - CRA name, address, and phone number
-      - Right to free copy within 60 days
-      - Right to dispute accuracy
+    notice_type values:
+      "credit"                — ECOA §1002.9 + optional FCRA §615(a) CRA block (default)
+      "employment_pre_adverse"— FCRA §604(b)(3) Pre-Adverse Action Notice with report + rights summary
+      "employment_adverse"    — FCRA §615(a) final Adverse Action Notice for employment
     """
+    # ── Employment Pre-Adverse Action Notice (FCRA §604(b)(3)) ───────────────
+    if request.notice_type == "employment_pre_adverse":
+        cra_name = request.cra_name or "the consumer reporting agency"
+        cra_addr = request.cra_address or ""
+        cra_phone = request.cra_phone or ""
+        reasons_html = "".join(
+            f'<li style="margin-bottom:6px;">{r}</li>'
+            for r in request.denial_reasons[:5]
+        ) or '<li>Background check information that may affect your candidacy</li>'
+        html = f"""<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/>
+<title>Pre-Adverse Action Notice — {esc(request.applicant_name)}</title>
+<style>body{{font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:40px auto;padding:0 24px;color:#1a1a1a;font-size:14px;line-height:1.6}}
+h1{{font-size:20px;margin-bottom:4px}}h2{{font-size:15px;margin:20px 0 8px}}
+.box{{border:1px solid #ccc;border-radius:6px;padding:16px 20px;margin:16px 0}}
+.warn{{border-color:#d4a017;background:#fffbee}}.notice{{font-size:11px;color:#666;margin-top:28px;border-top:1px solid #eee;padding-top:12px}}
+</style></head><body>
+<h1>Pre-Adverse Action Notice</h1>
+<p><strong>Date:</strong> {esc(request.denial_date)}</p>
+<p><strong>To:</strong> {esc(request.applicant_name)}{(", " + esc(request.applicant_address)) if request.applicant_address else ""}</p>
+<p><strong>From:</strong> {esc(request.creditor_name)}{(", " + esc(request.creditor_address)) if request.creditor_address else ""}</p>
+
+<div class="box warn">
+  <h2 style="margin-top:0;">Notice of Possible Adverse Employment Action</h2>
+  <p>We are considering taking an adverse action (not hiring you, rescinding a job offer, or not promoting you)
+  based in whole or in part on information in a consumer report (background check) obtained from:</p>
+  <table style="font-size:13px;margin:10px 0;border-collapse:collapse;">
+    <tr><td style="padding:2px 12px 2px 0;font-weight:600;white-space:nowrap;">Agency:</td><td>{esc(cra_name)}</td></tr>
+    {"<tr><td style='padding:2px 12px 2px 0;font-weight:600;'>Address:</td><td>"+esc(cra_addr)+"</td></tr>" if cra_addr else ""}
+    {"<tr><td style='padding:2px 12px 2px 0;font-weight:600;'>Phone:</td><td>"+esc(cra_phone)+"</td></tr>" if cra_phone else ""}
+  </table>
+  <p>The information we received that may factor into our decision includes:</p>
+  <ul>{reasons_html}</ul>
+</div>
+
+<div class="box">
+  <h2 style="margin-top:0;">Your Rights Under the Fair Credit Reporting Act (FCRA)</h2>
+  <p>Before we make a final decision, you have the right to:</p>
+  <ul>
+    <li><strong>Review the report:</strong> A copy of your consumer report is enclosed (or will be provided separately).
+    The consumer reporting agency did not make this decision and cannot explain why we are considering this action.</li>
+    <li><strong>Dispute inaccuracies:</strong> If you believe any information in the report is inaccurate or incomplete,
+    you have the right to dispute it directly with {esc(cra_name)}.</li>
+    <li><strong>Respond before we decide:</strong> Please contact us within <strong>5 business days</strong> of receiving this notice
+    if you wish to dispute the accuracy of the information or provide additional context.</li>
+  </ul>
+  <p>A copy of <em>A Summary of Your Rights Under the Fair Credit Reporting Act</em> is attached to this notice
+  as required by 15 U.S.C. § 1681g(c).</p>
+</div>
+
+<p>This is a <strong>preliminary notice only</strong>. No final decision has been made. We will contact you
+after the response period with our final determination.</p>
+
+<div class="notice">
+  <strong>Legal Disclaimer:</strong> This pre-adverse action notice template is generated by Pragma for compliance
+  assistance only. It does not constitute legal advice. Consult qualified employment counsel before use.
+  Required under FCRA § 604(b)(3), 15 U.S.C. § 1681b(b)(3)(A).
+</div>
+</body></html>"""
+        return HTMLResponse(
+            content=html,
+            headers={"Content-Disposition": f'attachment; filename="pre-adverse-notice-{request.applicant_name.replace(" ","_")}.html"'},
+        )
+
+    # ── Employment Final Adverse Action Notice (FCRA §615(a)) ────────────────
+    if request.notice_type == "employment_adverse":
+        cra_name = request.cra_name or "the consumer reporting agency that provided the report"
+        cra_addr = request.cra_address or ""
+        cra_phone = request.cra_phone or ""
+        reasons_html = "".join(
+            f'<li style="margin-bottom:6px;">{r}</li>'
+            for r in request.denial_reasons[:5]
+        ) or '<li>Information obtained from a consumer report</li>'
+        html = f"""<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/>
+<title>Adverse Action Notice (Employment) — {esc(request.applicant_name)}</title>
+<style>body{{font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:40px auto;padding:0 24px;color:#1a1a1a;font-size:14px;line-height:1.6}}
+h1{{font-size:20px;margin-bottom:4px}}h2{{font-size:15px;margin:20px 0 8px}}
+.box{{border:1px solid #ccc;border-radius:6px;padding:16px 20px;margin:16px 0}}
+.fcra{{border-color:#d4a017;background:#fffbee}}.notice{{font-size:11px;color:#666;margin-top:28px;border-top:1px solid #eee;padding-top:12px}}
+</style></head><body>
+<h1>Notice of Adverse Employment Action</h1>
+<p><strong>Date:</strong> {esc(request.denial_date)}</p>
+<p><strong>To:</strong> {esc(request.applicant_name)}{(", " + esc(request.applicant_address)) if request.applicant_address else ""}</p>
+<p><strong>From:</strong> {esc(request.creditor_name)}{(", " + esc(request.creditor_address)) if request.creditor_address else ""}</p>
+
+<div class="box">
+  <h2 style="margin-top:0;">Action Taken</h2>
+  <p>We regret to inform you that we have decided not to proceed with your application / employment
+  based in part on information obtained from a consumer report. The reasons for this decision include:</p>
+  <ul>{reasons_html}</ul>
+</div>
+
+<div class="box fcra">
+  <h2 style="margin-top:0;">Fair Credit Reporting Act Disclosure (FCRA § 615(a))</h2>
+  <p>This decision was based in whole or in part on information obtained from the following consumer reporting agency:</p>
+  <table style="font-size:13px;margin:10px 0;border-collapse:collapse;">
+    <tr><td style="padding:2px 12px 2px 0;font-weight:600;white-space:nowrap;">Agency:</td><td>{esc(cra_name)}</td></tr>
+    {"<tr><td style='padding:2px 12px 2px 0;font-weight:600;'>Address:</td><td>"+esc(cra_addr)+"</td></tr>" if cra_addr else ""}
+    {"<tr><td style='padding:2px 12px 2px 0;font-weight:600;'>Phone:</td><td>"+esc(cra_phone)+"</td></tr>" if cra_phone else ""}
+  </table>
+  <p><strong>The consumer reporting agency did not make this decision</strong> and is unable to explain why
+  this action was taken.</p>
+  <p>You have the right, under the Fair Credit Reporting Act, to:</p>
+  <ul>
+    <li>Obtain a <strong>free copy</strong> of your consumer report from the agency above within <strong>60 days</strong>
+    of receiving this notice.</li>
+    <li><strong>Dispute</strong> the accuracy or completeness of any information in your consumer report
+    directly with {esc(cra_name)}.</li>
+  </ul>
+</div>
+
+<div class="notice">
+  <strong>Legal Disclaimer:</strong> This adverse action notice template is generated by Pragma for compliance
+  assistance only. It does not constitute legal advice. Consult qualified employment counsel before use.
+  Required under FCRA § 615(a), 15 U.S.C. § 1681m(a).
+</div>
+</body></html>"""
+        return HTMLResponse(
+            content=html,
+            headers={"Content-Disposition": f'attachment; filename="employment-adverse-notice-{request.applicant_name.replace(" ","_")}.html"'},
+        )
+
+    # ── Credit Adverse Action Notice (ECOA §1002.9 / FCRA §615(a)) ───────────
     reasons_html = "".join(
         f'<li style="margin-bottom:6px;">{r}</li>'
         for r in request.denial_reasons[:5]  # ECOA recommends no more than 5
@@ -2020,25 +2140,31 @@ async def adverse_action_notice(request: AdverseActionRequest):
     )
 
 
-@app.get("/lending")
+@app.get("/lending", include_in_schema=False)
 async def lending_landing():
-    """Serve the lending-focused landing page."""
     page = Path(__file__).parent.parent / "frontend" / "lending.html"
     if page.exists():
         return FileResponse(page)
     raise HTTPException(status_code=404, detail="Landing page not found")
 
 
-@app.get("/cosmos")
+@app.get("/hiring", include_in_schema=False)
+async def hiring_landing():
+    page = Path(__file__).parent.parent / "frontend" / "hiring.html"
+    if page.exists():
+        return FileResponse(page)
+    raise HTTPException(status_code=404, detail="Landing page not found")
+
+
+@app.get("/cosmos", include_in_schema=False)
 async def cosmos_landing():
-    """Serve the Cosmos AI LLC company homepage."""
     page = Path(__file__).parent.parent / "frontend" / "cosmos.html"
     if page.exists():
         return FileResponse(page)
     raise HTTPException(status_code=404, detail="Page not found")
 
 
-@app.get("/business")
+@app.get("/business", include_in_schema=False)
 async def business_alias():
     page = Path(__file__).parent.parent / "frontend" / "business.html"
     if page.exists():
@@ -2046,7 +2172,7 @@ async def business_alias():
     raise HTTPException(status_code=404, detail="Page not found")
 
 
-@app.get("/architecture")
+@app.get("/architecture", include_in_schema=False)
 async def architecture_alias():
     page = Path(__file__).parent.parent / "frontend" / "architecture.html"
     if page.exists():
@@ -2054,34 +2180,31 @@ async def architecture_alias():
     raise HTTPException(status_code=404, detail="Page not found")
 
 
-@app.get("/pages/architecture")
+@app.get("/pages/architecture", include_in_schema=False)
 async def docs_architecture():
-    """Serve the architecture documentation page."""
     page = Path(__file__).parent.parent / "frontend" / "architecture.html"
     if page.exists():
         return FileResponse(page)
     raise HTTPException(status_code=404, detail="Page not found")
 
 
-@app.get("/pages/business")
+@app.get("/pages/business", include_in_schema=False)
 async def docs_business():
-    """Serve the business case documentation page."""
     page = Path(__file__).parent.parent / "frontend" / "business.html"
     if page.exists():
         return FileResponse(page)
     raise HTTPException(status_code=404, detail="Page not found")
 
 
-@app.get("/pages/auditing")
+@app.get("/pages/auditing", include_in_schema=False)
 async def docs_auditing():
-    """Serve the auditing documentation page."""
     page = Path(__file__).parent.parent / "frontend" / "auditing.html"
     if page.exists():
         return FileResponse(page)
     raise HTTPException(status_code=404, detail="Page not found")
 
 
-@app.get("/legal/terms")
+@app.get("/legal/terms", include_in_schema=False)
 async def terms_of_service():
     page = Path(__file__).parent.parent / "frontend" / "tos.html"
     if page.exists():
@@ -2089,7 +2212,7 @@ async def terms_of_service():
     raise HTTPException(status_code=404, detail="Page not found")
 
 
-@app.get("/legal/privacy")
+@app.get("/legal/privacy", include_in_schema=False)
 async def privacy_policy():
     page = Path(__file__).parent.parent / "frontend" / "privacy.html"
     if page.exists():
@@ -2178,9 +2301,8 @@ async def unenroll_pack(pack_id: str, user: dict = Depends(get_current_user)):
     return {"status": "unenrolled", "pack_id": pack_id}
 
 
-@app.get("/")
+@app.get("/", include_in_schema=False)
 async def root():
-    """Serve frontend UI."""
     frontend_path = Path(__file__).parent.parent / "frontend" / "index.html"
     if frontend_path.exists():
         return FileResponse(frontend_path)

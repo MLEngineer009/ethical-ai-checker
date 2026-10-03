@@ -63,6 +63,66 @@ _LAWS: Dict[str, Dict[str, str]] = {
         "url": "https://www.nlrb.gov/guidance/key-reference-materials/national-labor-relations-act",
         "review_status": "verified",
     },
+    "fcra_employment": {
+        "name": "FCRA §604 / §615(a) — Employment Background Checks",
+        "jurisdiction": "US",
+        "description": (
+            "Before taking adverse employment action based on a consumer report, employers must: "
+            "(1) provide a Pre-Adverse Action Notice with a copy of the report and A Summary of Your Rights, "
+            "allow a reasonable dispute window (typically 5+ business days), then "
+            "(2) send a final Adverse Action Notice with the CRA name, address, and consumer rights. "
+            "15 U.S.C. §§ 1681b(b)(3), 1681m(a)."
+        ),
+        "url": "https://www.ftc.gov/legal-library/browse/statutes/fair-credit-reporting-act",
+        "review_status": "verified",
+    },
+    "userra": {
+        "name": "USERRA (Uniformed Services Employment and Reemployment Rights Act)",
+        "jurisdiction": "US",
+        "description": "Prohibits employment discrimination based on military service, status, or obligations. 38 U.S.C. § 4311.",
+        "url": "https://www.dol.gov/agencies/vets/programs/userra",
+        "review_status": "verified",
+    },
+    # ── US State — Salary History & Pay Transparency ─────────────────────────
+    "ca_ab168": {
+        "name": "California AB-168 — Salary History Ban",
+        "jurisdiction": "US-CA",
+        "description": "Prohibits employers from relying on an applicant's prior salary history in setting compensation or making hiring decisions. Cal. Lab. Code § 432.3.",
+        "url": "https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=201720180AB168",
+        "review_status": "verified",
+    },
+    "ny_salary_history_ban": {
+        "name": "New York Salary History Ban (Labor Law §194-a)",
+        "jurisdiction": "US-NY",
+        "description": (
+            "Prohibits all employers from asking about or relying on an applicant's salary history. "
+            "Applies to NYC (since 2017) and statewide (since 2019). "
+            "N.Y. Lab. Law § 194-a."
+        ),
+        "url": "https://www.nyc.gov/site/cchr/media/salary-history.page",
+        "review_status": "verified",
+    },
+    "co_epewa": {
+        "name": "Colorado Equal Pay for Equal Work Act (EPEWA)",
+        "jurisdiction": "US-CO",
+        "description": (
+            "Prohibits wage discrimination based on sex and requires employers to include "
+            "compensation ranges in job postings. Colo. Rev. Stat. §§ 8-5-101 to 8-5-123."
+        ),
+        "url": "https://cdle.colorado.gov/equalpaytransparency",
+        "review_status": "verified",
+    },
+    "wa_salary_history_ban": {
+        "name": "Washington Equal Pay and Opportunities Act (SB 5761 / RCW 49.58)",
+        "jurisdiction": "US-WA",
+        "description": (
+            "Prohibits asking about or using salary history in hiring decisions. "
+            "Requires employers to disclose wage scale or salary range in job postings. "
+            "RCW § 49.58.110."
+        ),
+        "url": "https://lni.wa.gov/workers-rights/wages/equal-pay-opportunities-act/",
+        "review_status": "verified",
+    },
     # ── US Finance ────────────────────────────────────────────────────────────
     "ecoa": {
         "name": "ECOA (Equal Credit Opportunity Act) / Regulation B",
