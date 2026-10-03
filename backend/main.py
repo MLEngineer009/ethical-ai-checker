@@ -2149,6 +2149,15 @@ async def lending_landing():
     raise HTTPException(status_code=404, detail="Landing page not found")
 
 
+@app.get("/hiring")
+async def hiring_landing():
+    """Serve the hiring-focused landing page."""
+    page = Path(__file__).parent.parent / "frontend" / "hiring.html"
+    if page.exists():
+        return FileResponse(page)
+    raise HTTPException(status_code=404, detail="Landing page not found")
+
+
 @app.get("/cosmos")
 async def cosmos_landing():
     """Serve the Cosmos AI LLC company homepage."""
