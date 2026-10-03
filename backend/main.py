@@ -1706,24 +1706,42 @@ async def gemini_chat_demo(request: GeminiScenarioRequest, user: dict = Depends(
     if not gemini_key:
         raise HTTPException(status_code=503, detail="GEMINI_API_KEY not configured — add it to Railway env vars")
 
+    import time as _time
     try:
         from google import genai as google_genai
         client = google_genai.Client(api_key=gemini_key)
-        gemini_model = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
-        response = client.models.generate_content(
-            model=gemini_model,
-            config=google_genai.types.GenerateContentConfig(
-                system_instruction=_GEMINI_SYSTEM_PROMPT,
-            ),
-            contents=scenario["prompt"],
-        )
-        gemini_response = response.text.strip()
+        gemini_model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+        last_exc = None
+        for attempt in range(3):
+            try:
+                response = client.models.generate_content(
+                    model=gemini_model,
+                    config=google_genai.types.GenerateContentConfig(
+                        system_instruction=_GEMINI_SYSTEM_PROMPT,
+                    ),
+                    contents=scenario["prompt"],
+                )
+                gemini_response = response.text.strip()
+                last_exc = None
+                break
+            except Exception as exc:
+                last_exc = exc
+                if attempt < 2:
+                    _time.sleep(2 ** attempt)  # 1s, 2s
+        if last_exc is not None:
+            raise last_exc
     except Exception as e:
         logger.error("Gemini call failed: %s", e)
-        raise HTTPException(status_code=502, detail=f"Gemini error: {str(e)[:200]}")
+        raise HTTPException(status_code=502, detail=f"Gemini error: {str(e)[:300]}")
 
     # Evaluate Gemini's response through Pragma
-    analysis = _run_evaluation(gemini_response, scenario["context"], "finance")
+    try:
+        analysis = _run_evaluation(gemini_response, scenario["context"], "finance")
+    except NoLLMProviderError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        logger.error("Pragma evaluation failed for scenario %s: %s", request.scenario_id, e)
+        raise HTTPException(status_code=500, detail=f"Pragma evaluation error: {str(e)[:200]}")
     from .risk_detector import get_proxy_variable_report
     proxy_report = get_proxy_variable_report(scenario["context"])
 

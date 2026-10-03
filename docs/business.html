@@ -128,6 +128,7 @@
     <a href="#usecases">Use Cases</a>
     <a href="#revenue">Revenue</a>
     <a href="#competitive">Competitive</a>
+    <a href="#coverage">Coverage</a>
     <a href="#roadmap">Roadmap</a>
     <a href="auditing.html">AI Auditing AI →</a>
     <a href="testing-guide.html">Testing Guide →</a>
@@ -457,6 +458,141 @@
           </tr>
         </tbody>
       </table>
+    </div>
+  </section>
+
+  <!-- COMPLIANCE COVERAGE -->
+  <section id="coverage">
+    <h2>Compliance Coverage</h2>
+    <p class="section-sub">18 regulations and frameworks enforced across lending, employment, EU, and model risk — active in production today.</p>
+
+    <!-- US Federal Lending -->
+    <div style="margin-bottom:32px;">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+        <span class="badge" style="background:rgba(78,205,196,0.12); color:var(--accent2); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">US Federal — Lending &amp; Credit</span>
+      </div>
+      <div class="card-grid cols-3">
+        <div class="card">
+          <div style="font-weight:700; font-size:14px; margin-bottom:6px;">ECOA — Equal Credit Opportunity Act</div>
+          <div style="color:var(--muted); font-size:13px; line-height:1.7;">Reg B, 12 CFR §1002. Prohibits credit discrimination based on race, color, religion, national origin, sex, marital status, age, or public assistance income. Pragma detects proxy variables, redlining, and income-source penalization.</div>
+        </div>
+        <div class="card">
+          <div style="font-weight:700; font-size:14px; margin-bottom:6px;">Fair Housing Act</div>
+          <div style="color:var(--muted); font-size:13px; line-height:1.7;">42 U.S.C. §3604/3605. Prohibits discrimination in residential real estate and mortgage lending. Pragma's HOLC redlining check enforces this — 500+ ZIP codes mapped to historically redlined Grade D zones.</div>
+        </div>
+        <div class="card">
+          <div style="font-weight:700; font-size:14px; margin-bottom:6px;">FCRA — Fair Credit Reporting Act</div>
+          <div style="color:var(--muted); font-size:13px; line-height:1.7;">15 U.S.C. §1681m. Requires adverse action notices when a credit report is used to deny credit. Pragma flags missing or inadequate notices and generates compliant ECOA §1002.9 + FCRA §615(a) notices.</div>
+        </div>
+        <div class="card">
+          <div style="font-weight:700; font-size:14px; margin-bottom:6px;">CFPB UDAAP</div>
+          <div style="color:var(--muted); font-size:13px; line-height:1.7;">CFPA §1031. Prohibits Unfair, Deceptive, or Abusive Acts and Practices in consumer financial services. Pragma flags abusive use of consumer data and opaque AI-driven decisions.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- US Federal Employment -->
+    <div style="margin-bottom:32px;">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+        <span class="badge" style="background:rgba(247,147,30,0.12); color:var(--accent3); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">US Federal — Employment</span>
+      </div>
+      <div class="card-grid cols-3">
+        <div class="card">
+          <div style="font-weight:700; font-size:14px; margin-bottom:6px;">Title VII — Civil Rights Act</div>
+          <div style="color:var(--muted); font-size:13px; line-height:1.7;">42 U.S.C. §2000e-2. Prohibits employment discrimination based on race, color, religion, sex, or national origin. Pragma detects discriminatory language and criteria in AI hiring decisions.</div>
+        </div>
+        <div class="card">
+          <div style="font-weight:700; font-size:14px; margin-bottom:6px;">ADEA — Age Discrimination in Employment Act</div>
+          <div style="color:var(--muted); font-size:13px; line-height:1.7;">29 U.S.C. §623. Prohibits discrimination against workers 40+. Pragma detects age proxies — graduation year, years to retirement, "digital native" requirements.</div>
+        </div>
+        <div class="card">
+          <div style="font-weight:700; font-size:14px; margin-bottom:6px;">ADA — Americans with Disabilities Act</div>
+          <div style="color:var(--muted); font-size:13px; line-height:1.7;">42 U.S.C. §12112. Prohibits discrimination based on disability. Pragma detects disability-related proxy fields and criteria that screen out protected applicants.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- US State -->
+    <div style="margin-bottom:32px;">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+        <span class="badge" style="background:rgba(124,111,224,0.12); color:var(--accent); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">US State Laws — CA · NY · IL</span>
+      </div>
+      <div class="card-grid cols-3">
+        <div class="card">
+          <div style="font-weight:700; font-size:14px; margin-bottom:6px;">NYC Local Law 144</div>
+          <div style="color:var(--muted); font-size:13px; line-height:1.7;">Requires annual independent bias audits for automated employment decision tools used in NYC hiring. Pragma flags when an AI hiring tool lacks a required bias audit.</div>
+        </div>
+        <div class="card">
+          <div style="font-weight:700; font-size:14px; margin-bottom:6px;">NY DFS — AI Fairness Guidance</div>
+          <div style="color:var(--muted); font-size:13px; line-height:1.7;">New York Dept of Financial Services Circular 1. Requires AI fairness testing in insurance and lending. Pragma applies NY DFS fairness checks alongside federal ECOA rules.</div>
+        </div>
+        <div class="card">
+          <div style="font-weight:700; font-size:14px; margin-bottom:6px;">California CPRA / AB-2771</div>
+          <div style="color:var(--muted); font-size:13px; line-height:1.7;">Expands CCPA. Requires disclosure of automated decision logic and consumer opt-out rights. Pragma flags decisions lacking required CPRA transparency disclosures.</div>
+        </div>
+        <div class="card">
+          <div style="font-weight:700; font-size:14px; margin-bottom:6px;">California AB-168 — Salary History Ban</div>
+          <div style="color:var(--muted); font-size:13px; line-height:1.7;">Prohibits using prior salary history in hiring decisions — a known proxy for the gender pay gap. Pragma detects salary history as a decision factor.</div>
+        </div>
+        <div class="card">
+          <div style="font-weight:700; font-size:14px; margin-bottom:6px;">Illinois AIVIA — AI Video Interview Act</div>
+          <div style="color:var(--muted); font-size:13px; line-height:1.7;">Requires disclosure and consent before using AI to analyze video interviews. Pragma flags AI video screening decisions that lack required AIVIA disclosures.</div>
+        </div>
+        <div class="card">
+          <div style="font-weight:700; font-size:14px; margin-bottom:6px;">Illinois Human Rights Act</div>
+          <div style="color:var(--muted); font-size:13px; line-height:1.7;">Extends anti-discrimination protections to employment decisions made using AI. Pragma applies IHRA checks on top of federal baselines for Illinois-based decisions.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EU -->
+    <div style="margin-bottom:32px;">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+        <span class="badge" style="background:rgba(248,113,113,0.12); color:var(--red); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">European Union</span>
+      </div>
+      <div class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));">
+        <div class="card">
+          <div style="font-weight:700; font-size:14px; margin-bottom:6px;">EU AI Act <span style="color:var(--muted); font-weight:400;">(Reg. 2024/1689)</span></div>
+          <div style="color:var(--muted); font-size:13px; line-height:1.7; margin-bottom:10px;">World's first comprehensive AI regulation — live August 2026. Pragma enforces 14 articles:</div>
+          <div style="display:flex; flex-wrap:wrap; gap:6px;">
+            <span style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:6px; padding:3px 8px; font-size:11px; color:var(--muted);">Art. 5 — Prohibited Practices</span>
+            <span style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:6px; padding:3px 8px; font-size:11px; color:var(--muted);">Art. 6 — High-Risk Classification</span>
+            <span style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:6px; padding:3px 8px; font-size:11px; color:var(--muted);">Art. 9 — Risk Management</span>
+            <span style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:6px; padding:3px 8px; font-size:11px; color:var(--muted);">Art. 10 — Data Governance</span>
+            <span style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:6px; padding:3px 8px; font-size:11px; color:var(--muted);">Art. 11 — Technical Docs</span>
+            <span style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:6px; padding:3px 8px; font-size:11px; color:var(--muted);">Art. 12 — Record-Keeping</span>
+            <span style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:6px; padding:3px 8px; font-size:11px; color:var(--muted);">Art. 13 — Transparency</span>
+            <span style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:6px; padding:3px 8px; font-size:11px; color:var(--muted);">Art. 14 — Human Oversight</span>
+            <span style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:6px; padding:3px 8px; font-size:11px; color:var(--muted);">Art. 15 — Accuracy &amp; Robustness</span>
+            <span style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:6px; padding:3px 8px; font-size:11px; color:var(--muted);">Art. 17 — Quality Management</span>
+            <span style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:6px; padding:3px 8px; font-size:11px; color:var(--muted);">Art. 26 — Deployer Obligations</span>
+            <span style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:6px; padding:3px 8px; font-size:11px; color:var(--muted);">Art. 27 — FRIA</span>
+            <span style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:6px; padding:3px 8px; font-size:11px; color:var(--muted);">Art. 43 — Conformity Assessment</span>
+            <span style="background:rgba(255,255,255,0.06); border:1px solid var(--border); border-radius:6px; padding:3px 8px; font-size:11px; color:var(--muted);">Art. 49 — EU Database Registration</span>
+          </div>
+        </div>
+        <div class="card">
+          <div style="font-weight:700; font-size:14px; margin-bottom:6px;">GDPR Art. 22</div>
+          <div style="color:var(--muted); font-size:13px; line-height:1.7;">Prohibits fully automated decisions with legal or significant effects without human review or explicit consent. Pragma flags automated decisions that lack required human oversight safeguards.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Policy Frameworks -->
+    <div>
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+        <span class="badge" style="background:rgba(167,139,250,0.12); color:var(--purple); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">Policy Frameworks</span>
+      </div>
+      <div class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));">
+        <div class="card">
+          <div style="font-weight:700; font-size:14px; margin-bottom:6px;">NIST AI RMF 1.0</div>
+          <div style="color:var(--muted); font-size:13px; line-height:1.7;">15 controls across Govern / Map / Measure / Manage. NIST's voluntary framework for managing AI risk and building trustworthy AI systems. Activated as a policy pack — per-org enrollment from the dashboard.</div>
+        </div>
+        <div class="card">
+          <div style="font-weight:700; font-size:14px; margin-bottom:6px;">SR 11-7 + SR 26-2</div>
+          <div style="color:var(--muted); font-size:13px; line-height:1.7;">13 controls covering model validation, governance, and ongoing monitoring. Federal Reserve supervisory guidance for model risk management — required for any bank or credit union using AI models in financial decisions.</div>
+        </div>
+      </div>
     </div>
   </section>
 
