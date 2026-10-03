@@ -2140,34 +2140,31 @@ h1{{font-size:20px;margin-bottom:4px}}h2{{font-size:15px;margin:20px 0 8px}}
     )
 
 
-@app.get("/lending")
+@app.get("/lending", include_in_schema=False)
 async def lending_landing():
-    """Serve the lending-focused landing page."""
     page = Path(__file__).parent.parent / "frontend" / "lending.html"
     if page.exists():
         return FileResponse(page)
     raise HTTPException(status_code=404, detail="Landing page not found")
 
 
-@app.get("/hiring")
+@app.get("/hiring", include_in_schema=False)
 async def hiring_landing():
-    """Serve the hiring-focused landing page."""
     page = Path(__file__).parent.parent / "frontend" / "hiring.html"
     if page.exists():
         return FileResponse(page)
     raise HTTPException(status_code=404, detail="Landing page not found")
 
 
-@app.get("/cosmos")
+@app.get("/cosmos", include_in_schema=False)
 async def cosmos_landing():
-    """Serve the Cosmos AI LLC company homepage."""
     page = Path(__file__).parent.parent / "frontend" / "cosmos.html"
     if page.exists():
         return FileResponse(page)
     raise HTTPException(status_code=404, detail="Page not found")
 
 
-@app.get("/business")
+@app.get("/business", include_in_schema=False)
 async def business_alias():
     page = Path(__file__).parent.parent / "frontend" / "business.html"
     if page.exists():
@@ -2175,7 +2172,7 @@ async def business_alias():
     raise HTTPException(status_code=404, detail="Page not found")
 
 
-@app.get("/architecture")
+@app.get("/architecture", include_in_schema=False)
 async def architecture_alias():
     page = Path(__file__).parent.parent / "frontend" / "architecture.html"
     if page.exists():
@@ -2183,34 +2180,31 @@ async def architecture_alias():
     raise HTTPException(status_code=404, detail="Page not found")
 
 
-@app.get("/pages/architecture")
+@app.get("/pages/architecture", include_in_schema=False)
 async def docs_architecture():
-    """Serve the architecture documentation page."""
     page = Path(__file__).parent.parent / "frontend" / "architecture.html"
     if page.exists():
         return FileResponse(page)
     raise HTTPException(status_code=404, detail="Page not found")
 
 
-@app.get("/pages/business")
+@app.get("/pages/business", include_in_schema=False)
 async def docs_business():
-    """Serve the business case documentation page."""
     page = Path(__file__).parent.parent / "frontend" / "business.html"
     if page.exists():
         return FileResponse(page)
     raise HTTPException(status_code=404, detail="Page not found")
 
 
-@app.get("/pages/auditing")
+@app.get("/pages/auditing", include_in_schema=False)
 async def docs_auditing():
-    """Serve the auditing documentation page."""
     page = Path(__file__).parent.parent / "frontend" / "auditing.html"
     if page.exists():
         return FileResponse(page)
     raise HTTPException(status_code=404, detail="Page not found")
 
 
-@app.get("/legal/terms")
+@app.get("/legal/terms", include_in_schema=False)
 async def terms_of_service():
     page = Path(__file__).parent.parent / "frontend" / "tos.html"
     if page.exists():
@@ -2218,7 +2212,7 @@ async def terms_of_service():
     raise HTTPException(status_code=404, detail="Page not found")
 
 
-@app.get("/legal/privacy")
+@app.get("/legal/privacy", include_in_schema=False)
 async def privacy_policy():
     page = Path(__file__).parent.parent / "frontend" / "privacy.html"
     if page.exists():
@@ -2307,9 +2301,8 @@ async def unenroll_pack(pack_id: str, user: dict = Depends(get_current_user)):
     return {"status": "unenrolled", "pack_id": pack_id}
 
 
-@app.get("/")
+@app.get("/", include_in_schema=False)
 async def root():
-    """Serve frontend UI."""
     frontend_path = Path(__file__).parent.parent / "frontend" / "index.html"
     if frontend_path.exists():
         return FileResponse(frontend_path)
