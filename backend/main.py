@@ -2317,6 +2317,28 @@ def _require_admin(user: dict) -> None:
         raise HTTPException(status_code=403, detail="Admin access required")
 
 
+@app.post("/cron/law-agent")
+async def cron_law_agent(request: Request):
+    """
+    Cron-triggered endpoint — no user session required.
+    Protected by CRON_SECRET header: X-Cron-Secret: <value>
+    Railway cron config:
+      Schedule: 0 6 * * *
+      Command:  curl -X POST https://api.usepragma.co/cron/law-agent \\
+                     -H "X-Cron-Secret: $CRON_SECRET"
+    """
+    secret = os.getenv("CRON_SECRET", "")
+    if not secret:
+        raise HTTPException(status_code=503, detail="CRON_SECRET not configured")
+    if request.headers.get("X-Cron-Secret") != secret:
+        raise HTTPException(status_code=401, detail="Invalid cron secret")
+
+    from . import law_agent
+    run_stats    = law_agent.run()
+    activated    = law_agent.activate_pending()
+    return {**run_stats, "activated_this_run": activated}
+
+
 @app.post("/admin/law-agent/run", dependencies=[Depends(get_current_user)])
 async def run_law_agent(user: dict = Depends(get_current_user)):
     """Trigger the law research agent manually. Admin only."""
