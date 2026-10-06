@@ -364,6 +364,33 @@ org_policy_pack_enrollments = Table(
     Column("enrolled_at", String,  nullable=False),
 )
 
+# ── Law Research Agent ────────────────────────────────────────────────────────
+# Stores regulatory findings discovered by the daily law agent sweep.
+
+law_agent_findings = Table(
+    "law_agent_findings", _meta,
+    Column("id",               Integer, primary_key=True, autoincrement=True),
+    Column("source",           String,  nullable=False),          # federal_register | eeoc | dol
+    Column("source_url",       String,  nullable=False),
+    Column("url_hash",         String,  nullable=False, unique=True),  # sha256[:16] for dedup
+    Column("title",            String,  nullable=False),
+    Column("published_date",   String,  nullable=False),
+    Column("raw_summary",      String,  nullable=False),
+    Column("relevant",         Integer, nullable=False, server_default="0"),
+    Column("regulation_name",  String,  nullable=True),
+    Column("statute_citation", String,  nullable=True),
+    Column("key_requirement",  String,  nullable=True),
+    Column("jurisdiction",     String,  nullable=True),
+    Column("rule_key",         String,  nullable=True),
+    Column("rule_config_json", String,  nullable=True),           # full rule config as JSON
+    Column("status",           String,  nullable=False, server_default="pending"),  # pending|active|rejected|not_relevant
+    Column("activate_at",      String,  nullable=True),           # ISO — auto-activates here
+    Column("activated_at",     String,  nullable=True),
+    Column("rejected_at",      String,  nullable=True),
+    Column("reject_reason",    String,  nullable=True),
+    Column("discovered_at",    String,  nullable=False),
+)
+
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
@@ -2577,3 +2604,127 @@ def get_enrolled_packs(anon_id_val: str) -> list[str]:
     except Exception as e:
         logger.error("get_enrolled_packs failed: %s", e)
         return []
+
+
+# ── Law Agent DB functions ────────────────────────────────────────────────────
+
+def law_agent_finding_exists(url_hash: str) -> bool:
+    try:
+        with _engine.connect() as conn:
+            row = conn.execute(
+                law_agent_findings.select().where(law_agent_findings.c.url_hash == url_hash)
+            ).fetchone()
+        return row is not None
+    except Exception:
+        return False
+
+
+def save_law_agent_finding(data: dict) -> int:
+    """Insert a finding. Returns the new row id."""
+    try:
+        with _engine.begin() as conn:
+            result = conn.execute(law_agent_findings.insert().values(**data))
+            return result.inserted_primary_key[0]
+    except Exception as e:
+        logger.error("save_law_agent_finding failed: %s", e)
+        return -1
+
+
+def get_law_agent_findings(status: str | None = None, limit: int = 50) -> list[dict]:
+    try:
+        with _engine.connect() as conn:
+            q = law_agent_findings.select().order_by(law_agent_findings.c.discovered_at.desc()).limit(limit)
+            if status:
+                q = law_agent_findings.select().where(
+                    law_agent_findings.c.status == status
+                ).order_by(law_agent_findings.c.discovered_at.desc()).limit(limit)
+            rows = conn.execute(q).fetchall()
+        return [dict(r._mapping) for r in rows]
+    except Exception as e:
+        logger.error("get_law_agent_findings failed: %s", e)
+        return []
+
+
+def get_pending_law_agent_findings(before: str) -> list[dict]:
+    """Return pending findings whose activate_at <= before (ISO string)."""
+    try:
+        with _engine.connect() as conn:
+            rows = conn.execute(
+                law_agent_findings.select().where(
+                    (law_agent_findings.c.status == "pending") &
+                    (law_agent_findings.c.activate_at <= before)
+                )
+            ).fetchall()
+        return [dict(r._mapping) for r in rows]
+    except Exception as e:
+        logger.error("get_pending_law_agent_findings failed: %s", e)
+        return []
+
+
+def activate_law_agent_finding(finding_id: int) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        with _engine.begin() as conn:
+            conn.execute(
+                law_agent_findings.update()
+                .where(law_agent_findings.c.id == finding_id)
+                .values(status="active", activated_at=now)
+            )
+    except Exception as e:
+        logger.error("activate_law_agent_finding failed: %s", e)
+
+
+def reject_law_agent_finding(finding_id: int, reason: str = "") -> bool:
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        with _engine.begin() as conn:
+            conn.execute(
+                law_agent_findings.update()
+                .where(law_agent_findings.c.id == finding_id)
+                .values(status="rejected", rejected_at=now, reject_reason=reason)
+            )
+        return True
+    except Exception as e:
+        logger.error("reject_law_agent_finding failed: %s", e)
+        return False
+
+
+def upsert_compliance_rule_from_agent(rule: dict) -> None:
+    """Insert or update a compliance rule seeded by the law agent."""
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        with _engine.connect() as conn:
+            existing = conn.execute(
+                compliance_rules.select().where(compliance_rules.c.rule_key == rule["rule_key"])
+            ).fetchone()
+        with _engine.begin() as conn:
+            if existing:
+                conn.execute(
+                    compliance_rules.update()
+                    .where(compliance_rules.c.rule_key == rule["rule_key"])
+                    .values(
+                        regulation=rule["regulation"],
+                        description=rule["description"],
+                        rule_type=rule.get("rule_type", "regex"),
+                        config_json=rule["config_json"],
+                        default_severity=rule.get("default_severity", "FLAG"),
+                        categories=rule.get("categories", '["hiring"]'),
+                        enabled=1,
+                        updated_at=now,
+                    )
+                )
+            else:
+                conn.execute(compliance_rules.insert().values(
+                    rule_key=rule["rule_key"],
+                    regulation=rule["regulation"],
+                    description=rule["description"],
+                    rule_type=rule.get("rule_type", "regex"),
+                    config_json=rule["config_json"],
+                    default_severity=rule.get("default_severity", "FLAG"),
+                    categories=rule.get("categories", '["hiring"]'),
+                    enabled=1,
+                    created_at=now,
+                    updated_at=now,
+                ))
+    except Exception as e:
+        logger.error("upsert_compliance_rule_from_agent failed: %s", e)

@@ -2309,5 +2309,60 @@ async def root():
     return {"message": "Pragma API"}
 
 
+# ── Law Agent Admin Endpoints ─────────────────────────────────────────────────
+
+def _require_admin(user: dict) -> None:
+    admin_email = os.getenv("ADMIN_EMAIL", "cosmosservicesai@gmail.com")
+    if user.get("email") != admin_email:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+
+@app.post("/admin/law-agent/run", dependencies=[Depends(get_current_user)])
+async def run_law_agent(user: dict = Depends(get_current_user)):
+    """Trigger the law research agent manually. Admin only."""
+    _require_admin(user)
+    from . import law_agent
+    stats = law_agent.run()
+    return stats
+
+
+@app.post("/admin/law-agent/activate-pending", dependencies=[Depends(get_current_user)])
+async def activate_pending_law_rules(user: dict = Depends(get_current_user)):
+    """Promote pending rules whose 24h window has passed. Admin only."""
+    _require_admin(user)
+    from . import law_agent
+    count = law_agent.activate_pending()
+    return {"activated": count}
+
+
+@app.get("/admin/law-agent/findings", dependencies=[Depends(get_current_user)])
+async def list_law_agent_findings(
+    status: str | None = None,
+    user: dict = Depends(get_current_user),
+):
+    """List law agent findings. Admin only."""
+    _require_admin(user)
+    findings = database.get_law_agent_findings(status=status, limit=100)
+    return {"findings": findings, "total": len(findings)}
+
+
+class RejectFindingRequest(BaseModel):
+    reason: str = ""
+
+
+@app.post("/admin/law-agent/findings/{finding_id}/reject", dependencies=[Depends(get_current_user)])
+async def reject_law_agent_finding(
+    finding_id: int,
+    req: RejectFindingRequest,
+    user: dict = Depends(get_current_user),
+):
+    """Reject a pending rule so it never activates. Admin only."""
+    _require_admin(user)
+    ok = database.reject_law_agent_finding(finding_id, req.reason)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Finding not found")
+    return {"status": "rejected", "finding_id": finding_id}
+
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
