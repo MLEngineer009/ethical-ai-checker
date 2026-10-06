@@ -40,71 +40,84 @@ ACTIVATION_DELAY_HOURS = int(os.getenv("LAW_AGENT_ACTIVATION_HOURS", "24"))
 
 # ── Source fetchers ───────────────────────────────────────────────────────────
 
+_FR_SEARCH_TERMS = [
+    "artificial intelligence hiring employment discrimination",
+    "automated employment decision tool bias",
+    "AI algorithmic hiring screening",
+    "EEOC artificial intelligence",
+]
+
+
 def _fetch_federal_register(days_back: int = 7) -> List[Dict]:
     since = (datetime.now(timezone.utc) - timedelta(days=days_back)).strftime("%Y-%m-%d")
+    seen_urls: set = set()
+    items: List[Dict] = []
+
+    for term in _FR_SEARCH_TERMS:
+        try:
+            r = httpx.get(
+                "https://www.federalregister.gov/api/v1/articles.json",
+                params={
+                    "conditions[term]": term,
+                    "conditions[publication_date][gte]": since,
+                    "per_page": 10,
+                    "order": "newest",
+                    "fields[]": ["title", "abstract", "publication_date", "html_url", "type"],
+                },
+                timeout=30,
+            )
+            r.raise_for_status()
+            for item in r.json().get("results", []):
+                url = item.get("html_url", "")
+                if url in seen_urls:
+                    continue
+                seen_urls.add(url)
+                items.append({
+                    "title":          item.get("title", ""),
+                    "abstract":       item.get("abstract", ""),
+                    "url":            url,
+                    "published_date": item.get("publication_date", ""),
+                    "source":         "federal_register",
+                })
+        except Exception as e:
+            logger.error("Federal Register fetch failed for term '%s': %s", term, e)
+
+    return items
+
+
+def _fetch_eeoc_newsroom(days_back: int = 7) -> List[Dict]:
+    """Scrape EEOC newsroom for recent press releases about AI."""
     try:
         r = httpx.get(
-            "https://www.federalregister.gov/api/v1/articles.json",
-            params={
-                "conditions[term]": "artificial intelligence hiring employment discrimination",
-                "conditions[publication_date][gte]": since,
-                "conditions[type][]": ["Rule", "Proposed Rule", "Notice", "Guidance Document"],
-                "per_page": 20,
-                "order": "newest",
-                "fields[]": [
-                    "title", "abstract", "publication_date",
-                    "html_url", "document_number",
-                ],
-            },
+            "https://www.eeoc.gov/newsroom",
             timeout=30,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; Pragma-LawAgent/1.0)"},
         )
         r.raise_for_status()
         items = []
-        for item in r.json().get("results", []):
-            items.append({
-                "title":            item.get("title", ""),
-                "abstract":         item.get("abstract", ""),
-                "url":              item.get("html_url", ""),
-                "published_date":   item.get("publication_date", ""),
-                "source":           "federal_register",
-            })
-        return items
-    except Exception as e:
-        logger.error("Federal Register fetch failed: %s", e)
-        return []
-
-
-def _fetch_eeoc_rss(days_back: int = 7) -> List[Dict]:
-    try:
-        r = httpx.get(
-            "https://www.eeoc.gov/newsroom/rss.xml",
-            timeout=30,
-            headers={"User-Agent": "Pragma-LawAgent/1.0"},
-        )
-        r.raise_for_status()
-        items = []
-        for item_text in re.findall(r"<item>(.*?)</item>", r.text, re.DOTALL):
-            title_m = re.search(r"<title><!\[CDATA\[(.*?)\]\]></title>|<title>(.*?)</title>", item_text, re.DOTALL)
-            link_m  = re.search(r"<link>(.*?)</link>",               item_text, re.DOTALL)
-            desc_m  = re.search(r"<description><!\[CDATA\[(.*?)\]\]></description>|<description>(.*?)</description>", item_text, re.DOTALL)
-            date_m  = re.search(r"<pubDate>(.*?)</pubDate>",         item_text, re.DOTALL)
-            if not title_m:
+        # Extract news links — EEOC newsroom uses /newsroom/<slug> paths
+        for m in re.finditer(
+            r'href="(/newsroom/[^"]+)"[^>]*>\s*([^<]{10,200})',
+            r.text,
+        ):
+            path, title = m.group(1), m.group(2).strip()
+            title = re.sub(r"\s+", " ", title)
+            url = f"https://www.eeoc.gov{path}"
+            if url in {i["url"] for i in items}:
                 continue
-            title = (title_m.group(1) or title_m.group(2) or "").strip()
-            desc  = ""
-            if desc_m:
-                desc = (desc_m.group(1) or desc_m.group(2) or "").strip()
-            items.append({
-                "title":          title,
-                "abstract":       desc[:1000],
-                "url":            (link_m.group(1) or "").strip() if link_m else "",
-                "published_date": (date_m.group(1) or "").strip() if date_m else "",
-                "source":         "eeoc",
-            })
-        return items[:15]
+            # Filter for AI-relevant titles
+            lower = title.lower()
+            if any(kw in lower for kw in ("artificial intelligence", " ai ", "algorithm", "automated", "bias", "discrimination")):
+                items.append({
+                    "title":          title,
+                    "abstract":       "",
+                    "url":            url,
+                    "published_date": "",
+                    "source":         "eeoc",
+                })
+        return items[:10]
     except Exception as e:
-        logger.error("EEOC RSS fetch failed: %s", e)
-        return []
+        logger.error("EEOC newsroom scrape failed: %s", e)
 
 
 # ── Claude analysis ───────────────────────────────────────────────────────────
@@ -224,7 +237,7 @@ def run(days_back: int | None = None) -> Dict[str, Any]:
 
     raw_findings: List[Dict] = []
     raw_findings.extend(_fetch_federal_register(days_back))
-    raw_findings.extend(_fetch_eeoc_rss(days_back))
+    raw_findings.extend(_fetch_eeoc_newsroom(days_back))
 
     logger.info("Law agent: fetched %d raw findings", len(raw_findings))
 
