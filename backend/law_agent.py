@@ -250,9 +250,6 @@ def run(days_back: int | None = None) -> Dict[str, Any]:
     }
 
     now = datetime.now(timezone.utc).isoformat()
-    activate_at = (
-        datetime.now(timezone.utc) + timedelta(hours=ACTIVATION_DELAY_HOURS)
-    ).isoformat()
 
     for finding in raw_findings:
         url_hash = hashlib.sha256(finding["url"].encode()).hexdigest()[:16]
@@ -296,17 +293,15 @@ def run(days_back: int | None = None) -> Dict[str, Any]:
             "rule_key":         rule_config.get("rule_key", ""),
             "rule_config_json": json.dumps(rule_config),
             "status":           "pending",
-            "activate_at":      activate_at,
             "discovered_at":    now,
         })
 
         stats["drafted"] += 1
         stats["new_findings"].append({
-            "id":          finding_id,
-            "title":       finding["title"],
-            "regulation":  analysis.get("regulation_name", ""),
-            "rule_key":    rule_config.get("rule_key", ""),
-            "activate_at": activate_at,
+            "id":         finding_id,
+            "title":      finding["title"],
+            "regulation": analysis.get("regulation_name", ""),
+            "rule_key":   rule_config.get("rule_key", ""),
         })
 
         logger.info(
@@ -376,7 +371,9 @@ def _send_admin_notification(findings: List[Dict]) -> None:
             f"""<tr>
               <td style="padding:8px 12px;border-bottom:1px solid #eee;">{f['regulation']}</td>
               <td style="padding:8px 12px;border-bottom:1px solid #eee;font-family:monospace;font-size:12px;">{f['rule_key']}</td>
-              <td style="padding:8px 12px;border-bottom:1px solid #eee;">{f['activate_at'][:10]}</td>
+              <td style="padding:8px 12px;border-bottom:1px solid #eee;">
+                <a href="https://usepragma.co" style="color:#7c3aed;font-size:12px;">Review →</a>
+              </td>
             </tr>"""
             for f in findings
         )
@@ -384,27 +381,27 @@ def _send_admin_notification(findings: List[Dict]) -> None:
         html = f"""
         <div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
           <h2 style="color:#7c3aed;">Pragma Law Agent — New Findings</h2>
-          <p><strong>{len(findings)}</strong> new AI hiring regulation(s) discovered.
-          Rules activate automatically in {ACTIVATION_DELAY_HOURS}h unless rejected.</p>
+          <p><strong>{len(findings)}</strong> new AI hiring regulation(s) discovered and waiting for your review.</p>
+          <p style="color:#666;">Rules do <strong>not</strong> go live until you explicitly approve them.</p>
           <table style="width:100%;border-collapse:collapse;margin:16px 0;">
             <thead>
               <tr style="background:#f5f5f5;">
                 <th style="padding:8px 12px;text-align:left;font-size:12px;">Regulation</th>
                 <th style="padding:8px 12px;text-align:left;font-size:12px;">Rule Key</th>
-                <th style="padding:8px 12px;text-align:left;font-size:12px;">Activates</th>
+                <th style="padding:8px 12px;text-align:left;font-size:12px;">Action</th>
               </tr>
             </thead>
             <tbody>{rows}</tbody>
           </table>
-          <p><a href="https://usepragma.co" style="color:#7c3aed;">Review &amp; reject at usepragma.co → Admin → Law Agent</a></p>
-          <p style="color:#999;font-size:12px;">Pragma Law Agent · cosmosservicesai@gmail.com</p>
+          <p><a href="https://usepragma.co" style="color:#7c3aed;font-weight:bold;">Review findings at usepragma.co → Admin → Law Agent</a></p>
+          <p style="color:#999;font-size:12px;">Approve to add to Pragma's compliance engine · Reject to discard · Pragma Law Agent</p>
         </div>
         """
 
         resend.Emails.send({
             "from":    "Pragma <noreply@usepragma.co>",
             "to":      [ADMIN_EMAIL],
-            "subject": f"[Pragma] {len(findings)} new hiring rule(s) found — activating {ACTIVATION_DELAY_HOURS}h",
+            "subject": f"[Pragma] {len(findings)} new hiring regulation(s) found — awaiting your review",
             "html":    html,
         })
     except Exception as e:

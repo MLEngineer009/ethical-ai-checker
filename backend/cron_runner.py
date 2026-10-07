@@ -34,10 +34,7 @@ def main() -> None:
     logger.info("Cron: running law agent sweep")
     stats = law_agent.run()
     logger.info("Cron: sweep complete — %s", stats)
-
-    logger.info("Cron: activating pending rules")
-    activated = law_agent.activate_pending()
-    logger.info("Cron: activated %d rule(s)", activated)
+    # Rules require explicit admin approval before going live — no auto-activation here.
 
     logger.info("Cron: done")
 

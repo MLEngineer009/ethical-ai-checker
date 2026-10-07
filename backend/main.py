@@ -2326,6 +2326,7 @@ async def cron_law_agent(request: Request):
       Schedule: 0 6 * * *
       Command:  curl -X POST https://api.usepragma.co/cron/law-agent \\
                      -H "X-Cron-Secret: $CRON_SECRET"
+    Rules require explicit admin approval — nothing auto-activates here.
     """
     secret = os.getenv("CRON_SECRET", "")
     if not secret:
@@ -2334,9 +2335,7 @@ async def cron_law_agent(request: Request):
         raise HTTPException(status_code=401, detail="Invalid cron secret")
 
     from . import law_agent
-    run_stats    = law_agent.run()
-    activated    = law_agent.activate_pending()
-    return {**run_stats, "activated_this_run": activated}
+    return law_agent.run()
 
 
 @app.post("/admin/law-agent/run", dependencies=[Depends(get_current_user)])
@@ -2370,6 +2369,40 @@ async def list_law_agent_findings(
 
 class RejectFindingRequest(BaseModel):
     reason: str = ""
+
+
+@app.post("/admin/law-agent/findings/{finding_id}/approve", dependencies=[Depends(get_current_user)])
+async def approve_law_agent_finding(
+    finding_id: int,
+    user: dict = Depends(get_current_user),
+):
+    """Approve a pending rule — inserts it into the live compliance engine immediately. Admin only."""
+    _require_admin(user)
+    findings = database.get_law_agent_findings(limit=200)
+    finding = next((f for f in findings if f["id"] == finding_id), None)
+    if not finding:
+        raise HTTPException(status_code=404, detail="Finding not found")
+    if finding["status"] != "pending":
+        raise HTTPException(status_code=400, detail=f"Finding is already {finding['status']}")
+
+    import json as _json
+    from . import law_agent
+    rule_config = _json.loads(finding["rule_config_json"] or "{}")
+    if not rule_config.get("rule_key"):
+        raise HTTPException(status_code=422, detail="Finding has no rule config to activate")
+
+    database.upsert_compliance_rule_from_agent({
+        "rule_key":         rule_config["rule_key"],
+        "regulation":       rule_config.get("regulation", ""),
+        "description":      rule_config.get("description", ""),
+        "rule_type":        rule_config.get("rule_type", "regex"),
+        "config_json":      _json.dumps(rule_config.get("config_json", {})),
+        "default_severity": rule_config.get("default_severity", "FLAG"),
+        "categories":       _json.dumps(rule_config.get("categories", ["hiring"])),
+    })
+    database.activate_law_agent_finding(finding_id)
+    logger.info("Admin approved law agent rule '%s'", rule_config["rule_key"])
+    return {"status": "active", "finding_id": finding_id, "rule_key": rule_config["rule_key"]}
 
 
 @app.post("/admin/law-agent/findings/{finding_id}/reject", dependencies=[Depends(get_current_user)])
