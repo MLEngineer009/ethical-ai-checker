@@ -98,19 +98,27 @@ def _fetch_eeoc_newsroom(days_back: int = 7) -> List[Dict]:
         )
         r.raise_for_status()
         items = []
-        # Extract news links — EEOC newsroom uses /newsroom/<slug> paths
+        seen_urls: set = set()
+        # EEOC renders links as <a href="/newsroom/slug">Title Text</a>
         for m in re.finditer(
-            r'href="(/newsroom/[^"]+)"[^>]*>\s*([^<]{10,200})',
+            r'<a[^>]+href="(/newsroom/[^"?#]+)"[^>]*>(.*?)</a>',
             r.text,
+            re.DOTALL,
         ):
-            path, title = m.group(1), m.group(2).strip()
+            path = m.group(1)
+            title = re.sub(r"<[^>]+>", "", m.group(2)).strip()
             title = re.sub(r"\s+", " ", title)
-            url = f"https://www.eeoc.gov{path}"
-            if url in {i["url"] for i in items}:
+            if len(title) < 10:
                 continue
-            # Filter for AI-relevant titles
+            url = f"https://www.eeoc.gov{path}"
+            if url in seen_urls:
+                continue
+            seen_urls.add(url)
             lower = title.lower()
-            if any(kw in lower for kw in ("artificial intelligence", " ai ", "algorithm", "automated", "bias", "discrimination")):
+            if any(kw in lower for kw in (
+                "artificial intelligence", " ai ", "algorithm",
+                "automated", "bias", "discrimination",
+            )):
                 items.append({
                     "title":          title,
                     "abstract":       "",
@@ -128,6 +136,10 @@ _EU_AI_KEYWORDS = (
     "artificial intelligence", "ai act", "automated decision",
     "algorithmic", "machine learning", "hiring", "employment",
     "discrimination", "bias", "fundamental rights", "high-risk",
+    # EC publications use abbreviation "AI" — match as whole word
+    " ai ", " ai:", " ai,", "(ai)", "ai summit", "ai observatory",
+    "chatgpt", "large language", "generative ai", "digital services act",
+    "digital markets act", "data act", "apply ai",
 )
 
 
@@ -289,7 +301,7 @@ def run(days_back: int | None = None) -> Dict[str, Any]:
     from . import database
 
     if days_back is None:
-        days_back = int(os.getenv("LAW_AGENT_DAYS_BACK", "7"))
+        days_back = int(os.getenv("LAW_AGENT_DAYS_BACK", "30"))
 
     api_key = os.getenv("ANTHROPIC_API_KEY", "")
     if not api_key:
