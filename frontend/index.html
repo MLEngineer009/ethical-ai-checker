@@ -2573,7 +2573,17 @@ if verdict["firewall_action"] == "block":
         hitlSection.style.display = 'none';
       }
 
-      document.getElementById('btnAdverseAction').style.display = 'none';
+      // Show adverse action button for: lending denial OR hiring/hr with FCRA flag
+      const fcraFail = (data.compliance_checks || []).some(c =>
+        (c.status === 'FAIL' || c.status === 'FLAG') && c.regulation && c.regulation.includes('FCRA')
+      );
+      const isEmployment = (lastCategory === 'hiring' || lastCategory === 'hr');
+      const isCreditDenial = (lastCategory === 'lending' || lastCategory === 'finance') &&
+        (data.firewall_action === 'block' || data.firewall_action === 'override_required');
+      const showAAN = (isEmployment && fcraFail) || isCreditDenial;
+      const aanBtn = document.getElementById('btnAdverseAction');
+      aanBtn.style.display = showAAN ? 'inline-flex' : 'none';
+      aanBtn.dataset.employment = isEmployment ? '1' : '0';
 
       const resultsEl = document.getElementById('resultsSection');
       resultsEl.style.display = 'block';
@@ -4204,10 +4214,25 @@ if verdict["firewall_action"] == "block":
     <div style="background:#111318;border:1px solid #1e2232;border-radius:12px;padding:28px;max-width:560px;width:100%;margin:auto;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
         <div>
-          <div style="font-size:16px;font-weight:700;color:var(--text);">Generate Adverse Action Notice</div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">ECOA §1002.9 · FCRA §615(a) compliant</div>
+          <div style="font-size:16px;font-weight:700;color:var(--text);" id="aanModalTitle">Generate Adverse Action Notice</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px;" id="aanModalSubtitle">ECOA §1002.9 · FCRA §615(a) compliant</div>
         </div>
         <button onclick="closeAanModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:20px;padding:0;">✕</button>
+      </div>
+
+      <!-- Employment notice type — shown only for hiring/hr categories -->
+      <div id="aanNoticeTypeRow" style="display:none;margin-bottom:14px;padding:12px;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.25);border-radius:8px;">
+        <div style="font-size:11px;font-weight:600;color:#a5b4fc;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">FCRA Notice Type</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-muted);cursor:pointer;">
+            <input type="radio" name="aanNoticeType" value="employment_pre_adverse" id="aanPreAdverse" checked style="width:14px;height:14px;">
+            <span>Pre-Adverse Action <span style="color:var(--text-muted);font-size:11px;">(§604(b)(3) — before final decision)</span></span>
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-muted);cursor:pointer;">
+            <input type="radio" name="aanNoticeType" value="employment_adverse" id="aanFinalAdverse" style="width:14px;height:14px;">
+            <span>Final Adverse Action <span style="color:var(--text-muted);font-size:11px;">(§615(a) — after dispute window)</span></span>
+          </label>
+        </div>
       </div>
 
       <div style="display:flex;flex-direction:column;gap:12px;">
@@ -4286,6 +4311,19 @@ if verdict["firewall_action"] == "block":
         }
       }
 
+      // Employment vs credit mode
+      const isEmp = document.getElementById('btnAdverseAction').dataset.employment === '1';
+      document.getElementById('aanNoticeTypeRow').style.display = isEmp ? 'block' : 'none';
+      document.getElementById('aanModalTitle').textContent = isEmp
+        ? 'Generate Employment Adverse Action Notice'
+        : 'Generate Adverse Action Notice';
+      document.getElementById('aanModalSubtitle').textContent = isEmp
+        ? 'FCRA §604(b)(3) · §615(a) compliant — employment background check'
+        : 'ECOA §1002.9 · FCRA §615(a) compliant';
+      // Update label placeholders for employment context
+      const creditorLabel = document.querySelector('label[for="aanCreditorName"], label + #aanCreditorName');
+      document.querySelector('#aanCreditorName').placeholder = isEmp ? 'Hiring Company Name' : 'Acme Lending Co.';
+
       const modal = document.getElementById('aanModal');
       modal.style.display = 'flex';
     }
@@ -4316,6 +4354,10 @@ if verdict["firewall_action"] == "block":
       const reasons = rawReasons.split('\n').map(r => r.trim()).filter(Boolean).slice(0, 5);
       const craUsed = document.getElementById('aanCraUsed').checked;
 
+      const isEmp = document.getElementById('btnAdverseAction').dataset.employment === '1';
+      const noticeTypeEl = document.querySelector('input[name="aanNoticeType"]:checked');
+      const noticeType = isEmp ? (noticeTypeEl ? noticeTypeEl.value : 'employment_pre_adverse') : 'credit';
+
       const body = {
         applicant_name:    applicantName,
         applicant_address: document.getElementById('aanApplicantAddr').value.trim(),
@@ -4327,6 +4369,7 @@ if verdict["firewall_action"] == "block":
         cra_name:          craUsed ? document.getElementById('aanCraName').value.trim() : '',
         cra_address:       craUsed ? document.getElementById('aanCraAddr').value.trim() : '',
         cra_phone:         craUsed ? document.getElementById('aanCraPhone').value.trim() : '',
+        notice_type:       noticeType,
         ecoa_violations:   (lastAnalysis?.compliance_checks || []).filter(c => c.status === 'FAIL' && c.regulation?.includes('ECOA')).map(c => c.reason || c.regulation).slice(0, 3),
       };
 

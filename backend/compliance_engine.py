@@ -914,6 +914,8 @@ _PROTECTED_CLASS_PATTERNS = [
     # Age — direct + indirect
     (_re.compile(r'\b(elderly|senior\s+citizen|retirement\s+age|too\s+old|older\s+worker|nearing\s+retirement)\b', _re.I), "age", "Age"),
     (_re.compile(r'\b(near\s+retirement|limited\s+remaining\s+career|long.?term\s+commitment\s+concern|generational|pre.?retirement|overqualified)\b', _re.I), "age", "Age (indirect)"),
+    # Age — ADEA coded language (hiring context)
+    (_re.compile(r'\b(digital\s+native|recent\s+graduate|early[\s-]career|fresh\s+perspective|young\s+and\s+hungry|new\s+grad|energetic\s+candidate|next[\s-]generation\s+talent)\b', _re.I), "age", "Age (ADEA coded language)"),
     # Religion — direct + indirect
     (_re.compile(r'\b(muslim|jewish|christian\s+applicant|religious\s+observance|sabbath|halal|kosher)\b', _re.I), "religion", "Religion"),
     (_re.compile(r'\b(religious\s+affiliation|faith.?based|place\s+of\s+worship|prayer\s+schedule)\b', _re.I), "religion", "Religion (indirect)"),
@@ -933,18 +935,29 @@ def _check_decision_text(decision: str, ctx: dict) -> list:
         return []
     results = []
     denial = _is_denial(decision, ctx)
+    category = _s(ctx.get("_category", "other"))
+    is_employment = category in ("hiring", "hr")
     for pattern, key, label in _PROTECTED_CLASS_PATTERNS:
         matches = pattern.findall(decision)
         if matches:
-            # Only FAIL if in a denial context — otherwise FLAG for review
             status = "FAIL" if denial else "FLAG"
+            if is_employment:
+                regulation = "Title VII — Civil Rights Act / EEOC"
+                article = f"42 U.S.C. § 2000e-2 — Unlawful Employment Practice ({label})"
+                law_name = "Title VII and EEOC regulations prohibit using"
+                decision_word = "employment decisions"
+            else:
+                regulation = "ECOA — Equal Credit Opportunity Act"
+                article = f"Regulation B, 12 CFR § 1002.6 — Prohibited Basis ({label})"
+                law_name = "ECOA prohibits using"
+                decision_word = "credit decisions"
             results.append({
-                "regulation": "ECOA — Equal Credit Opportunity Act",
-                "article": f"Regulation B, 12 CFR § 1002.6 — Prohibited Basis ({label})",
+                "regulation": regulation,
+                "article": article,
                 "status": status,
                 "reason": (
                     f"Decision text explicitly references a protected characteristic: "
-                    f"'{matches[0]}'. ECOA prohibits using {label} as a factor in credit decisions. "
+                    f"'{matches[0]}'. {law_name} {label} as a factor in {decision_word}. "
                     f"{'This was in the context of a denial — high violation risk.' if denial else 'Flag for human review.'}"
                 ),
             })
@@ -1230,6 +1243,22 @@ def _check_state_laws(decision: str, ctx: dict) -> list:
                     "Violations carry civil penalties up to $1,500/day."
                 ),
             })
+        # NYC LL144 §20-871(c) — Public posting of bias audit summary
+        bias_audit_posted = _s(ctx.get("bias_audit_posted", ""))
+        posted_negative = _has(bias_audit_posted, {"not posted","not public","not published","no","missing"})
+        posted_positive = _has(bias_audit_posted, {"yes","posted","published","public","available"}) and not posted_negative
+        if screening_tool and (posted_negative or (bias_audit_posted and not posted_positive) or not bias_audit_posted):
+            results.append({
+                "regulation": "NYC Local Law 144 — Automated Employment Decisions",
+                "article": "NYC Admin. Code § 20-871(c) — Public Posting of Bias Audit Summary",
+                "status": "FAIL",
+                "reason": (
+                    "NYC LL144 § 20-871(c) requires employers to publicly post the summary results "
+                    "of the most recent bias audit on their employment website (or job posting page) "
+                    "prior to using an AEDT. No public posting of the audit summary is documented. "
+                    "Violations carry civil penalties up to $1,500/day."
+                ),
+            })
         # New York Salary History Ban (Labor Law §194-a)
         if ctx.get("prior_compensation") and denial:
             results.append({
@@ -1270,6 +1299,18 @@ def _check_state_laws(decision: str, ctx: dict) -> list:
                         "No AIVIA consent is documented for this AI-assessed video interview."
                     ),
                 })
+        # Illinois Salary History Ban (820 ILCS 112/10, in force since Sept. 2019)
+        if ctx.get("prior_compensation") and denial:
+            results.append({
+                "regulation": "Illinois Equal Pay Act — Salary History Ban",
+                "article": "820 ILCS 112/10(b)(5) — Prohibition on Salary History Inquiry and Reliance",
+                "status": "FAIL",
+                "reason": (
+                    "Illinois law (820 ILCS 112/10, in force since September 2019) prohibits employers "
+                    "from requesting or relying on prior salary history in determining compensation or "
+                    "whether to hire a candidate. Prior compensation was a factor in this decision."
+                ),
+            })
         # Illinois Human Rights Act — broader protected classes than federal
         results.append({
             "regulation": "Illinois Human Rights Act",
@@ -1338,6 +1379,37 @@ def _check_state_laws(decision: str, ctx: dict) -> list:
     return results
 
 
+def _check_userra_decision(decision: str, ctx: dict) -> list:
+    """USERRA — 38 U.S.C. § 4311 — Prohibition on military-status employment discrimination."""
+    denial = _is_denial(decision, ctx)
+    mil_status = _s(ctx.get("military_status", ctx.get("veteran_status", "")))
+    if not mil_status:
+        return [{"regulation": "USERRA — Uniformed Services Employment and Reemployment Rights Act",
+                 "article": "38 U.S.C. § 4311 — Prohibition on Discrimination",
+                 "status": "PASS",
+                 "reason": "No military or veteran status indicator detected in evaluation context."}]
+    status = "FAIL" if denial else "FLAG"
+    if denial:
+        reason = (
+            "Military or veteran status appears as a factor in an employment denial. "
+            "USERRA (38 U.S.C. § 4311) prohibits denying initial employment, reemployment, "
+            "retention, promotion, or any benefit of employment based on uniformed service "
+            "obligations. The Department of Labor VETS office investigates complaints and "
+            "may refer to the Department of Justice for federal court enforcement."
+        )
+    else:
+        reason = (
+            "Military or veteran status is present in the evaluation context. "
+            "USERRA (38 U.S.C. § 4311) prohibits using uniformed service status as a negative "
+            "factor in any employment decision. Document that military service was not a "
+            "disqualifying factor; retain records per USERRA §§ 4311–4318."
+        )
+    return [{"regulation": "USERRA — Uniformed Services Employment and Reemployment Rights Act",
+             "article": "38 U.S.C. § 4311 — Prohibition on Discrimination",
+             "status": status,
+             "reason": reason}]
+
+
 # ── Updated checkers map with all new checks ───────────────────────────────────
 
 _DECISION_CHECKERS = {
@@ -1371,6 +1443,7 @@ _DECISION_CHECKERS = {
         _check_decision_text,
         _check_eeoc_decision,
         _check_fcra_employment_decision,
+        _check_userra_decision,
         _check_eu_ai_act_decision,
         _check_compound_proxies,
         _check_disparate_impact_risk,
@@ -1380,6 +1453,7 @@ _DECISION_CHECKERS = {
         _check_decision_text,
         _check_eeoc_decision,
         _check_fcra_employment_decision,
+        _check_userra_decision,
         _check_eu_ai_act_decision,
         _check_compound_proxies,
         _check_disparate_impact_risk,
@@ -1415,6 +1489,8 @@ def run_compliance_checks(
     """
     import inspect as _inspect
     checkers = _DECISION_CHECKERS.get(category.lower(), _DECISION_CHECKERS["other"])
+    context = dict(context)
+    context["_category"] = category.lower()
     results = []
     failed = []
     for checker in checkers:
