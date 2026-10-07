@@ -301,6 +301,7 @@
     <a href="#api">API</a>
     <a href="#auth">Auth</a>
     <a href="#data">Data</a>
+    <a href="#law-agent">Law Agent</a>
     <a href="#deploy">Deploy</a>
     <a href="auditing.html">AI Auditing AI →</a>
     <a href="business.html">Business Case →</a>
@@ -493,6 +494,84 @@ HF_TOKEN=hf_... python ml/evaluate.py \<br>
         <h3><span class="dot green"></span> Dynamic Rule Engine</h3>
         <p>Rules stored in <code>compliance_rules</code> table. Default action (FAIL/FLAG/ALLOW) and threshold are configurable per org via <code>org_rule_overrides</code>. Changes take effect immediately — no deployment required. Full audit trail of who changed what.</p>
       </div>
+      <div class="card" style="border-color:rgba(251,191,36,0.3);">
+        <h3><span class="dot" style="background:#fbbf24"></span> Law Research Agent</h3>
+        <p>Daily cron sweeps Federal Register API + EEOC newsroom. Claude filters for AI hiring relevance, drafts a rule config (regulation name, citation, violation patterns). Saved as <code>pending</code>, admin notified by email, auto-promoted to live rules after 24 h unless rejected. Zero human effort to stay current.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- LAW RESEARCH AGENT -->
+  <section id="law-agent">
+    <h2>Law Research Agent</h2>
+    <p class="section-sub">Self-updating compliance corpus — new regulations discovered daily, rules deployed automatically.</p>
+
+    <div class="chain" style="margin-bottom:24px;">
+      <div class="chain-step primary">
+        <div class="chain-icon">🔍</div>
+        <div class="chain-name">Source Sweep</div>
+        <div class="chain-sub">Federal Register API<br>EEOC newsroom · 4 search terms</div>
+      </div>
+      <div class="chain-sep">→</div>
+      <div class="chain-step fallback">
+        <div class="chain-icon">🤖</div>
+        <div class="chain-name">Claude Filters</div>
+        <div class="chain-sub">Relevant to AI hiring?<br>Draft rule config JSON</div>
+      </div>
+      <div class="chain-sep">→</div>
+      <div class="chain-step offline">
+        <div class="chain-icon">⏳</div>
+        <div class="chain-name">Pending (24 h)</div>
+        <div class="chain-sub">Admin email sent<br>Reject window open</div>
+      </div>
+      <div class="chain-sep">→</div>
+      <div class="chain-step" style="background:rgba(74,222,128,0.08); border-color:rgba(74,222,128,0.3);">
+        <div class="chain-icon">✅</div>
+        <div class="chain-name">Live in Engine</div>
+        <div class="chain-sub">Inserted into compliance_rules<br>Active on next request</div>
+      </div>
+    </div>
+
+    <div class="card-grid cols-3">
+      <div class="card">
+        <h3><span class="dot" style="background:#38bdf8"></span> Sources</h3>
+        <ul style="font-size:13px; line-height:2; padding-left:16px;">
+          <li>Federal Register API — 4 parallel search queries</li>
+          <li>EEOC newsroom — AI-relevant press releases</li>
+          <li>Deduplication by URL hash — never re-analyzes a seen document</li>
+          <li>Configurable lookback window (<code>LAW_AGENT_DAYS_BACK</code>)</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3><span class="dot" style="background:#a78bfa"></span> Rule Format</h3>
+        <p>Claude drafts a JSON config — not arbitrary code. Fields: <code>rule_key</code>, <code>regulation</code>, <code>statute_citation</code>, <code>patterns[]</code>, <code>fields[]</code>, <code>default_severity</code> (FAIL/FLAG), <code>categories</code>. Inserted into <code>compliance_rules</code> table via <code>upsert_compliance_rule_from_agent()</code>.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot" style="background:#fbbf24"></span> Admin Control</h3>
+        <ul style="font-size:13px; line-height:2; padding-left:16px;">
+          <li><code>GET /admin/law-agent/findings</code> — all findings</li>
+          <li><code>POST /admin/law-agent/run</code> — trigger manually</li>
+          <li><code>POST /admin/law-agent/findings/{id}/reject</code> — kill before activation</li>
+          <li><code>POST /cron/law-agent</code> — Railway cron endpoint (<code>X-Cron-Secret</code>)</li>
+          <li>24 h activation delay — safety window</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h3>Files</h3>
+      <code style="display:block; margin-top:12px; padding:16px; line-height:2.2; white-space:pre-wrap; background:rgba(0,0,0,0.3); border-radius:10px; font-size:12px;">backend/law_agent.py        — agent: fetch → Claude filter → draft rule → save pending → email
+backend/cron_runner.py      — standalone script: python -m backend.cron_runner (Railway cron)
+backend/database.py         — law_agent_findings table + 7 DB functions
+backend/main.py             — /admin/law-agent/* endpoints + POST /cron/law-agent
+
+Env vars required:
+  ANTHROPIC_API_KEY          — Claude analysis
+  RESEND_API_KEY             — admin email notification
+  ADMIN_EMAIL                — where to send alerts (default: cosmosservicesai@gmail.com)
+  CRON_SECRET                — protects POST /cron/law-agent from unauthenticated calls
+  LAW_AGENT_ACTIVATION_HOURS — hours before auto-activation (default: 24)
+  LAW_AGENT_DAYS_BACK        — lookback window for sweeps (default: 7)</code>
     </div>
   </section>
 
@@ -1271,6 +1350,30 @@ CREATE TABLE feature_events (
   event_name       TEXT NOT NULL,       -- decision_evaluated, report_downloaded, …
   properties       TEXT,               -- JSON dict of event properties
   created_at       TEXT NOT NULL
+);
+
+-- Law Research Agent findings (self-updating rule corpus)
+CREATE TABLE law_agent_findings (
+  id               SERIAL PRIMARY KEY,
+  source           TEXT NOT NULL,       -- federal_register | eeoc
+  source_url       TEXT NOT NULL,
+  url_hash         TEXT NOT NULL UNIQUE, -- sha256[:16] for dedup
+  title            TEXT NOT NULL,
+  published_date   TEXT NOT NULL,
+  raw_summary      TEXT NOT NULL,
+  relevant         INTEGER DEFAULT 0,   -- 1 = Claude marked relevant
+  regulation_name  TEXT,               -- Claude-extracted regulation name
+  statute_citation TEXT,               -- e.g. 42 U.S.C. § 2000e-2
+  key_requirement  TEXT,               -- one-sentence summary
+  jurisdiction     TEXT,               -- federal | california | new_york | …
+  rule_key         TEXT,               -- snake_case rule key
+  rule_config_json TEXT,               -- full rule config as JSON
+  status           TEXT DEFAULT 'pending', -- pending | active | rejected | not_relevant
+  activate_at      TEXT,               -- ISO — auto-activates here
+  activated_at     TEXT,
+  rejected_at      TEXT,
+  reject_reason    TEXT,
+  discovered_at    TEXT NOT NULL
 );</code>
     </div>
   </section>
@@ -1335,7 +1438,7 @@ CREATE TABLE feature_events (
         <h3>Deploy FastAPI</h3>
         <p>Connect GitHub repo. Railway auto-detects Python via <code>requirements.txt</code>.</p>
         <code>railway.app → New Project<br>→ Deploy from GitHub<br>→ Add PostgreSQL plugin<br>→ Set env vars → Deploy</code>
-        <p style="margin-top:12px;">Required env vars: <code>ANTHROPIC_API_KEY</code>, <code>OPENAI_API_KEY</code>, <code>GOOGLE_CLIENT_ID</code>, <code>ALLOWED_ORIGINS</code>, <code>STRIPE_SECRET_KEY</code>, <code>STRIPE_WEBHOOK_SECRET</code>, <code>STRIPE_GROWTH_PRICE_ID</code>, <code>CUSTOM_MODEL_REPO</code>, <code>HF_TOKEN</code></p>
+        <p style="margin-top:12px;">Required env vars: <code>ANTHROPIC_API_KEY</code>, <code>OPENAI_API_KEY</code>, <code>GOOGLE_CLIENT_ID</code>, <code>ALLOWED_ORIGINS</code>, <code>STRIPE_SECRET_KEY</code>, <code>STRIPE_WEBHOOK_SECRET</code>, <code>STRIPE_GROWTH_PRICE_ID</code>, <code>RESEND_API_KEY</code>, <code>ADMIN_EMAIL</code>, <code>SENTRY_DSN</code>, <code>CRON_SECRET</code>, <code>GEMINI_API_KEY</code></p>
       </div>
       <div class="deploy-card">
         <div class="deploy-num">2</div>
