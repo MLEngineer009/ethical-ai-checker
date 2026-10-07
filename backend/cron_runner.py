@@ -2,7 +2,7 @@
 Standalone cron runner — executes law agent + activates pending rules.
 
 Railway cron setup (Settings → Cron Jobs):
-  Schedule: 0 6 * * *
+  Schedule: 45 8 * * *
   Command:  python -m backend.cron_runner
 
 Requires same env vars as the main backend:
