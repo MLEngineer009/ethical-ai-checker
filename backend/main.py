@@ -2432,7 +2432,7 @@ async def cron_law_agent(request: Request):
     Cron-triggered endpoint — no user session required.
     Protected by CRON_SECRET header: X-Cron-Secret: <value>
     Railway cron config:
-      Schedule: 45 8 * * *
+      Schedule: 45 14 * * *
       Command:  curl -X POST https://api.usepragma.co/cron/law-agent \\
                      -H "X-Cron-Secret: $CRON_SECRET"
     Rules require explicit admin approval — nothing auto-activates here.
