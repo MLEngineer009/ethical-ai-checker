@@ -530,6 +530,12 @@ _DISCOUNT_STORE_KW: set = {
 _DENIAL_KW: set = {
     "deny","denied","denial","reject","rejected","decline",
     "declined","not approved","does not meet","below threshold",
+    # Indirect hiring rejection phrases
+    "not moving forward","moving in another direction","not the right fit",
+    "not a fit","not selected","will not be extending","decided not to proceed",
+    "no longer being considered","not proceeding","unsuccessful",
+    "not advancing","went with another","position has been filled",
+    "not proceed","other direction","not extend an offer",
 }
 _EU_LOC_KW: set = {
     "eu","european union","uk","united kingdom","germany","france",
@@ -537,8 +543,18 @@ _EU_LOC_KW: set = {
     "denmark","finland","ireland","portugal",
 }
 _HBCU_KW: set = {
+    # Keyword to match explicit HBCU mention
+    "hbcu",
+    # Well-known HBCUs
     "howard university","morehouse","spelman","hampton university",
     "tuskegee","fisk university","clark atlanta","florida a&m",
+    "north carolina a&t","prairie view a&m","southern university",
+    "grambling state","morgan state","norfolk state","virginia state",
+    "lincoln university","jackson state","alcorn state","texas southern",
+    "tennessee state","kentucky state","delaware state","coppin state",
+    "bowie state","bethune-cookman","xavier university of louisiana",
+    "shaw university","dillard university","langston university",
+    "miles college","talladega college","saint augustine",
 }
 
 
@@ -885,11 +901,6 @@ def _check_eeoc_decision(decision: str, ctx: dict) -> list:
         reason = ("Penalizing a medical/disability gap is ADA discrimination." if status == "FAIL"
                   else f"Employment gap of {gap} penalized without capturing reason — may screen out applicants on medical or disability leave.")
         results.append({"regulation":"ADA — Americans with Disabilities Act","article":"42 U.S.C. § 12112 — Disability Discrimination","status":status,"reason":reason})
-
-    bias_audit = _s(ctx.get("bias_audit_on_file",""))
-    if not _has(bias_audit, {"yes","on file","completed"}):
-        results.append({"regulation":"EEOC — Bias Audit (NYC Local Law 144)","article":"Annual Independent Bias Audit Required","status":"FLAG",
-                        "reason":"No bias audit on file. NYC Local Law 144 and several state laws require annual independent audits of automated employment screening tools."})
 
     if not results:
         results.append({"regulation":"EEOC Title VII — Civil Rights Act","article":"42 U.S.C. § 2000e-2 — Discrimination in Employment","status":"PASS",
@@ -1259,7 +1270,10 @@ def _check_state_laws(decision: str, ctx: dict) -> list:
         video_interview = _s(ctx.get("interview_method", ctx.get("assessment_method", "")))
         if _has(video_interview, {"video","ai interview","automated interview","hirevue","pymetrics"}):
             consent = _s(ctx.get("aivia_consent", ""))
-            if not _has(consent, {"yes","obtained","confirmed"}):
+            # "obtained" is a substring of "not obtained" — check for negation first
+            _consent_neg = _has(consent, {"not obtained","not confirmed","not provided","no consent","not given"})
+            _consent_pos = _has(consent, {"yes","obtained","confirmed"}) and not _consent_neg
+            if not _consent_pos:
                 results.append({
                     "regulation": "Illinois AIVIA — AI Video Interview Act",
                     "article": "820 ILCS 42 — Consent and Disclosure Requirements",
