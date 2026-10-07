@@ -130,6 +130,7 @@
     <a href="#competitive">Competitive</a>
     <a href="#coverage">Coverage</a>
     <a href="#roadmap">Roadmap</a>
+    <a href="hiring.html">Hiring →</a>
     <a href="auditing.html">AI Auditing AI →</a>
     <a href="testing-guide.html">Testing Guide →</a>
     <a href="architecture.html">Architecture →</a>
@@ -140,7 +141,7 @@
   <div class="hero-badge">Business Case</div>
   <h1>Pragma</h1>
   <p style="color:var(--muted);font-size:13px;margin-bottom:8px;">A product of <strong style="color:var(--text);">Cosmos AI LLC</strong> · Texas</p>
-  <p>Stop ECOA violations, HOLC redlining, and EU AI Act breaches before they execute. Pre-execution blocking, ECOA adverse action notices, disparate impact analysis, immutable audit trail, compliance certificates — built for fintech and enterprise AI teams.</p>
+  <p>Stop ECOA violations, HOLC redlining, EEOC discrimination, and EU AI Act breaches before they execute. Pre-execution blocking across hiring and lending — adverse action notices, FCRA two-step workflows, NYC LL144 enforcement, disparate impact analysis, immutable audit trail, compliance certificates.</p>
 </div>
 
 <div class="container">
@@ -247,51 +248,92 @@
   <!-- USE CASES -->
   <section id="usecases">
     <h2>Use Cases</h2>
-    <p class="section-sub">Real scenarios where the engine detects risk and provides actionable guidance.</p>
-    <div class="card-grid cols-2">
-      <div class="card">
-        <h3><span class="dot" style="background:#f87171"></span> Hiring Decision</h3>
-        <p style="margin-top:8px; font-size:13px; color:var(--muted);">Input decision:</p>
-        <code style="display:block; margin:8px 0; padding:10px;">"Reject job candidate" + context: gender=female, education=non-elite</code>
-        <p style="font-size:13px; color:var(--muted);">Output:</p>
-        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
-          <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">bias flagged</span>
-          <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">fairness flagged</span>
-        </div>
-        <p style="font-size:13px; color:var(--muted); margin-top:10px;">Recommendation: Remove gender from evaluation criteria. Apply structured scoring on skills and experience only.</p>
+    <p class="section-sub">Real scenarios across the two verticals Pragma is live in today — hiring and lending.</p>
+
+    <!-- Hiring Vertical -->
+    <div style="margin-bottom:40px;">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
+        <span class="badge" style="background:rgba(247,147,30,0.12); color:var(--accent3); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">Hiring Vertical — 6 User Journeys</span>
+        <span style="font-size:12px; color:var(--muted);">Each stage of the hiring process carries its own compliance exposure</span>
       </div>
-      <div class="card">
-        <h3><span class="dot" style="background:#f97316"></span> Loan Approval</h3>
-        <p style="margin-top:8px; font-size:13px; color:var(--muted);">Input decision:</p>
-        <code style="display:block; margin:8px 0; padding:10px;">"Reject loan application" + context: zip_code=90210, income=75000</code>
-        <p style="font-size:13px; color:var(--muted);">Output:</p>
-        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
-          <span class="badge" style="background:rgba(249,115,22,0.15); color:#fdba74;">discrimination flagged</span>
-          <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">bias flagged</span>
-        </div>
-        <p style="font-size:13px; color:var(--muted); margin-top:10px;">Recommendation: Zip code is a proxy for race and protected class. Replace with income, credit score, and debt-to-income ratio.</p>
+      <div class="data-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Journey Stage</th>
+              <th>Tools in Use</th>
+              <th>What Pragma Catches</th>
+              <th>Regulation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>1. Resume Screening</strong></td>
+              <td style="color:var(--muted);">HireAI, Workday AI, Greenhouse</td>
+              <td>Graduation year → age inference; HBCU excluded from preferred schools list; no bias audit on file; candidate not notified 10 days before tool used</td>
+              <td><span style="color:var(--red); font-size:12px;">ADEA · Title VII · NYC LL144</span></td>
+            </tr>
+            <tr>
+              <td><strong>2. Skills Assessment</strong></td>
+              <td style="color:var(--muted);">Pymetrics, HireVue Assess, Codility</td>
+              <td>No accommodation process for timed tests; assessment cohort skews younger; disparate impact across protected groups</td>
+              <td><span style="color:var(--red); font-size:12px;">ADA · ADEA · EEOC UGESP</span></td>
+            </tr>
+            <tr>
+              <td><strong>3. AI Video Interview</strong></td>
+              <td style="color:var(--muted);">HireVue, Spark Hire, Modern Hire</td>
+              <td>AI analyzes facial expressions and speech without candidate knowing; no written consent; no data deletion right offered</td>
+              <td><span style="color:var(--red); font-size:12px;">IL AIVIA · ADA · ADEA</span></td>
+            </tr>
+            <tr>
+              <td><strong>4. Background Check</strong></td>
+              <td style="color:var(--muted);">Checkr, Sterling, First Advantage</td>
+              <td>Generic rejection email sent after CRA hit — no Pre-Adverse Notice (§604(b)(3)), no dispute window, no Final Adverse Notice (§615(a))</td>
+              <td><span style="color:var(--red); font-size:12px;">FCRA §604(b)(3) · §615(a)</span></td>
+            </tr>
+            <tr>
+              <td><strong>5. Final Hiring Decision</strong></td>
+              <td style="color:var(--muted);">ATS, hiring manager + AI score</td>
+              <td>AI confidence score built on graduation year and unexplained employment gap; human oversight not documented; selection rate below UGESP 4/5ths threshold</td>
+              <td><span style="color:var(--red); font-size:12px;">ADEA · ADA · EU AI Act Art. 14</span></td>
+            </tr>
+            <tr>
+              <td><strong>6. Offer &amp; Compensation</strong></td>
+              <td style="color:var(--muted);">ATS offer module, comp bands</td>
+              <td>Prior salary anchored to offer amount — a known proxy for the gender pay gap; banned in CA, NY, CO, WA regardless of AI involvement</td>
+              <td><span style="color:var(--red); font-size:12px;">CA AB-168 · NY §194-a · CO EPEWA</span></td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <div class="card">
-        <h3><span class="dot" style="background:#fbbf24"></span> Promotion Decision</h3>
-        <p style="margin-top:8px; font-size:13px; color:var(--muted);">Input decision:</p>
-        <code style="display:block; margin:8px 0; padding:10px;">"Promote employee" + context: performance=excellent, years=3, gender=male</code>
-        <p style="font-size:13px; color:var(--muted);">Output:</p>
-        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
-          <span class="badge" style="background:rgba(251,191,36,0.15); color:#fde68a;">bias detected</span>
-          <span class="badge" style="background:rgba(74,222,128,0.15); color:#6ee7b7;">merit criteria present</span>
-        </div>
-        <p style="font-size:13px; color:var(--muted); margin-top:10px;">Recommendation: Proceed, but remove gender from criteria. Decision appears merit-based — verify against team-wide promotion rates.</p>
+    </div>
+
+    <!-- Lending Vertical -->
+    <div style="margin-bottom:20px;">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
+        <span class="badge" style="background:rgba(78,205,196,0.12); color:var(--accent2); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase;">Lending Vertical — AI Chatbot &amp; Underwriting</span>
       </div>
-      <div class="card">
-        <h3><span class="dot green"></span> AI Policy Rollout</h3>
-        <p style="margin-top:8px; font-size:13px; color:var(--muted);">Input decision:</p>
-        <code style="display:block; margin:8px 0; padding:10px;">"Implement AI performance monitoring" + context: scope=keystrokes, consent=not required</code>
-        <p style="font-size:13px; color:var(--muted);">Output:</p>
-        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
-          <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">transparency flagged</span>
-          <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">harm potential</span>
+      <div class="card-grid cols-2">
+        <div class="card">
+          <h3><span class="dot" style="background:#f97316"></span> Loan Approval — Redlining</h3>
+          <p style="margin-top:8px; font-size:13px; color:var(--muted);">Input decision:</p>
+          <code style="display:block; margin:8px 0; padding:10px;">"Deny loan — zip 60620 flagged as high default risk geography"</code>
+          <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+            <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">ECOA — zip code is race proxy</span>
+            <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">FHA — historically redlined zip</span>
+          </div>
+          <p style="font-size:13px; color:var(--muted); margin-top:10px;">Zip 60620 maps to a historically redlined Grade D zone on Chicago's South Side. Using it as a factor violates ECOA and the Fair Housing Act regardless of credit score.</p>
         </div>
-        <p style="font-size:13px; color:var(--muted); margin-top:10px;">Recommendation: Require explicit employee consent. Disclose scope fully. Implement opt-out process and data retention limits.</p>
+        <div class="card">
+          <h3><span class="dot" style="background:#fbbf24"></span> AI Chatbot — Adverse Action Notice</h3>
+          <p style="margin-top:8px; font-size:13px; color:var(--muted);">Input decision:</p>
+          <code style="display:block; margin:8px 0; padding:10px;">"I'll just reject it — credit 598, DTI 52%, 2 missed payments"</code>
+          <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+            <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">FCRA §615(a) — no adverse action notice</span>
+            <span class="badge" style="background:rgba(248,113,113,0.15); color:#fca5a5;">ECOA §1002.9 — notice required within 30 days</span>
+          </div>
+          <p style="font-size:13px; color:var(--muted); margin-top:10px;">Credit bureau was used in the decision. ECOA §1002.9 and FCRA §615(a) both require written adverse action notices before the file is closed.</p>
+        </div>
       </div>
     </div>
   </section>
@@ -639,6 +681,9 @@
           <li><strong style="color:var(--text);">W3C PROV JSON-LD Audit Export</strong> — machine-readable provenance document for regulators and GRC tools</li>
           <li><strong style="color:var(--text);">Customer Analytics</strong> — PostHog (behavioral) + own DB (DAU/WAU/MAU, feature adoption, plan distribution); admin-only in-app dashboard</li>
           <li><strong style="color:var(--text);">Lending Vertical Landing Page</strong> — lending.usepragma.co with ECOA/HOLC/FCRA positioning</li>
+          <li><strong style="color:var(--text);">Hiring Vertical Landing Page</strong> — hiring.usepragma.co with EEOC/FCRA/NYC LL144/IL AIVIA positioning; 6-stage user journey breakdown</li>
+          <li><strong style="color:var(--text);">Gemini Hiring Demo (GH-001 to GH-006)</strong> — live AI chatbot scenarios routed through Pragma's hiring compliance vertical: NYC LL144 bias audit, ADEA graduation year, Title VII HBCU exclusion, ADA employment gap, IL AIVIA video interview, FCRA background check adverse action</li>
+          <li><strong style="color:var(--text);">Law Research Agent</strong> — daily sweep of Federal Register (7 search terms), EEOC newsroom, and EC Digital Strategy RSS (EU AI Act); Claude classifies relevance and drafts rule configs; human-in-the-loop approval required before any rule goes live</li>
           <li><strong style="color:var(--text);">Cosmos AI LLC branding</strong> — Pragma is a Cosmos AI product; cosmos.html company page at /cosmos</li>
           <li>508 tests, all passing · 80.46% coverage</li>
         </ul>
