@@ -45,6 +45,9 @@ _FR_SEARCH_TERMS = [
     "automated employment decision tool bias",
     "AI algorithmic hiring screening",
     "EEOC artificial intelligence",
+    "CFPB artificial intelligence credit lending",
+    "FTC algorithmic discrimination automated",
+    "automated decision making employment credit",
 ]
 
 
@@ -118,12 +121,58 @@ def _fetch_eeoc_newsroom(days_back: int = 7) -> List[Dict]:
         return items[:10]
     except Exception as e:
         logger.error("EEOC newsroom scrape failed: %s", e)
+        return []
+
+
+_EU_AI_KEYWORDS = (
+    "artificial intelligence", "ai act", "automated decision",
+    "algorithmic", "machine learning", "hiring", "employment",
+    "discrimination", "bias", "fundamental rights", "high-risk",
+)
+
+
+def _fetch_ec_digital_rss() -> List[Dict]:
+    """
+    Fetch EC Digital Strategy RSS — covers EU AI Act guidance, amendments,
+    implementing acts, and related employment/AI policy from the European Commission.
+    """
+    try:
+        r = httpx.get(
+            "https://digital-strategy.ec.europa.eu/en/rss.xml",
+            timeout=30,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; Pragma-LawAgent/1.0)"},
+        )
+        r.raise_for_status()
+        items = []
+        for item_text in re.findall(r"<item>(.*?)</item>", r.text, re.DOTALL):
+            title_m = re.search(r"<title>(.*?)</title>", item_text, re.DOTALL)
+            link_m  = re.search(r"<link>(.*?)</link>",  item_text, re.DOTALL)
+            date_m  = re.search(r"datetime=\"([^\"]+)\"", item_text)
+            if not title_m:
+                continue
+            title = re.sub(r"<[^>]+>", "", title_m.group(1)).strip()
+            url   = (link_m.group(1) or "").strip() if link_m else ""
+            date  = date_m.group(1)[:10] if date_m else ""
+            lower = title.lower()
+            if not any(kw in lower for kw in _EU_AI_KEYWORDS):
+                continue
+            items.append({
+                "title":          title,
+                "abstract":       f"European Commission digital policy publication: {title}",
+                "url":            url,
+                "published_date": date,
+                "source":         "ec_digital_strategy",
+            })
+        return items[:15]
+    except Exception as e:
+        logger.error("EC Digital Strategy RSS fetch failed: %s", e)
+        return []
 
 
 # ── Claude analysis ───────────────────────────────────────────────────────────
 
 _RELEVANCE_PROMPT = """\
-You are a compliance engineer at Pragma, an AI compliance firewall for hiring decisions.
+You are a compliance engineer at Pragma — an AI compliance firewall covering hiring, lending, and EU AI regulation.
 
 Assess this regulatory document. Respond with JSON only — no markdown, no explanation.
 
@@ -131,13 +180,15 @@ Assess this regulatory document. Respond with JSON only — no markdown, no expl
   "relevant": true or false,
   "reason": "one sentence",
   "regulation_name": "short name e.g. EEOC Guidance on AI Hiring 2026",
-  "statute_citation": "e.g. 42 U.S.C. § 2000e-2  or  N/A",
+  "statute_citation": "e.g. 42 U.S.C. § 2000e-2  or  Regulation (EU) 2024/1689 Art. 5  or  N/A",
   "key_requirement": "one sentence describing the core compliance requirement, or null",
-  "jurisdiction": "federal | california | new_york | illinois | other_state | eu | other",
-  "category": "hiring | lending | both | other"
+  "jurisdiction": "federal | california | new_york | illinois | other_state | eu | uk | other",
+  "category": "hiring | lending | eu_ai_act | both | other"
 }}
 
-Only mark relevant=true if: (1) it specifically concerns AI-assisted hiring/employment decisions AND (2) it creates a new enforceable compliance requirement.
+Mark relevant=true if the document: (1) concerns AI-assisted hiring, employment, or lending decisions AND (2) creates an enforceable compliance requirement OR updates an existing one.
+
+Also mark relevant=true for EU AI Act implementing acts, delegated acts, guidance documents, or amendments — even if not employment-specific, as these affect AI system registration and compliance obligations.
 
 Title: {title}
 Summary: {abstract}
@@ -148,13 +199,14 @@ Published: {published_date}
 _RULE_DRAFT_PROMPT = """\
 You are building a compliance rule for Pragma's rule engine.
 
-The rule will be inserted into a database and loaded at runtime. It must detect a compliance \
-violation in AI hiring decisions. Be conservative — only flag clear violations, not edge cases.
+The rule will be inserted into a database and loaded at runtime. It detects compliance \
+violations in AI-assisted decisions. Be conservative — only flag clear violations, not edge cases.
 
 Regulation: {regulation_name}
 Citation: {statute_citation}
 Requirement: {key_requirement}
 Jurisdiction: {jurisdiction}
+Category: {category}
 
 Respond with JSON only — no markdown:
 
@@ -169,7 +221,7 @@ Respond with JSON only — no markdown:
     "explanation": "What constitutes a violation under this rule"
   }},
   "default_severity": "FAIL or FLAG",
-  "categories": ["hiring"],
+  "categories": {categories_json},
   "plain_english": "One sentence a non-lawyer can understand"
 }}
 """
@@ -191,14 +243,25 @@ def _analyze_finding(finding: Dict, client) -> Optional[Dict]:
         )
         analysis = json.loads(msg.content[0].text.strip())
 
-        if not analysis.get("relevant") or analysis.get("category") not in ("hiring", "both"):
+        category = analysis.get("category", "other")
+        if not analysis.get("relevant") or category not in ("hiring", "lending", "eu_ai_act", "both"):
             return None
+
+        cat_map = {
+            "hiring": ["hiring"],
+            "lending": ["lending"],
+            "eu_ai_act": ["eu_ai_act"],
+            "both": ["hiring", "lending"],
+        }
+        categories = cat_map.get(category, [category])
 
         rule_prompt = _RULE_DRAFT_PROMPT.format(
             regulation_name=analysis["regulation_name"],
             statute_citation=analysis.get("statute_citation", "N/A"),
             key_requirement=analysis.get("key_requirement", ""),
             jurisdiction=analysis.get("jurisdiction", "federal"),
+            category=category,
+            categories_json=json.dumps(categories),
         )
 
         rule_msg = client.messages.create(
@@ -238,6 +301,7 @@ def run(days_back: int | None = None) -> Dict[str, Any]:
     raw_findings: List[Dict] = []
     raw_findings.extend(_fetch_federal_register(days_back))
     raw_findings.extend(_fetch_eeoc_newsroom(days_back))
+    raw_findings.extend(_fetch_ec_digital_rss())
 
     logger.info("Law agent: fetched %d raw findings", len(raw_findings))
 
