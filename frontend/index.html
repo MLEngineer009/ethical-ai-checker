@@ -2033,6 +2033,27 @@ if verdict["firewall_action"] == "block":
         sessionToken = sessionName = sessionPic = null;
         sessionIsGuest = false;
       }
+
+      // ?demo=1 — auto guest sign-in so demo links skip the auth screen
+      if (new URLSearchParams(window.location.search).get('demo') === '1') {
+        try {
+          const res  = await fetch(`${API}/auth/guest`, { method: 'POST' });
+          const data = await res.json();
+          if (res.ok) {
+            sessionToken   = data.token;
+            sessionName    = 'Guest';
+            sessionPic     = '';
+            sessionIsGuest = true;
+            localStorage.setItem('token',    sessionToken);
+            localStorage.setItem('userName', sessionName);
+            localStorage.setItem('userPic',  '');
+            localStorage.setItem('isGuest',  'true');
+            showMainApp();
+            return;
+          }
+        } catch (_) {}
+      }
+
       showAuthScreen();
       initGoogleSignIn();
     })();
