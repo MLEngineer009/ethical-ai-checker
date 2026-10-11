@@ -119,6 +119,8 @@ audit_log = Table(
     Column("hitl_override",     Integer, nullable=False, server_default="0"),   # 1 if human overrode the verdict
     Column("hitl_reason",       String,  nullable=True),    # investigator's override reason
     Column("hitl_anon_id",      String,  nullable=True),    # who overrode it
+    Column("checks_json",       String,  nullable=True,  server_default="[]"),  # full compliance check results
+    Column("risk_score",        Integer, nullable=True,  server_default="0"),   # 0-100 aggregate risk score
 )
 
 api_keys = Table(
@@ -505,11 +507,14 @@ def log_audit(
     provider: str,
     category: str = "other",
     model_version: str = "unknown",
+    checks: List[Dict] | None = None,
+    risk_score: int = 0,
 ) -> int:
     """
     Immutable audit trail entry — one row per compliance evaluation.
     Stores input hash (not raw text), firewall verdict, proxy variable report,
-    and regulatory refs triggered. Returns the audit log row ID.
+    regulatory refs triggered, full check results, and risk score.
+    Returns the audit log row ID.
     """
     input_hash = hashlib.sha256(
         f"{decision}:{json.dumps(context, sort_keys=True)}".encode()
@@ -530,9 +535,11 @@ def log_audit(
                 provider        = provider,
                 model_version   = model_version,
                 hitl_override   = 0,
+                checks_json     = json.dumps(checks or []),
+                risk_score      = max(0, min(100, risk_score)),
             ))
             row_id = result.inserted_primary_key[0]
-        logger.debug("Audit log entry created — id=%d action=%s", row_id, firewall_action)
+        logger.debug("Audit log entry created — id=%d action=%s risk_score=%d", row_id, firewall_action, risk_score)
         return row_id
     except Exception:
         logger.exception("Failed to write audit log entry — action=%s category=%s", firewall_action, category)

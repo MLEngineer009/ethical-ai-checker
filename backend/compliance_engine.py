@@ -740,7 +740,8 @@ def _check_fcra_employment_decision(decision: str, ctx: dict) -> list:
         return [{"regulation": "FCRA — Fair Credit Reporting Act",
                  "article": "15 U.S.C. § 1681b(b)(3) — Pre-Adverse Action Notice",
                  "status": "PASS",
-                 "reason": "No adverse employment action detected — FCRA pre-adverse notice not required."}]
+                 "reason": "No adverse employment action detected — FCRA pre-adverse notice not required.",
+                 "suggested_action": "No action required."}]
 
     if consumer_report and _has(consumer_report, {"yes", "used", "obtained", "ran", "completed"}):
         results = []
@@ -760,6 +761,11 @@ def _check_fcra_employment_decision(decision: str, ctx: dict) -> list:
                     "and 'A Summary of Your Rights Under the FCRA', (2) allow a reasonable dispute window "
                     "(typically 5+ business days) before making the final decision."
                 ),
+                "suggested_action": (
+                    "STOP — do not finalize this rejection. Send the applicant: (1) a copy of the background "
+                    "report, (2) the CFPB's 'Summary of Your Rights Under the FCRA' document. "
+                    "Wait at least 5 business days before sending the final rejection letter."
+                ),
             })
         else:
             results.append({
@@ -767,6 +773,7 @@ def _check_fcra_employment_decision(decision: str, ctx: dict) -> list:
                 "article": "15 U.S.C. § 1681b(b)(3)(A) — Pre-Adverse Action Notice",
                 "status": "PASS",
                 "reason": "Pre-Adverse Action Notice issued as required by FCRA § 604(b)(3).",
+                "suggested_action": "No action required. Proceed to final adverse action notice after dispute window.",
             })
 
         if not adverse_sent:
@@ -781,6 +788,11 @@ def _check_fcra_employment_decision(decision: str, ctx: dict) -> list:
                     "a statement that the CRA did not make the decision; "
                     "and the applicant's right to obtain a free copy of the report within 60 days."
                 ),
+                "suggested_action": (
+                    "Send the Final Adverse Action Notice now. It must include: CRA name/address/phone, "
+                    "statement that the CRA did not make the hiring decision, and notice of the applicant's "
+                    "right to a free report copy within 60 days. Use your ATS or a compliant template."
+                ),
             })
         else:
             results.append({
@@ -788,6 +800,7 @@ def _check_fcra_employment_decision(decision: str, ctx: dict) -> list:
                 "article": "15 U.S.C. § 1681m(a) — Adverse Action Notice",
                 "status": "PASS",
                 "reason": "Adverse Action Notice issued per FCRA § 615(a).",
+                "suggested_action": "No action required. Both FCRA notice steps completed.",
             })
         return results
 
@@ -799,6 +812,10 @@ def _check_fcra_employment_decision(decision: str, ctx: dict) -> list:
                      "Employment denial detected — verify whether a background check (consumer report) "
                      "was used. If so, a Pre-Adverse Action Notice and final Adverse Action Notice "
                      "are required under FCRA §§ 604(b)(3) and 615(a)."
+                 ),
+                 "suggested_action": (
+                     "Confirm whether a background/consumer report was used. If yes, complete the "
+                     "two-step FCRA adverse action workflow before finalizing this rejection."
                  )}]
     return []
 
@@ -882,17 +899,27 @@ def _check_eeoc_decision(decision: str, ctx: dict) -> list:
     grad_year = ctx.get("graduation_year","")
     if grad_year and denial:
         try:
-            age_proxy = 2025 - int(str(grad_year))
+            age_proxy = 2026 - int(str(grad_year))
             if age_proxy >= 40:
-                results.append({"regulation":"ADEA — Age Discrimination in Employment Act","article":"29 U.S.C. § 623 — Age Discrimination","status":"FAIL",
-                                 "reason":f"Graduation year {grad_year} implies ~{age_proxy} years of age (protected class 40+). Screening by graduation year is a proxy for age discrimination."})
+                results.append({
+                    "regulation": "ADEA — Age Discrimination in Employment Act",
+                    "article": "29 U.S.C. § 623 — Age Discrimination",
+                    "status": "FAIL",
+                    "reason": f"Graduation year {grad_year} implies ~{age_proxy} years of age (protected class 40+). Screening by graduation year is a proxy for age discrimination.",
+                    "suggested_action": "Remove graduation year from screening criteria. Use years of experience or specific skill requirements instead. Document that age was not a factor in this decision.",
+                })
         except ValueError: pass
 
     school = _s(ctx.get("university_attended",""))
     preferred = _s(ctx.get("preferred_schools_list",""))
     if school and _has(school, _HBCU_KW) and preferred and school not in preferred:
-        results.append({"regulation":"EEOC Title VII — Civil Rights Act","article":"42 U.S.C. § 2000e-2 — Race Discrimination","status":"FAIL",
-                        "reason":f"'{ctx.get('university_attended')}' is an HBCU. Excluding HBCUs from preferred school lists is a race discrimination proxy under Title VII."})
+        results.append({
+            "regulation": "EEOC Title VII — Civil Rights Act",
+            "article": "42 U.S.C. § 2000e-2 — Race Discrimination",
+            "status": "FAIL",
+            "reason": f"'{ctx.get('university_attended')}' is an HBCU. Excluding HBCUs from preferred school lists is a race discrimination proxy under Title VII.",
+            "suggested_action": f"Add HBCUs to the preferred schools list or remove the school preference filter entirely. Evaluate this candidate on skills and experience, not institution. Review your school tier lists for HBCU exclusion patterns.",
+        })
 
     gap = ctx.get("employment_gap_years", ctx.get("employment_gap_months",""))
     gap_reason = _s(ctx.get("gap_reason",""))
@@ -900,11 +927,24 @@ def _check_eeoc_decision(decision: str, ctx: dict) -> list:
         status = "FAIL" if _has(gap_reason, {"medical","disability"}) else "FLAG"
         reason = ("Penalizing a medical/disability gap is ADA discrimination." if status == "FAIL"
                   else f"Employment gap of {gap} penalized without capturing reason — may screen out applicants on medical or disability leave.")
-        results.append({"regulation":"ADA — Americans with Disabilities Act","article":"42 U.S.C. § 12112 — Disability Discrimination","status":status,"reason":reason})
+        action = ("Do not use this employment gap as a rejection factor. Evaluate the candidate on their skills and qualifications. Document that the gap was not a basis for this decision." if status == "FAIL"
+                  else "Capture the reason for the employment gap before making a final decision. If gap is due to medical/disability, ADA protections apply and the gap cannot be penalized.")
+        results.append({
+            "regulation": "ADA — Americans with Disabilities Act",
+            "article": "42 U.S.C. § 12112 — Disability Discrimination",
+            "status": status,
+            "reason": reason,
+            "suggested_action": action,
+        })
 
     if not results:
-        results.append({"regulation":"EEOC Title VII — Civil Rights Act","article":"42 U.S.C. § 2000e-2 — Discrimination in Employment","status":"PASS",
-                        "reason":"No prohibited discrimination pattern detected in this hiring decision."})
+        results.append({
+            "regulation": "EEOC Title VII — Civil Rights Act",
+            "article": "42 U.S.C. § 2000e-2 — Discrimination in Employment",
+            "status": "PASS",
+            "reason": "No prohibited discrimination pattern detected in this hiring decision.",
+            "suggested_action": "No action required. Continue with standard hiring process.",
+        })
     return results
 
 
@@ -1171,188 +1211,425 @@ def _detect_state(ctx: dict) -> str | None:
     return None
 
 
+def _detect_states(ctx: dict) -> list[str]:
+    """
+    Return all applicable states from context.
+    Accepts candidate_states (list/comma-string) for multi-state rollup,
+    or falls back to the single-state _detect_state() result.
+    """
+    raw = ctx.get("candidate_states", ctx.get("applicant_states", ""))
+    if raw:
+        if isinstance(raw, list):
+            states_raw = raw
+        else:
+            states_raw = [s.strip() for s in str(raw).replace(";", ",").split(",")]
+        result = []
+        for s in states_raw:
+            detected = _detect_state({"applicant_state": s})
+            if detected and detected not in result:
+                result.append(detected)
+        if result:
+            return result
+    single = _detect_state(ctx)
+    return [single] if single else []
+
+
 def _check_state_laws(decision: str, ctx: dict) -> list:
-    """Apply state-specific compliance rules on top of federal baseline."""
-    state = _detect_state(ctx)
-    if not state:
+    """Apply state-specific compliance rules on top of federal baseline (multi-state aware)."""
+    states = _detect_states(ctx)
+    if not states:
         return []
 
     results = []
     denial = _is_denial(decision, ctx)
-    category = _s(ctx.get("category", ""))
 
-    if state == "CA":
-        # California DFPI — stricter UDAAP, AB-2771 (automated employment tools)
-        # CPRA Art. 22 equivalent — right to opt out of automated decisions
-        automated = _s(ctx.get("model_used", ctx.get("screening_tool", ctx.get("ai_model", ""))))
-        human_review = _s(ctx.get("human_review_offered", ctx.get("human_review_available", "")))
-        if automated and not _has(human_review, {"yes","offered","available","scheduled"}):
-            results.append({
-                "regulation": "California CPRA / AB-2771",
-                "article": "Cal. Civ. Code § 1798.185 — Automated Decision-Making",
-                "status": "FLAG",
-                "reason": (
-                    "California applicants have the right to opt out of automated decision-making "
-                    "under CPRA § 1798.185. No human review option is documented. "
-                    "California DFPI also applies stricter UDAAP standards than federal baseline."
-                ),
-            })
-        # California salary history ban (AB-168) — don't use prior comp
-        if ctx.get("prior_compensation") and denial:
-            results.append({
-                "regulation": "California AB-168 — Salary History Ban",
-                "article": "Cal. Lab. Code § 432.3",
-                "status": "FAIL",
-                "reason": (
-                    "California law (AB-168) prohibits employers and creditors from relying on "
-                    "salary history in compensation or credit decisions. Prior compensation was used "
-                    "as a factor in this denial."
-                ),
-            })
+    for state in states:
+        state_label = f" [{state}]" if len(states) > 1 else ""
 
-    elif state == "NY":
-        # NYC Local Law 144 — automated employment decision tools
-        bias_audit = _s(ctx.get("bias_audit_on_file", ""))
-        screening_tool = ctx.get("screening_tool", "")
-        candidate_notified = _s(ctx.get("candidate_notified", ctx.get("aedt_notice_sent", "")))
-        if screening_tool and not _has(bias_audit, {"yes", "completed", "on file"}):
-            results.append({
-                "regulation": "NYC Local Law 144 — Automated Employment Decisions",
-                "article": "NYC Admin. Code § 20-871 — Annual Independent Bias Audit",
-                "status": "FAIL",
-                "reason": (
-                    "New York City Local Law 144 requires an annual independent bias audit for any "
-                    "automated employment decision tool used for NYC candidates. "
-                    f"Tool '{screening_tool}' is in use but no bias audit is on file. "
-                    "Violations carry civil penalties up to $1,500/day."
-                ),
-            })
-        notif_negative = _has(candidate_notified, {"not sent","not provided","not notified","no notice","no","missing"})
-        notif_positive = _has(candidate_notified, {"yes","sent","provided","notified"}) and not notif_negative
-        if screening_tool and (notif_negative or (candidate_notified and not notif_positive) or not candidate_notified):
-            results.append({
-                "regulation": "NYC Local Law 144 — Automated Employment Decisions",
-                "article": "NYC Admin. Code § 20-871(b)(1) — Candidate Notice Requirement",
-                "status": "FAIL",
-                "reason": (
-                    "NYC LL144 requires employers to notify candidates at least 10 business days "
-                    "before an automated employment decision tool is used, and to provide an opt-out "
-                    "pathway upon request. No candidate notification is documented for this evaluation. "
-                    "Violations carry civil penalties up to $1,500/day."
-                ),
-            })
-        # New York Salary History Ban (Labor Law §194-a)
-        if ctx.get("prior_compensation") and denial:
-            results.append({
-                "regulation": "New York Salary History Ban",
-                "article": "N.Y. Lab. Law § 194-a — Prohibition on Salary History Inquiry",
-                "status": "FAIL",
-                "reason": (
-                    "New York law (effective statewide 2019) prohibits employers from asking about "
-                    "or relying on prior salary history in compensation or hiring decisions. "
-                    "Prior compensation was a factor in this denial."
-                ),
-            })
-        # NY DFS Insurance Circular Letter 1 — AI fairness in insurance/lending
-        results.append({
-            "regulation": "NY DFS — AI Fairness Guidance",
-            "article": "NY DFS Circular Letter No. 1 (2019) — Unfair Discrimination",
-            "status": "FLAG",
-            "reason": (
-                "New York DFS requires that AI/ML models used in financial decisions be tested "
-                "for unfair discrimination before deployment and monitored on an ongoing basis. "
-                "Document your model fairness testing to satisfy NY DFS examination requests."
-            ),
-        })
-
-    elif state == "IL":
-        # Illinois Artificial Intelligence Video Interview Act (AIVIA)
-        video_interview = _s(ctx.get("interview_method", ctx.get("assessment_method", "")))
-        if _has(video_interview, {"video","ai interview","automated interview","hirevue","pymetrics"}):
-            consent = _s(ctx.get("aivia_consent", ""))
-            # "obtained" is a substring of "not obtained" — check for negation first
-            _consent_neg = _has(consent, {"not obtained","not confirmed","not provided","no consent","not given"})
-            _consent_pos = _has(consent, {"yes","obtained","confirmed"}) and not _consent_neg
-            if not _consent_pos:
+        if state == "CA":
+            automated = _s(ctx.get("model_used", ctx.get("screening_tool", ctx.get("ai_model", ""))))
+            human_review = _s(ctx.get("human_review_offered", ctx.get("human_review_available", "")))
+            if automated and not _has(human_review, {"yes","offered","available","scheduled"}):
                 results.append({
-                    "regulation": "Illinois AIVIA — AI Video Interview Act",
-                    "article": "820 ILCS 42 — Consent and Disclosure Requirements",
-                    "status": "FAIL",
+                    "regulation": f"California CPRA / AB-2771{state_label}",
+                    "article": "Cal. Civ. Code § 1798.185 — Automated Decision-Making",
+                    "status": "FLAG",
                     "reason": (
-                        "Illinois AIVIA requires employers to: (1) notify applicants before using AI "
-                        "video interview analysis, (2) obtain consent, and (3) explain how the AI works. "
-                        "No AIVIA consent is documented for this AI-assessed video interview."
+                        "California applicants have the right to opt out of automated decision-making "
+                        "under CPRA § 1798.185. No human review option is documented."
+                    ),
+                    "suggested_action": (
+                        "Add a human review option to your hiring workflow for California candidates. "
+                        "Document that applicants were informed of and offered the opt-out right."
                     ),
                 })
-        # Illinois Human Rights Act — broader protected classes than federal
-        results.append({
-            "regulation": "Illinois Human Rights Act",
-            "article": "775 ILCS 5 — Broader Protected Classes",
-            "status": "FLAG",
-            "reason": (
-                "The Illinois Human Rights Act covers additional protected classes beyond federal law, "
-                "including order of protection status, military status, and sexual orientation. "
-                "Verify the decision criteria do not implicate any Illinois-specific protected class."
-            ),
-        })
+            if ctx.get("prior_compensation") and denial:
+                results.append({
+                    "regulation": f"California AB-168 — Salary History Ban{state_label}",
+                    "article": "Cal. Lab. Code § 432.3",
+                    "status": "FAIL",
+                    "reason": (
+                        "California AB-168 prohibits using prior salary history in compensation "
+                        "or hiring decisions. Prior compensation was a factor in this denial."
+                    ),
+                    "suggested_action": (
+                        "Remove prior compensation from this decision. Re-evaluate the candidate "
+                        "using only market rate for the role. Document that salary history was not used."
+                    ),
+                })
 
-    elif state == "CO":
-        # Colorado Equal Pay for Equal Work Act (EPEWA)
-        if ctx.get("prior_compensation") and denial:
+        elif state == "NY":
+            bias_audit = _s(ctx.get("bias_audit_on_file", ""))
+            screening_tool = ctx.get("screening_tool", "")
+            candidate_notified = _s(ctx.get("candidate_notified", ctx.get("aedt_notice_sent", "")))
+            if screening_tool and not _has(bias_audit, {"yes", "completed", "on file"}):
+                results.append({
+                    "regulation": f"NYC Local Law 144 — Automated Employment Decisions{state_label}",
+                    "article": "NYC Admin. Code § 20-871 — Annual Independent Bias Audit",
+                    "status": "FAIL",
+                    "reason": (
+                        f"NYC LL144 requires an annual independent bias audit for any automated "
+                        f"employment decision tool used for NYC candidates. "
+                        f"Tool '{screening_tool}' is in use but no bias audit is on file. "
+                        "Civil penalties up to $1,500/day."
+                    ),
+                    "suggested_action": (
+                        f"Pause use of '{screening_tool}' for NYC candidates until an independent "
+                        "bias audit is completed and published. Engage an EEOC-qualified auditor. "
+                        "Post the audit summary on your careers page as required by LL144."
+                    ),
+                })
+            notif_negative = _has(candidate_notified, {"not sent","not provided","not notified","no notice","no","missing"})
+            notif_positive = _has(candidate_notified, {"yes","sent","provided","notified"}) and not notif_negative
+            if screening_tool and (notif_negative or (candidate_notified and not notif_positive) or not candidate_notified):
+                results.append({
+                    "regulation": f"NYC Local Law 144 — Automated Employment Decisions{state_label}",
+                    "article": "NYC Admin. Code § 20-871(b)(1) — Candidate Notice Requirement",
+                    "status": "FAIL",
+                    "reason": (
+                        "NYC LL144 requires employers to notify candidates at least 10 business days "
+                        "before an automated employment decision tool is used, and to provide an opt-out "
+                        "pathway upon request. No candidate notification is documented."
+                    ),
+                    "suggested_action": (
+                        "Send the LL144 candidate notice at least 10 business days before the "
+                        "automated tool is used. The notice must describe how the AI works, "
+                        "what data it uses, and how candidates can request an alternative process."
+                    ),
+                })
+            if ctx.get("prior_compensation") and denial:
+                results.append({
+                    "regulation": f"New York Salary History Ban{state_label}",
+                    "article": "N.Y. Lab. Law § 194-a — Prohibition on Salary History Inquiry",
+                    "status": "FAIL",
+                    "reason": (
+                        "New York law prohibits relying on prior salary history in hiring or "
+                        "compensation decisions. Prior compensation was a factor in this denial."
+                    ),
+                    "suggested_action": (
+                        "Remove prior compensation as a decision factor. Set compensation based on "
+                        "the role's market rate and the candidate's skills. Document your pay-setting rationale."
+                    ),
+                })
             results.append({
-                "regulation": "Colorado Equal Pay for Equal Work Act (EPEWA)",
-                "article": "Colo. Rev. Stat. § 8-5-102 — Wage Discrimination Prohibition",
-                "status": "FAIL",
-                "reason": (
-                    "Colorado EPEWA prohibits reliance on prior salary history in employment "
-                    "compensation decisions. Prior compensation was used as a factor in this denial."
-                ),
-            })
-        # EPEWA also requires salary range disclosure in job postings
-        job_post = _s(ctx.get("job_posting", ctx.get("job_post", "")))
-        salary_range_disclosed = _s(ctx.get("salary_range_disclosed", ctx.get("pay_range_posted", "")))
-        if job_post and not _has(salary_range_disclosed, {"yes", "included", "posted", "disclosed"}):
-            results.append({
-                "regulation": "Colorado Equal Pay for Equal Work Act (EPEWA)",
-                "article": "Colo. Rev. Stat. § 8-5-201 — Pay Range Disclosure in Job Postings",
+                "regulation": f"NY DFS — AI Fairness Guidance{state_label}",
+                "article": "NY DFS Circular Letter No. 1 (2019) — Unfair Discrimination",
                 "status": "FLAG",
                 "reason": (
-                    "Colorado EPEWA requires employers to include a salary range in all job postings "
-                    "for positions that could be performed in Colorado. "
-                    "Verify the job posting includes the required compensation range."
+                    "NY DFS requires AI/ML models used in decisions affecting New York residents "
+                    "to be tested for unfair discrimination before deployment and monitored ongoing."
+                ),
+                "suggested_action": (
+                    "Document your model fairness testing results. Run disparate impact analysis "
+                    "across protected classes and retain records for NY DFS examination."
                 ),
             })
 
-    elif state == "WA":
-        # Washington Equal Pay and Opportunities Act (RCW 49.58)
-        if ctx.get("prior_compensation") and denial:
+        elif state == "IL":
+            video_interview = _s(ctx.get("interview_method", ctx.get("assessment_method", "")))
+            if _has(video_interview, {"video","ai interview","automated interview","hirevue","pymetrics"}):
+                consent = _s(ctx.get("aivia_consent", ""))
+                _consent_neg = _has(consent, {"not obtained","not confirmed","not provided","no consent","not given"})
+                _consent_pos = _has(consent, {"yes","obtained","confirmed"}) and not _consent_neg
+                if not _consent_pos:
+                    results.append({
+                        "regulation": f"Illinois AIVIA — AI Video Interview Act{state_label}",
+                        "article": "820 ILCS 42 — Consent and Disclosure Requirements",
+                        "status": "FAIL",
+                        "reason": (
+                            "Illinois AIVIA requires employers to: (1) notify applicants before using AI "
+                            "video interview analysis, (2) obtain explicit consent, and (3) explain how "
+                            "the AI works. No AIVIA consent is documented for this AI-assessed interview."
+                        ),
+                        "suggested_action": (
+                            "Do not use AI analysis of this video interview without consent. "
+                            "Send the candidate an AIVIA disclosure notice and obtain written consent "
+                            "before any AI-based evaluation. Retain consent records for 1 year."
+                        ),
+                    })
             results.append({
-                "regulation": "Washington Equal Pay and Opportunities Act",
-                "article": "RCW § 49.58.110 — Prohibition on Salary History Reliance",
-                "status": "FAIL",
-                "reason": (
-                    "Washington law (RCW § 49.58.110) prohibits employers from seeking or relying on "
-                    "prior salary history to determine compensation. Prior compensation was a factor "
-                    "in this denial."
-                ),
-            })
-        job_post = _s(ctx.get("job_posting", ctx.get("job_post", "")))
-        salary_range_disclosed = _s(ctx.get("salary_range_disclosed", ctx.get("pay_range_posted", "")))
-        if job_post and not _has(salary_range_disclosed, {"yes", "included", "posted", "disclosed"}):
-            results.append({
-                "regulation": "Washington Equal Pay and Opportunities Act",
-                "article": "RCW § 49.58.110 — Pay Scale Disclosure",
+                "regulation": f"Illinois Human Rights Act{state_label}",
+                "article": "775 ILCS 5 — Broader Protected Classes",
                 "status": "FLAG",
                 "reason": (
-                    "Washington law requires employers with 15+ employees to include a wage scale "
-                    "or salary range in all job postings. Verify the posting includes the required range."
+                    "The Illinois Human Rights Act covers additional protected classes beyond federal law, "
+                    "including order of protection status, military status, and sexual orientation."
+                ),
+                "suggested_action": (
+                    "Review decision criteria against Illinois-specific protected classes. "
+                    "Ensure your screening criteria do not disproportionately screen out "
+                    "applicants based on any Illinois-protected characteristic."
                 ),
             })
+
+        elif state == "CO":
+            if ctx.get("prior_compensation") and denial:
+                results.append({
+                    "regulation": f"Colorado Equal Pay for Equal Work Act (EPEWA){state_label}",
+                    "article": "Colo. Rev. Stat. § 8-5-102 — Wage Discrimination Prohibition",
+                    "status": "FAIL",
+                    "reason": (
+                        "Colorado EPEWA prohibits reliance on prior salary history in employment "
+                        "decisions. Prior compensation was used as a factor in this denial."
+                    ),
+                    "suggested_action": (
+                        "Remove prior compensation as a factor. Determine pay based on the role's "
+                        "defined pay range. Document that salary history was not used."
+                    ),
+                })
+            job_post = _s(ctx.get("job_posting", ctx.get("job_post", "")))
+            salary_range_disclosed = _s(ctx.get("salary_range_disclosed", ctx.get("pay_range_posted", "")))
+            if job_post and not _has(salary_range_disclosed, {"yes", "included", "posted", "disclosed"}):
+                results.append({
+                    "regulation": f"Colorado Equal Pay for Equal Work Act (EPEWA){state_label}",
+                    "article": "Colo. Rev. Stat. § 8-5-201 — Pay Range Disclosure in Job Postings",
+                    "status": "FLAG",
+                    "reason": (
+                        "Colorado EPEWA requires employers to include a salary range in all job "
+                        "postings for positions that could be performed in Colorado."
+                    ),
+                    "suggested_action": (
+                        "Add the compensation range to the job posting before publishing. "
+                        "The range must include both a minimum and maximum salary."
+                    ),
+                })
+
+        elif state == "WA":
+            if ctx.get("prior_compensation") and denial:
+                results.append({
+                    "regulation": f"Washington Equal Pay and Opportunities Act{state_label}",
+                    "article": "RCW § 49.58.110 — Prohibition on Salary History Reliance",
+                    "status": "FAIL",
+                    "reason": (
+                        "Washington RCW § 49.58.110 prohibits seeking or relying on prior salary "
+                        "history to determine compensation. Prior compensation was a factor in this denial."
+                    ),
+                    "suggested_action": (
+                        "Remove prior compensation as a factor. Set pay based on the role's "
+                        "defined wage scale. Document that salary history was not used."
+                    ),
+                })
+            job_post = _s(ctx.get("job_posting", ctx.get("job_post", "")))
+            salary_range_disclosed = _s(ctx.get("salary_range_disclosed", ctx.get("pay_range_posted", "")))
+            if job_post and not _has(salary_range_disclosed, {"yes", "included", "posted", "disclosed"}):
+                results.append({
+                    "regulation": f"Washington Equal Pay and Opportunities Act{state_label}",
+                    "article": "RCW § 49.58.110 — Pay Scale Disclosure",
+                    "status": "FLAG",
+                    "reason": (
+                        "Washington requires employers with 15+ employees to include a wage scale "
+                        "or salary range in all job postings."
+                    ),
+                    "suggested_action": (
+                        "Add the salary range to the job posting. Washington requires both "
+                        "minimum and maximum compensation to be disclosed."
+                    ),
+                })
 
     return results
 
 
-# ── Updated checkers map with all new checks ───────────────────────────────────
+# ── Gap 4: EU AI Act hiring-specific checks (Annex III, point 4) ──────────────
+
+def _check_eu_ai_act_hiring(decision: str, ctx: dict) -> list:
+    """
+    EU AI Act Annex III point 4 — AI systems used in hiring and employment
+    are classified as HIGH-RISK and must meet Art. 9/10/13/14/17 requirements.
+    """
+    # Only applies to EU/UK candidates or systems deployed in the EU
+    loc = _s(ctx.get("applicant_location", ctx.get("candidate_location", ctx.get("applicant_country", ""))))
+    eu_countries = {
+        "eu", "european union", "germany", "france", "netherlands", "spain", "italy",
+        "poland", "sweden", "belgium", "austria", "denmark", "finland", "ireland",
+        "portugal", "czech republic", "hungary", "romania", "uk", "united kingdom",
+        "great britain", "england", "scotland", "wales",
+    }
+    is_eu = any(c in loc for c in eu_countries) or _s(ctx.get("eu_applicant", "")) in ("yes", "true", "1")
+    if not is_eu:
+        return []
+
+    results = []
+    screening_tool = _s(ctx.get("screening_tool", ctx.get("model_used", ctx.get("ai_model", ""))))
+    has_ai = bool(screening_tool)
+
+    if not has_ai:
+        return []
+
+    # Annex III point 4 — high-risk classification
+    conformity = _s(ctx.get("conformity_assessment", ctx.get("eu_conformity_assessment", "")))
+    if not _has(conformity, {"completed", "done", "passed", "yes"}):
+        results.append({
+            "regulation": "EU AI Act — High-Risk AI (Hiring)",
+            "article": "Regulation (EU) 2024/1689 Art. 6 + Annex III §4 — High-Risk Classification",
+            "status": "FAIL",
+            "reason": (
+                f"AI system '{screening_tool}' used in hiring/employment decisions is classified "
+                "as HIGH-RISK under EU AI Act Annex III point 4. A conformity assessment under "
+                "Art. 43 must be completed before deployment. "
+                "Non-compliance carries fines up to €15M or 3% of global annual turnover."
+            ),
+            "suggested_action": (
+                "Conduct a conformity assessment per Art. 43. This includes: technical documentation "
+                "(Art. 11), registration in the EU AI database (Art. 49), and CE marking. "
+                "Engage a notified body if required under Annex VII."
+            ),
+        })
+
+    # Art. 9 — Risk management system
+    risk_mgmt = _s(ctx.get("risk_management_system", ctx.get("eu_risk_management", "")))
+    if not _has(risk_mgmt, {"yes", "in place", "documented", "completed"}):
+        results.append({
+            "regulation": "EU AI Act — Risk Management",
+            "article": "Regulation (EU) 2024/1689 Art. 9 — Risk Management System",
+            "status": "FLAG",
+            "reason": (
+                "EU AI Act Art. 9 requires a continuous risk management system throughout the "
+                "AI system lifecycle. No risk management documentation is recorded for this system."
+            ),
+            "suggested_action": (
+                "Establish and document a risk management system covering: risk identification, "
+                "risk evaluation, residual risk assessment, and post-market monitoring. "
+                "Review and update this documentation at least annually."
+            ),
+        })
+
+    # Art. 13 — Transparency to candidates
+    candidate_notified = _s(ctx.get("candidate_notified", ctx.get("ai_disclosure_made", "")))
+    if not _has(candidate_notified, {"yes", "sent", "provided", "notified", "disclosed"}):
+        results.append({
+            "regulation": "EU AI Act — Transparency",
+            "article": "Regulation (EU) 2024/1689 Art. 13 — Transparency and Provision of Information",
+            "status": "FAIL",
+            "reason": (
+                "EU AI Act Art. 13 requires that candidates subject to high-risk AI hiring systems "
+                "be informed that AI is being used, what data it processes, and the logic of the decision."
+            ),
+            "suggested_action": (
+                "Notify candidates in writing before using AI in their evaluation. The disclosure "
+                "must explain: what AI system is used, what data it processes, how decisions are reached, "
+                "and how to request human review. Retain evidence of disclosure."
+            ),
+        })
+
+    # Art. 14 — Human oversight
+    human_review = _s(ctx.get("human_review_offered", ctx.get("human_review_available", "")))
+    if not _has(human_review, {"yes", "offered", "available", "scheduled"}):
+        results.append({
+            "regulation": "EU AI Act — Human Oversight",
+            "article": "Regulation (EU) 2024/1689 Art. 14 — Human Oversight",
+            "status": "FAIL",
+            "reason": (
+                "EU AI Act Art. 14 requires that high-risk AI systems in hiring allow qualified "
+                "humans to oversee, intervene in, and override AI-generated decisions. "
+                "No human oversight mechanism is documented."
+            ),
+            "suggested_action": (
+                "Designate a qualified reviewer who can override AI hiring decisions. "
+                "Document the human oversight process and train all users. "
+                "The override pathway must be accessible — not just theoretical."
+            ),
+        })
+
+    return results
+
+
+# ── Gap 5: Disparate impact computation — 4/5ths rule with real numbers ────────
+
+def _check_disparate_impact_hiring(decision: str, ctx: dict) -> list:
+    """
+    Compute disparate impact using the 4/5ths rule (EEOC Uniform Guidelines).
+    Requires context fields: selection_rate_overall, selection_rate_protected,
+    protected_group, comparison_group.
+    Falls back to proxy-based flagging if outcome data not provided.
+    """
+    rate_overall = ctx.get("selection_rate_overall")
+    rate_protected = ctx.get("selection_rate_protected")
+    protected_group = ctx.get("protected_group", "protected group")
+    comparison_group = ctx.get("comparison_group", "majority group")
+
+    # If actual outcome rates are provided, compute the 4/5ths rule precisely
+    if rate_overall is not None and rate_protected is not None:
+        try:
+            r_overall = float(rate_overall)
+            r_protected = float(rate_protected)
+            if r_overall <= 0:
+                return []
+            ratio = r_protected / r_overall
+            pct_protected = round(r_protected * 100, 1)
+            pct_overall = round(r_overall * 100, 1)
+            if ratio < 0.80:
+                return [{
+                    "regulation": "EEOC — Disparate Impact (4/5ths Rule)",
+                    "article": "29 CFR § 1607.4(D) — Uniform Guidelines on Employee Selection Procedures",
+                    "status": "FAIL",
+                    "reason": (
+                        f"Disparate impact detected: {protected_group} selection rate is "
+                        f"{pct_protected}% vs {pct_overall}% for {comparison_group} "
+                        f"(ratio = {ratio:.2f}, threshold = 0.80). "
+                        "This fails the EEOC 4/5ths rule — a prima facie case of adverse impact."
+                    ),
+                    "suggested_action": (
+                        f"Immediately review your selection criteria for factors that "
+                        f"disproportionately screen out {protected_group} candidates. "
+                        "Document a business necessity justification for any criterion that causes "
+                        "disparate impact, or modify the criterion to reduce the disparity. "
+                        "Consider running a full adverse impact analysis across your applicant pool."
+                    ),
+                }]
+            elif ratio < 0.90:
+                return [{
+                    "regulation": "EEOC — Disparate Impact (4/5ths Rule)",
+                    "article": "29 CFR § 1607.4(D) — Uniform Guidelines on Employee Selection Procedures",
+                    "status": "FLAG",
+                    "reason": (
+                        f"Near-threshold disparate impact: {protected_group} selection rate is "
+                        f"{pct_protected}% vs {pct_overall}% for {comparison_group} "
+                        f"(ratio = {ratio:.2f}). Passes the 4/5ths rule but warrants monitoring."
+                    ),
+                    "suggested_action": (
+                        "Monitor this ratio over the next quarter. If it drops below 0.80, "
+                        "a business necessity review is required. Document current selection criteria."
+                    ),
+                }]
+            else:
+                return [{
+                    "regulation": "EEOC — Disparate Impact (4/5ths Rule)",
+                    "article": "29 CFR § 1607.4(D) — Uniform Guidelines on Employee Selection Procedures",
+                    "status": "PASS",
+                    "reason": (
+                        f"No disparate impact: {protected_group} selection rate is {pct_protected}% "
+                        f"vs {pct_overall}% for {comparison_group} (ratio = {ratio:.2f} ≥ 0.80)."
+                    ),
+                    "suggested_action": "No action required. Continue monitoring selection rates quarterly.",
+                }]
+        except (ValueError, TypeError):
+            pass
+
+    # No outcome data — return empty (proxy-based flagging handled by _check_disparate_impact_risk)
+    return []
+
+
+# ── Checkers map ───────────────────────────────────────────────────────────────
 
 _DECISION_CHECKERS = {
     "finance": [
@@ -1386,8 +1663,10 @@ _DECISION_CHECKERS = {
         _check_eeoc_decision,
         _check_fcra_employment_decision,
         _check_eu_ai_act_decision,
+        _check_eu_ai_act_hiring,
         _check_compound_proxies,
         _check_disparate_impact_risk,
+        _check_disparate_impact_hiring,
         _check_state_laws,
     ],
     "hr": [
@@ -1395,8 +1674,10 @@ _DECISION_CHECKERS = {
         _check_eeoc_decision,
         _check_fcra_employment_decision,
         _check_eu_ai_act_decision,
+        _check_eu_ai_act_hiring,
         _check_compound_proxies,
         _check_disparate_impact_risk,
+        _check_disparate_impact_hiring,
         _check_state_laws,
     ],
     "other": [
@@ -1452,4 +1733,16 @@ def run_compliance_checks(
             "run_compliance_checks degraded: %d of %d checkers failed: %s",
             len(failed), len(checkers), ", ".join(failed),
         )
-    return {"checks": results, "failed_checkers": failed}
+
+    # Aggregate risk score: FAIL=30pts, FLAG=10pts, capped at 100
+    fail_count = sum(1 for c in results if c.get("status") == "FAIL")
+    flag_count = sum(1 for c in results if c.get("status") == "FLAG")
+    risk_score = min(100, fail_count * 30 + flag_count * 10)
+
+    return {
+        "checks": results,
+        "failed_checkers": failed,
+        "risk_score": risk_score,
+        "fail_count": fail_count,
+        "flag_count": flag_count,
+    }
