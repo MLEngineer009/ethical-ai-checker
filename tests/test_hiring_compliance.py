@@ -18,6 +18,15 @@ Coverage:
   NY §194-a           prior comp in NY denial → FAIL
   CO EPEWA            prior comp in CO denial → FAIL
   WA RCW §49.58.110   prior comp in WA denial → FAIL
+  TX TCHRA            Texas candidate flagged
+  MA CORI             criminal check at initial stage → FAIL
+  MA MEPA             prior comp in MA denial → FAIL
+  NJ Opp to Compete   criminal check at initial stage → FAIL
+  NJ Equal Pay        prior comp in NJ denial → FAIL
+  Ban-the-box         criminal history auto-deny, no individualized assessment → FAIL
+  Ban-the-box         arrest record used as denial factor → FAIL
+  Ban-the-box         individualized assessment completed → PASS
+  Ban-the-box         no criminal check → PASS
   _is_denial          indirect rejection phrases detected
   Clean hiring        no violations → no FAILs
 """
@@ -405,3 +414,318 @@ class TestCleanHiring:
         result = run_compliance_checks("Reject applicant.", ctx, HIRING)
         fails = [c for c in _checks(result) if c["status"] == "FAIL"]
         assert not fails, f"NY decision with all notices should have no FAILs, got: {[c['regulation'] for c in fails]}"
+
+
+# ── New State Laws: TX, MA, NJ ─────────────────────────────────────────────────
+
+class TestTexasLaws:
+    def test_tx_candidate_gets_tchra_flag(self):
+        ctx = {
+            "applicant_location": "Houston, TX",
+            "screening_tool": "HireVue",
+            "graduation_year": "2010",
+        }
+        result = run_compliance_checks(
+            "Reject applicant — does not meet threshold.", ctx, HIRING
+        )
+        regs = [c["regulation"] for c in _checks(result)]
+        assert any("TCHRA" in r or "Texas" in r for r in regs), \
+            "Texas candidate should trigger TCHRA flag"
+
+    def test_tx_ai_tool_gets_eeoc_guidance_flag(self):
+        ctx = {
+            "applicant_location": "Dallas, TX",
+            "screening_tool": "Greenhouse AI",
+        }
+        result = run_compliance_checks(
+            "Reject applicant — AI score below threshold.", ctx, HIRING
+        )
+        all_statuses = [c["status"] for c in _checks(result)]
+        assert "FLAG" in all_statuses, "TX AI tool denial should trigger at least one FLAG"
+
+
+class TestMassachusettsLaws:
+    def test_ma_cori_criminal_check_at_initial_stage_fails(self):
+        ctx = {
+            "applicant_location": "Boston, MA",
+            "criminal_history_check": "yes",
+            "application_stage": "initial application",
+        }
+        result = run_compliance_checks(
+            "Reject applicant — criminal record found.", ctx, HIRING
+        )
+        regs = [c["regulation"] for c in _checks(result) if c["status"] == "FAIL"]
+        assert any("CORI" in r or "Massachusetts" in r for r in regs), \
+            "MA criminal check at initial stage should FAIL CORI"
+
+    def test_ma_mepa_prior_comp_fails(self):
+        ctx = {
+            "applicant_location": "Cambridge, MA",
+            "prior_compensation": "95000",
+        }
+        result = run_compliance_checks(
+            "Reject applicant — compensation expectations too high.", ctx, HIRING
+        )
+        regs = [c["regulation"] for c in _checks(result) if c["status"] == "FAIL"]
+        assert any("MEPA" in r or "Massachusetts Equal Pay" in r for r in regs), \
+            "MA prior comp in denial should FAIL MEPA"
+
+    def test_ma_fepa_flag_always_present(self):
+        ctx = {"applicant_location": "Worcester, MA"}
+        result = run_compliance_checks("Advance to interview.", ctx, HIRING)
+        regs = [c["regulation"] for c in _checks(result)]
+        assert any("FEPA" in r or "Massachusetts Fair" in r for r in regs), \
+            "MA candidate should always get FEPA FLAG"
+
+
+class TestNewJerseyLaws:
+    def test_nj_btb_criminal_check_at_application_fails(self):
+        ctx = {
+            "applicant_location": "Newark, NJ",
+            "criminal_history_check": "ran",
+            "application_stage": "initial",
+        }
+        result = run_compliance_checks(
+            "Reject applicant — background hit.", ctx, HIRING
+        )
+        regs = [c["regulation"] for c in _checks(result) if c["status"] == "FAIL"]
+        assert any("Opportunity to Compete" in r or "New Jersey" in r for r in regs), \
+            "NJ criminal check at initial stage should FAIL Opportunity to Compete Act"
+
+    def test_nj_equal_pay_prior_comp_fails(self):
+        ctx = {
+            "applicant_location": "Jersey City, NJ",
+            "prior_compensation": "78000",
+        }
+        result = run_compliance_checks(
+            "Reject applicant — salary expectations exceed band.", ctx, HIRING
+        )
+        regs = [c["regulation"] for c in _checks(result) if c["status"] == "FAIL"]
+        assert any("NJ Equal Pay" in r or "New Jersey Equal Pay" in r for r in regs), \
+            "NJ prior comp in denial should FAIL NJ Equal Pay Act"
+
+    def test_njlad_flag_always_present(self):
+        ctx = {"applicant_location": "Trenton, NJ"}
+        result = run_compliance_checks("Advance candidate to phone screen.", ctx, HIRING)
+        regs = [c["regulation"] for c in _checks(result)]
+        assert any("NJLAD" in r or "Law Against Discrimination" in r for r in regs), \
+            "NJ candidate should always get NJLAD FLAG"
+
+
+# ── Ban-the-box ────────────────────────────────────────────────────────────────
+
+class TestBanTheBox:
+    def test_no_criminal_check_passes(self):
+        ctx = {"applicant_location": "Boston, MA"}
+        result = run_compliance_checks("Reject applicant.", ctx, HIRING)
+        btb = [c for c in _checks(result) if "Fair Chance" in c.get("regulation", "") or "Ban" in c.get("regulation", "")]
+        fails = [c for c in btb if c["status"] == "FAIL"]
+        assert not fails, "No criminal check → ban-the-box should PASS"
+
+    def test_auto_denial_without_individualized_assessment_fails(self):
+        ctx = {
+            "applicant_location": "Chicago, IL",
+            "criminal_history_check": "yes",
+            "criminal_history_used": "yes",
+            "individualized_assessment": "not conducted",
+        }
+        result = run_compliance_checks(
+            "Reject applicant — criminal record found.", ctx, HIRING
+        )
+        regs = [c["regulation"] for c in _checks(result) if c["status"] == "FAIL"]
+        assert any("Criminal History" in r or "Fair Chance" in r for r in regs), \
+            "Auto-denial without individualized assessment should FAIL"
+
+    def test_arrest_record_as_denial_factor_fails(self):
+        ctx = {
+            "applicant_location": "Seattle, WA",
+            "criminal_history_check": "yes",
+            "arrest_record_used": "yes",
+        }
+        result = run_compliance_checks(
+            "Reject applicant — arrest on record.", ctx, HIRING
+        )
+        regs = [c["regulation"] for c in _checks(result) if c["status"] == "FAIL"]
+        assert any("Arrest" in r or "Criminal History" in r for r in regs), \
+            "Using arrest record as denial factor should FAIL"
+
+    def test_btb_initial_stage_in_btb_state_fails(self):
+        ctx = {
+            "applicant_location": "Los Angeles, CA",
+            "criminal_history_check": "ran",
+            "application_stage": "initial application",
+        }
+        result = run_compliance_checks(
+            "Reject applicant — criminal record.", ctx, HIRING
+        )
+        regs = [c["regulation"] for c in _checks(result) if c["status"] == "FAIL"]
+        assert any("Ban-the-Box" in r or "Fair Chance" in r for r in regs), \
+            "Criminal check at initial stage in ban-the-box state should FAIL"
+
+    def test_individualized_assessment_completed_passes(self):
+        ctx = {
+            "applicant_location": "Denver, CO",
+            "criminal_history_check": "yes",
+            "criminal_history_used": "yes",
+            "individualized_assessment": "completed",
+            "job_related_justification": "Position involves financial access; fraud conviction is directly relevant.",
+        }
+        result = run_compliance_checks(
+            "Reject applicant — criminal record directly related to job duties.", ctx, HIRING
+        )
+        btb_checks = [c for c in _checks(result)
+                      if "Criminal History" in c.get("regulation", "") or "Fair Chance" in c.get("regulation", "")]
+        fails = [c for c in btb_checks if c["status"] == "FAIL"]
+        assert not fails, f"Individualized assessment done → no FAIL, got: {[c['reason'] for c in fails]}"
+
+
+# ── New States: OR, CT, MN, DC, MD + IL pay transparency ──────────────────────
+
+class TestOregonLaws:
+    def test_or_salary_history_ban_fails(self):
+        ctx = {"applicant_location": "Portland, OR", "prior_compensation": "82000"}
+        result = run_compliance_checks("Reject applicant — comp expectations too high.", ctx, HIRING)
+        regs = [c["regulation"] for c in _checks(result) if c["status"] == "FAIL"]
+        assert any("Oregon Equal Pay" in r for r in regs), "OR prior comp in denial should FAIL"
+
+    def test_or_fair_chance_initial_stage_fails(self):
+        ctx = {
+            "applicant_location": "Salem, OR",
+            "criminal_history_check": "ran",
+            "application_stage": "initial application",
+        }
+        result = run_compliance_checks("Reject — background hit.", ctx, HIRING)
+        regs = [c["regulation"] for c in _checks(result) if c["status"] == "FAIL"]
+        assert any("Oregon Fair Chance" in r for r in regs), "OR criminal check at initial stage should FAIL"
+
+
+class TestConnecticutLaws:
+    def test_ct_salary_history_ban_fails(self):
+        ctx = {"applicant_location": "Stamford, CT", "prior_compensation": "110000"}
+        result = run_compliance_checks("Reject — salary history exceeds band.", ctx, HIRING)
+        regs = [c["regulation"] for c in _checks(result) if c["status"] == "FAIL"]
+        assert any("Connecticut Salary" in r for r in regs), "CT salary history should FAIL"
+
+    def test_ct_pay_range_disclosure_flag(self):
+        ctx = {
+            "applicant_location": "Hartford, CT",
+            "job_posting": "yes",
+            "salary_range_disclosed": "not included",
+        }
+        result = run_compliance_checks("Advance to interview.", ctx, HIRING)
+        regs = [c["regulation"] for c in _checks(result) if c["status"] == "FLAG"]
+        assert any("Connecticut Pay Range" in r for r in regs), "CT missing pay range should FLAG"
+
+    def test_ct_ban_the_box_initial_stage_fails(self):
+        ctx = {
+            "applicant_location": "New Haven, CT",
+            "criminal_history_check": "obtained",
+            "application_stage": "resume screening",
+        }
+        result = run_compliance_checks("Reject — background check returned hit.", ctx, HIRING)
+        regs = [c["regulation"] for c in _checks(result) if c["status"] == "FAIL"]
+        assert any("Connecticut Fair Chance" in r or "Ban-the-Box" in r for r in regs), \
+            "CT criminal check at resume stage should FAIL"
+
+
+class TestMinnesotaLaws:
+    def test_mn_salary_history_ban_fails(self):
+        ctx = {"applicant_location": "Minneapolis, MN", "prior_compensation": "95000"}
+        result = run_compliance_checks("Reject — prior comp above band.", ctx, HIRING)
+        regs = [c["regulation"] for c in _checks(result) if c["status"] == "FAIL"]
+        assert any("Minnesota Salary" in r for r in regs), "MN salary history should FAIL"
+
+    def test_mn_pay_transparency_flag(self):
+        ctx = {
+            "applicant_location": "Saint Paul, MN",
+            "job_posting": "yes",
+            "salary_range_disclosed": "not posted",
+        }
+        result = run_compliance_checks("Advance to interview.", ctx, HIRING)
+        regs = [c["regulation"] for c in _checks(result) if c["status"] == "FLAG"]
+        assert any("Minnesota Pay Transparency" in r for r in regs), "MN missing pay range should FLAG"
+
+    def test_mn_ban_the_box_initial_stage_fails(self):
+        ctx = {
+            "applicant_location": "Duluth, MN",
+            "criminal_history_check": "ran",
+            "application_stage": "initial",
+        }
+        result = run_compliance_checks("Reject — criminal record.", ctx, HIRING)
+        regs = [c["regulation"] for c in _checks(result) if c["status"] == "FAIL"]
+        assert any("Minnesota Ban-the-Box" in r for r in regs), "MN criminal check at initial stage should FAIL"
+
+
+class TestDCLaws:
+    def test_dc_salary_history_ban_fails(self):
+        ctx = {"applicant_location": "Washington DC", "prior_compensation": "130000"}
+        result = run_compliance_checks("Reject — comp history exceeds band.", ctx, HIRING)
+        regs = [c["regulation"] for c in _checks(result) if c["status"] == "FAIL"]
+        assert any("DC Salary History" in r for r in regs), "DC salary history should FAIL"
+
+    def test_dc_fair_criminal_screening_fails(self):
+        ctx = {
+            "applicant_location": "Washington DC",
+            "criminal_history_check": "yes",
+            "application_stage": "initial application",
+        }
+        result = run_compliance_checks("Reject — background check.", ctx, HIRING)
+        regs = [c["regulation"] for c in _checks(result) if c["status"] == "FAIL"]
+        assert any("DC Fair Criminal Record" in r or "Ban-the-Box" in r for r in regs), \
+            "DC criminal check before conditional offer should FAIL"
+
+    def test_dc_wage_transparency_flag(self):
+        ctx = {
+            "applicant_location": "Washington D.C.",
+            "job_posting": "yes",
+            "salary_range_disclosed": "not included",
+        }
+        result = run_compliance_checks("Advance to first round.", ctx, HIRING)
+        regs = [c["regulation"] for c in _checks(result) if c["status"] == "FLAG"]
+        assert any("DC Wage Transparency" in r for r in regs), "DC missing pay range should FLAG"
+
+
+class TestMarylandLaws:
+    def test_md_ban_the_box_initial_stage_fails(self):
+        ctx = {
+            "applicant_location": "Baltimore, MD",
+            "criminal_history_check": "ran",
+            "application_stage": "initial application",
+        }
+        result = run_compliance_checks("Reject — background check.", ctx, HIRING)
+        regs = [c["regulation"] for c in _checks(result) if c["status"] == "FAIL"]
+        assert any("Maryland Job Applicant" in r for r in regs), "MD criminal check at initial stage should FAIL"
+
+    def test_md_pay_transparency_flag(self):
+        ctx = {
+            "applicant_location": "Bethesda, MD",
+            "job_posting": "yes",
+            "salary_range_disclosed": "not posted",
+        }
+        result = run_compliance_checks("Advance to interview.", ctx, HIRING)
+        regs = [c["regulation"] for c in _checks(result) if c["status"] == "FLAG"]
+        assert any("Maryland Pay Transparency" in r for r in regs), "MD missing pay range should FLAG"
+
+    def test_md_facial_recognition_disclosure_fails(self):
+        ctx = {
+            "applicant_location": "Annapolis, MD",
+            "facial_analysis_used": "HireVue facial analysis",
+            "candidate_notified": "not sent",
+        }
+        result = run_compliance_checks("Reject — video interview score low.", ctx, HIRING)
+        regs = [c["regulation"] for c in _checks(result) if c["status"] == "FAIL"]
+        assert any("Maryland Facial Recognition" in r for r in regs), \
+            "MD facial recognition without disclosure should FAIL"
+
+
+class TestILPayTransparency:
+    def test_il_pay_scale_in_posting_flag(self):
+        ctx = {
+            "applicant_location": "Chicago, IL",
+            "job_posting": "yes",
+            "salary_range_disclosed": "not included",
+        }
+        result = run_compliance_checks("Advance to phone screen.", ctx, HIRING)
+        regs = [c["regulation"] for c in _checks(result) if c["status"] == "FLAG"]
+        assert any("Illinois Equal Pay" in r or "Pay Scale" in r for r in regs), \
+            "IL job posting without pay scale should FLAG"

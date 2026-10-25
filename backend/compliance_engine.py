@@ -530,6 +530,12 @@ _DISCOUNT_STORE_KW: set = {
 _DENIAL_KW: set = {
     "deny","denied","denial","reject","rejected","decline",
     "declined","not approved","does not meet","below threshold",
+    # Indirect hiring rejection phrases
+    "not moving forward","moving in another direction","not the right fit",
+    "not a fit","not selected","will not be extending","decided not to proceed",
+    "no longer being considered","not proceeding","unsuccessful",
+    "not advancing","went with another","position has been filled",
+    "not proceed","other direction","not extend an offer",
 }
 _EU_LOC_KW: set = {
     "eu","european union","uk","united kingdom","germany","france",
@@ -537,8 +543,18 @@ _EU_LOC_KW: set = {
     "denmark","finland","ireland","portugal",
 }
 _HBCU_KW: set = {
+    # Keyword to match explicit HBCU mention
+    "hbcu",
+    # Well-known HBCUs
     "howard university","morehouse","spelman","hampton university",
     "tuskegee","fisk university","clark atlanta","florida a&m",
+    "north carolina a&t","prairie view a&m","southern university",
+    "grambling state","morgan state","norfolk state","virginia state",
+    "lincoln university","jackson state","alcorn state","texas southern",
+    "tennessee state","kentucky state","delaware state","coppin state",
+    "bowie state","bethune-cookman","xavier university of louisiana",
+    "shaw university","dillard university","langston university",
+    "miles college","talladega college","saint augustine",
 }
 
 
@@ -724,7 +740,8 @@ def _check_fcra_employment_decision(decision: str, ctx: dict) -> list:
         return [{"regulation": "FCRA — Fair Credit Reporting Act",
                  "article": "15 U.S.C. § 1681b(b)(3) — Pre-Adverse Action Notice",
                  "status": "PASS",
-                 "reason": "No adverse employment action detected — FCRA pre-adverse notice not required."}]
+                 "reason": "No adverse employment action detected — FCRA pre-adverse notice not required.",
+                 "suggested_action": "No action required."}]
 
     if consumer_report and _has(consumer_report, {"yes", "used", "obtained", "ran", "completed"}):
         results = []
@@ -744,6 +761,11 @@ def _check_fcra_employment_decision(decision: str, ctx: dict) -> list:
                     "and 'A Summary of Your Rights Under the FCRA', (2) allow a reasonable dispute window "
                     "(typically 5+ business days) before making the final decision."
                 ),
+                "suggested_action": (
+                    "STOP — do not finalize this rejection. Send the applicant: (1) a copy of the background "
+                    "report, (2) the CFPB's 'Summary of Your Rights Under the FCRA' document. "
+                    "Wait at least 5 business days before sending the final rejection letter."
+                ),
             })
         else:
             results.append({
@@ -751,6 +773,7 @@ def _check_fcra_employment_decision(decision: str, ctx: dict) -> list:
                 "article": "15 U.S.C. § 1681b(b)(3)(A) — Pre-Adverse Action Notice",
                 "status": "PASS",
                 "reason": "Pre-Adverse Action Notice issued as required by FCRA § 604(b)(3).",
+                "suggested_action": "No action required. Proceed to final adverse action notice after dispute window.",
             })
 
         if not adverse_sent:
@@ -765,6 +788,11 @@ def _check_fcra_employment_decision(decision: str, ctx: dict) -> list:
                     "a statement that the CRA did not make the decision; "
                     "and the applicant's right to obtain a free copy of the report within 60 days."
                 ),
+                "suggested_action": (
+                    "Send the Final Adverse Action Notice now. It must include: CRA name/address/phone, "
+                    "statement that the CRA did not make the hiring decision, and notice of the applicant's "
+                    "right to a free report copy within 60 days. Use your ATS or a compliant template."
+                ),
             })
         else:
             results.append({
@@ -772,6 +800,7 @@ def _check_fcra_employment_decision(decision: str, ctx: dict) -> list:
                 "article": "15 U.S.C. § 1681m(a) — Adverse Action Notice",
                 "status": "PASS",
                 "reason": "Adverse Action Notice issued per FCRA § 615(a).",
+                "suggested_action": "No action required. Both FCRA notice steps completed.",
             })
         return results
 
@@ -783,6 +812,10 @@ def _check_fcra_employment_decision(decision: str, ctx: dict) -> list:
                      "Employment denial detected — verify whether a background check (consumer report) "
                      "was used. If so, a Pre-Adverse Action Notice and final Adverse Action Notice "
                      "are required under FCRA §§ 604(b)(3) and 615(a)."
+                 ),
+                 "suggested_action": (
+                     "Confirm whether a background/consumer report was used. If yes, complete the "
+                     "two-step FCRA adverse action workflow before finalizing this rejection."
                  )}]
     return []
 
@@ -866,17 +899,27 @@ def _check_eeoc_decision(decision: str, ctx: dict) -> list:
     grad_year = ctx.get("graduation_year","")
     if grad_year and denial:
         try:
-            age_proxy = 2025 - int(str(grad_year))
+            age_proxy = 2026 - int(str(grad_year))
             if age_proxy >= 40:
-                results.append({"regulation":"ADEA — Age Discrimination in Employment Act","article":"29 U.S.C. § 623 — Age Discrimination","status":"FAIL",
-                                 "reason":f"Graduation year {grad_year} implies ~{age_proxy} years of age (protected class 40+). Screening by graduation year is a proxy for age discrimination."})
+                results.append({
+                    "regulation": "ADEA — Age Discrimination in Employment Act",
+                    "article": "29 U.S.C. § 623 — Age Discrimination",
+                    "status": "FAIL",
+                    "reason": f"Graduation year {grad_year} implies ~{age_proxy} years of age (protected class 40+). Screening by graduation year is a proxy for age discrimination.",
+                    "suggested_action": "Remove graduation year from screening criteria. Use years of experience or specific skill requirements instead. Document that age was not a factor in this decision.",
+                })
         except ValueError: pass
 
     school = _s(ctx.get("university_attended",""))
     preferred = _s(ctx.get("preferred_schools_list",""))
     if school and _has(school, _HBCU_KW) and preferred and school not in preferred:
-        results.append({"regulation":"EEOC Title VII — Civil Rights Act","article":"42 U.S.C. § 2000e-2 — Race Discrimination","status":"FAIL",
-                        "reason":f"'{ctx.get('university_attended')}' is an HBCU. Excluding HBCUs from preferred school lists is a race discrimination proxy under Title VII."})
+        results.append({
+            "regulation": "EEOC Title VII — Civil Rights Act",
+            "article": "42 U.S.C. § 2000e-2 — Race Discrimination",
+            "status": "FAIL",
+            "reason": f"'{ctx.get('university_attended')}' is an HBCU. Excluding HBCUs from preferred school lists is a race discrimination proxy under Title VII.",
+            "suggested_action": f"Add HBCUs to the preferred schools list or remove the school preference filter entirely. Evaluate this candidate on skills and experience, not institution. Review your school tier lists for HBCU exclusion patterns.",
+        })
 
     gap = ctx.get("employment_gap_years", ctx.get("employment_gap_months",""))
     gap_reason = _s(ctx.get("gap_reason",""))
@@ -884,16 +927,24 @@ def _check_eeoc_decision(decision: str, ctx: dict) -> list:
         status = "FAIL" if _has(gap_reason, {"medical","disability"}) else "FLAG"
         reason = ("Penalizing a medical/disability gap is ADA discrimination." if status == "FAIL"
                   else f"Employment gap of {gap} penalized without capturing reason — may screen out applicants on medical or disability leave.")
-        results.append({"regulation":"ADA — Americans with Disabilities Act","article":"42 U.S.C. § 12112 — Disability Discrimination","status":status,"reason":reason})
-
-    bias_audit = _s(ctx.get("bias_audit_on_file",""))
-    if not _has(bias_audit, {"yes","on file","completed"}):
-        results.append({"regulation":"EEOC — Bias Audit (NYC Local Law 144)","article":"Annual Independent Bias Audit Required","status":"FLAG",
-                        "reason":"No bias audit on file. NYC Local Law 144 and several state laws require annual independent audits of automated employment screening tools."})
+        action = ("Do not use this employment gap as a rejection factor. Evaluate the candidate on their skills and qualifications. Document that the gap was not a basis for this decision." if status == "FAIL"
+                  else "Capture the reason for the employment gap before making a final decision. If gap is due to medical/disability, ADA protections apply and the gap cannot be penalized.")
+        results.append({
+            "regulation": "ADA — Americans with Disabilities Act",
+            "article": "42 U.S.C. § 12112 — Disability Discrimination",
+            "status": status,
+            "reason": reason,
+            "suggested_action": action,
+        })
 
     if not results:
-        results.append({"regulation":"EEOC Title VII — Civil Rights Act","article":"42 U.S.C. § 2000e-2 — Discrimination in Employment","status":"PASS",
-                        "reason":"No prohibited discrimination pattern detected in this hiring decision."})
+        results.append({
+            "regulation": "EEOC Title VII — Civil Rights Act",
+            "article": "42 U.S.C. § 2000e-2 — Discrimination in Employment",
+            "status": "PASS",
+            "reason": "No prohibited discrimination pattern detected in this hiring decision.",
+            "suggested_action": "No action required. Continue with standard hiring process.",
+        })
     return results
 
 
@@ -914,8 +965,6 @@ _PROTECTED_CLASS_PATTERNS = [
     # Age — direct + indirect
     (_re.compile(r'\b(elderly|senior\s+citizen|retirement\s+age|too\s+old|older\s+worker|nearing\s+retirement)\b', _re.I), "age", "Age"),
     (_re.compile(r'\b(near\s+retirement|limited\s+remaining\s+career|long.?term\s+commitment\s+concern|generational|pre.?retirement|overqualified)\b', _re.I), "age", "Age (indirect)"),
-    # Age — ADEA coded language (hiring context)
-    (_re.compile(r'\b(digital\s+native|recent\s+graduate|early[\s-]career|fresh\s+perspective|young\s+and\s+hungry|new\s+grad|energetic\s+candidate|next[\s-]generation\s+talent)\b', _re.I), "age", "Age (ADEA coded language)"),
     # Religion — direct + indirect
     (_re.compile(r'\b(muslim|jewish|christian\s+applicant|religious\s+observance|sabbath|halal|kosher)\b', _re.I), "religion", "Religion"),
     (_re.compile(r'\b(religious\s+affiliation|faith.?based|place\s+of\s+worship|prayer\s+schedule)\b', _re.I), "religion", "Religion (indirect)"),
@@ -935,29 +984,18 @@ def _check_decision_text(decision: str, ctx: dict) -> list:
         return []
     results = []
     denial = _is_denial(decision, ctx)
-    category = _s(ctx.get("_category", "other"))
-    is_employment = category in ("hiring", "hr")
     for pattern, key, label in _PROTECTED_CLASS_PATTERNS:
         matches = pattern.findall(decision)
         if matches:
+            # Only FAIL if in a denial context — otherwise FLAG for review
             status = "FAIL" if denial else "FLAG"
-            if is_employment:
-                regulation = "Title VII — Civil Rights Act / EEOC"
-                article = f"42 U.S.C. § 2000e-2 — Unlawful Employment Practice ({label})"
-                law_name = "Title VII and EEOC regulations prohibit using"
-                decision_word = "employment decisions"
-            else:
-                regulation = "ECOA — Equal Credit Opportunity Act"
-                article = f"Regulation B, 12 CFR § 1002.6 — Prohibited Basis ({label})"
-                law_name = "ECOA prohibits using"
-                decision_word = "credit decisions"
             results.append({
-                "regulation": regulation,
-                "article": article,
+                "regulation": "ECOA — Equal Credit Opportunity Act",
+                "article": f"Regulation B, 12 CFR § 1002.6 — Prohibited Basis ({label})",
                 "status": status,
                 "reason": (
                     f"Decision text explicitly references a protected characteristic: "
-                    f"'{matches[0]}'. {law_name} {label} as a factor in {decision_word}. "
+                    f"'{matches[0]}'. ECOA prohibits using {label} as a factor in credit decisions. "
                     f"{'This was in the context of a denial — high violation risk.' if denial else 'Flag for human review.'}"
                 ),
             })
@@ -1147,6 +1185,22 @@ def _detect_state(ctx: dict) -> str | None:
         return "CO"
     if loc in ("wa", "washington"):
         return "WA"
+    if loc in ("tx", "texas"):
+        return "TX"
+    if loc in ("ma", "massachusetts"):
+        return "MA"
+    if loc in ("nj", "new jersey"):
+        return "NJ"
+    if loc in ("or", "oregon"):
+        return "OR"
+    if loc in ("ct", "connecticut"):
+        return "CT"
+    if loc in ("mn", "minnesota"):
+        return "MN"
+    if loc in ("dc", "washington dc", "washington d.c.", "district of columbia"):
+        return "DC"
+    if loc in ("md", "maryland"):
+        return "MD"
     # Keyword substring matching for free-text location strings
     if any(kw in loc for kw in ["california", " ca,", "ca ", "los angeles", "san francisco", "san diego", "sacramento"]):
         return "CA"
@@ -1158,6 +1212,23 @@ def _detect_state(ctx: dict) -> str | None:
         return "CO"
     if any(kw in loc for kw in ["washington state", "seattle", "spokane", "tacoma", "bellevue", " wa,", "wa "]):
         return "WA"
+    if any(kw in loc for kw in ["texas", "houston", "dallas", "austin", "san antonio", "fort worth"]):
+        return "TX"
+    if any(kw in loc for kw in ["massachusetts", "boston", "cambridge", "worcester", "springfield"]):
+        return "MA"
+    if any(kw in loc for kw in ["new jersey", "newark", "jersey city", "trenton", "camden"]):
+        return "NJ"
+    if any(kw in loc for kw in ["oregon", "portland", "salem", "eugene", "bend"]):
+        return "OR"
+    if any(kw in loc for kw in ["connecticut", "hartford", "new haven", "stamford", "bridgeport"]):
+        return "CT"
+    if any(kw in loc for kw in ["minnesota", "minneapolis", "saint paul", "st. paul", "rochester mn", "duluth"]):
+        return "MN"
+    # DC must come before WA check — "washington dc" is DC, "washington state" is WA
+    if any(kw in loc for kw in ["washington dc", "washington d.c.", "district of columbia", " dc,", "dc "]):
+        return "DC"
+    if any(kw in loc for kw in ["maryland", "baltimore", "bethesda", "silver spring", "annapolis", "rockville"]):
+        return "MD"
     zip_code = _s(ctx.get("zip_code", ""))
     if zip_code:
         if zip_code.startswith(("900","901","902","903","904","905","906","907","908","909","910","911","912","913","914","915","916","917","918","919","920","921","922","923","924","925","926","927","928","929","930","931","932","933","934","935","936","937","938","939","940","941","942","943","944","945","946","947","948","949","950","951","952","953","954","955","956","957","958","959","960","961")):
@@ -1170,247 +1241,1003 @@ def _detect_state(ctx: dict) -> str | None:
             return "CO"
         if zip_code.startswith(("980","981","982","983","984","985","986","988","989","990","991","992","993","994")):
             return "WA"
+        if zip_code.startswith(("750","751","752","753","754","755","756","757","758","759","760","761","762","763","764","765","766","767","768","769","770","771","772","773","774","775","776","777","778","779","780","781","782","783","784","785","786","787","788","789","790","791","792","793","794","795","796","797","798","799")):
+            return "TX"
+        if zip_code.startswith(("010","011","012","013","014","015","016","017","018","019","020","021","022","023","024","025","026","027")):
+            return "MA"
+        if zip_code.startswith(("070","071","072","073","074","075","076","077","078","079","080","081","082","083","084","085","086","087","088","089")):
+            return "NJ"
+        if zip_code.startswith(("970","971","972","973","974","975","976","977","978","979")):
+            return "OR"
+        if zip_code.startswith(("060","061","062","063","064","065","066","067","068","069")):
+            return "CT"
+        if zip_code.startswith(("550","551","553","554","555","556","557","558","559","560","561","562","563","564","565","566","567")):
+            return "MN"
+        if zip_code.startswith(("200","201","202","203","204","205")):
+            return "DC"
+        if zip_code.startswith(("206","207","208","209","210","211","212","213","214","215","216","217","218","219")):
+            return "MD"
     return None
 
 
+def _detect_states(ctx: dict) -> list[str]:
+    """
+    Return all applicable states from context.
+    Accepts candidate_states (list/comma-string) for multi-state rollup,
+    or falls back to the single-state _detect_state() result.
+    """
+    raw = ctx.get("candidate_states", ctx.get("applicant_states", ""))
+    if raw:
+        if isinstance(raw, list):
+            states_raw = raw
+        else:
+            states_raw = [s.strip() for s in str(raw).replace(";", ",").split(",")]
+        result = []
+        for s in states_raw:
+            detected = _detect_state({"applicant_state": s})
+            if detected and detected not in result:
+                result.append(detected)
+        if result:
+            return result
+    single = _detect_state(ctx)
+    return [single] if single else []
+
+
+_PAY_RANGE_NEG = {"not included", "not posted", "not disclosed", "no range", "missing", "not provided", "no", "none", "absent"}
+_PAY_RANGE_POS = {"yes", "included", "posted", "disclosed", "provided"}
+
+
+def _pay_range_not_disclosed(val: str) -> bool:
+    """True when pay range field is absent or explicitly not disclosed (negation-safe)."""
+    v = _s(val)
+    if not v:
+        return True
+    if _has(v, _PAY_RANGE_NEG):
+        return True   # explicit negative — short-circuit before substring matches
+    return not _has(v, _PAY_RANGE_POS)
+
+
 def _check_state_laws(decision: str, ctx: dict) -> list:
-    """Apply state-specific compliance rules on top of federal baseline."""
-    state = _detect_state(ctx)
-    if not state:
+    """Apply state-specific compliance rules on top of federal baseline (multi-state aware)."""
+    states = _detect_states(ctx)
+    if not states:
         return []
 
     results = []
     denial = _is_denial(decision, ctx)
-    category = _s(ctx.get("category", ""))
 
-    if state == "CA":
-        # California DFPI — stricter UDAAP, AB-2771 (automated employment tools)
-        # CPRA Art. 22 equivalent — right to opt out of automated decisions
-        automated = _s(ctx.get("model_used", ctx.get("screening_tool", ctx.get("ai_model", ""))))
-        human_review = _s(ctx.get("human_review_offered", ctx.get("human_review_available", "")))
-        if automated and not _has(human_review, {"yes","offered","available","scheduled"}):
-            results.append({
-                "regulation": "California CPRA / AB-2771",
-                "article": "Cal. Civ. Code § 1798.185 — Automated Decision-Making",
-                "status": "FLAG",
-                "reason": (
-                    "California applicants have the right to opt out of automated decision-making "
-                    "under CPRA § 1798.185. No human review option is documented. "
-                    "California DFPI also applies stricter UDAAP standards than federal baseline."
-                ),
-            })
-        # California salary history ban (AB-168) — don't use prior comp
-        if ctx.get("prior_compensation") and denial:
-            results.append({
-                "regulation": "California AB-168 — Salary History Ban",
-                "article": "Cal. Lab. Code § 432.3",
-                "status": "FAIL",
-                "reason": (
-                    "California law (AB-168) prohibits employers and creditors from relying on "
-                    "salary history in compensation or credit decisions. Prior compensation was used "
-                    "as a factor in this denial."
-                ),
-            })
+    for state in states:
+        state_label = f" [{state}]" if len(states) > 1 else ""
 
-    elif state == "NY":
-        # NYC Local Law 144 — automated employment decision tools
-        bias_audit = _s(ctx.get("bias_audit_on_file", ""))
-        screening_tool = ctx.get("screening_tool", "")
-        candidate_notified = _s(ctx.get("candidate_notified", ctx.get("aedt_notice_sent", "")))
-        if screening_tool and not _has(bias_audit, {"yes", "completed", "on file"}):
-            results.append({
-                "regulation": "NYC Local Law 144 — Automated Employment Decisions",
-                "article": "NYC Admin. Code § 20-871 — Annual Independent Bias Audit",
-                "status": "FAIL",
-                "reason": (
-                    "New York City Local Law 144 requires an annual independent bias audit for any "
-                    "automated employment decision tool used for NYC candidates. "
-                    f"Tool '{screening_tool}' is in use but no bias audit is on file. "
-                    "Violations carry civil penalties up to $1,500/day."
-                ),
-            })
-        notif_negative = _has(candidate_notified, {"not sent","not provided","not notified","no notice","no","missing"})
-        notif_positive = _has(candidate_notified, {"yes","sent","provided","notified"}) and not notif_negative
-        if screening_tool and (notif_negative or (candidate_notified and not notif_positive) or not candidate_notified):
-            results.append({
-                "regulation": "NYC Local Law 144 — Automated Employment Decisions",
-                "article": "NYC Admin. Code § 20-871(b)(1) — Candidate Notice Requirement",
-                "status": "FAIL",
-                "reason": (
-                    "NYC LL144 requires employers to notify candidates at least 10 business days "
-                    "before an automated employment decision tool is used, and to provide an opt-out "
-                    "pathway upon request. No candidate notification is documented for this evaluation. "
-                    "Violations carry civil penalties up to $1,500/day."
-                ),
-            })
-        # NYC LL144 §20-871(c) — Public posting of bias audit summary
-        bias_audit_posted = _s(ctx.get("bias_audit_posted", ""))
-        posted_negative = _has(bias_audit_posted, {"not posted","not public","not published","no","missing"})
-        posted_positive = _has(bias_audit_posted, {"yes","posted","published","public","available"}) and not posted_negative
-        if screening_tool and (posted_negative or (bias_audit_posted and not posted_positive) or not bias_audit_posted):
-            results.append({
-                "regulation": "NYC Local Law 144 — Automated Employment Decisions",
-                "article": "NYC Admin. Code § 20-871(c) — Public Posting of Bias Audit Summary",
-                "status": "FAIL",
-                "reason": (
-                    "NYC LL144 § 20-871(c) requires employers to publicly post the summary results "
-                    "of the most recent bias audit on their employment website (or job posting page) "
-                    "prior to using an AEDT. No public posting of the audit summary is documented. "
-                    "Violations carry civil penalties up to $1,500/day."
-                ),
-            })
-        # New York Salary History Ban (Labor Law §194-a)
-        if ctx.get("prior_compensation") and denial:
-            results.append({
-                "regulation": "New York Salary History Ban",
-                "article": "N.Y. Lab. Law § 194-a — Prohibition on Salary History Inquiry",
-                "status": "FAIL",
-                "reason": (
-                    "New York law (effective statewide 2019) prohibits employers from asking about "
-                    "or relying on prior salary history in compensation or hiring decisions. "
-                    "Prior compensation was a factor in this denial."
-                ),
-            })
-        # NY DFS Insurance Circular Letter 1 — AI fairness in insurance/lending
-        results.append({
-            "regulation": "NY DFS — AI Fairness Guidance",
-            "article": "NY DFS Circular Letter No. 1 (2019) — Unfair Discrimination",
-            "status": "FLAG",
-            "reason": (
-                "New York DFS requires that AI/ML models used in financial decisions be tested "
-                "for unfair discrimination before deployment and monitored on an ongoing basis. "
-                "Document your model fairness testing to satisfy NY DFS examination requests."
-            ),
-        })
-
-    elif state == "IL":
-        # Illinois Artificial Intelligence Video Interview Act (AIVIA)
-        video_interview = _s(ctx.get("interview_method", ctx.get("assessment_method", "")))
-        if _has(video_interview, {"video","ai interview","automated interview","hirevue","pymetrics"}):
-            consent = _s(ctx.get("aivia_consent", ""))
-            if not _has(consent, {"yes","obtained","confirmed"}):
+        if state == "CA":
+            automated = _s(ctx.get("model_used", ctx.get("screening_tool", ctx.get("ai_model", ""))))
+            human_review = _s(ctx.get("human_review_offered", ctx.get("human_review_available", "")))
+            if automated and not _has(human_review, {"yes","offered","available","scheduled"}):
                 results.append({
-                    "regulation": "Illinois AIVIA — AI Video Interview Act",
-                    "article": "820 ILCS 42 — Consent and Disclosure Requirements",
-                    "status": "FAIL",
+                    "regulation": f"California CPRA / AB-2771{state_label}",
+                    "article": "Cal. Civ. Code § 1798.185 — Automated Decision-Making",
+                    "status": "FLAG",
                     "reason": (
-                        "Illinois AIVIA requires employers to: (1) notify applicants before using AI "
-                        "video interview analysis, (2) obtain consent, and (3) explain how the AI works. "
-                        "No AIVIA consent is documented for this AI-assessed video interview."
+                        "California applicants have the right to opt out of automated decision-making "
+                        "under CPRA § 1798.185. No human review option is documented."
+                    ),
+                    "suggested_action": (
+                        "Add a human review option to your hiring workflow for California candidates. "
+                        "Document that applicants were informed of and offered the opt-out right."
                     ),
                 })
-        # Illinois Salary History Ban (820 ILCS 112/10, in force since Sept. 2019)
-        if ctx.get("prior_compensation") and denial:
-            results.append({
-                "regulation": "Illinois Equal Pay Act — Salary History Ban",
-                "article": "820 ILCS 112/10(b)(5) — Prohibition on Salary History Inquiry and Reliance",
-                "status": "FAIL",
-                "reason": (
-                    "Illinois law (820 ILCS 112/10, in force since September 2019) prohibits employers "
-                    "from requesting or relying on prior salary history in determining compensation or "
-                    "whether to hire a candidate. Prior compensation was a factor in this decision."
-                ),
-            })
-        # Illinois Human Rights Act — broader protected classes than federal
-        results.append({
-            "regulation": "Illinois Human Rights Act",
-            "article": "775 ILCS 5 — Broader Protected Classes",
-            "status": "FLAG",
-            "reason": (
-                "The Illinois Human Rights Act covers additional protected classes beyond federal law, "
-                "including order of protection status, military status, and sexual orientation. "
-                "Verify the decision criteria do not implicate any Illinois-specific protected class."
-            ),
-        })
+            if ctx.get("prior_compensation") and denial:
+                results.append({
+                    "regulation": f"California AB-168 — Salary History Ban{state_label}",
+                    "article": "Cal. Lab. Code § 432.3",
+                    "status": "FAIL",
+                    "reason": (
+                        "California AB-168 prohibits using prior salary history in compensation "
+                        "or hiring decisions. Prior compensation was a factor in this denial."
+                    ),
+                    "suggested_action": (
+                        "Remove prior compensation from this decision. Re-evaluate the candidate "
+                        "using only market rate for the role. Document that salary history was not used."
+                    ),
+                })
 
-    elif state == "CO":
-        # Colorado Equal Pay for Equal Work Act (EPEWA)
-        if ctx.get("prior_compensation") and denial:
+        elif state == "NY":
+            bias_audit = _s(ctx.get("bias_audit_on_file", ""))
+            screening_tool = ctx.get("screening_tool", "")
+            candidate_notified = _s(ctx.get("candidate_notified", ctx.get("aedt_notice_sent", "")))
+            if screening_tool and not _has(bias_audit, {"yes", "completed", "on file"}):
+                results.append({
+                    "regulation": f"NYC Local Law 144 — Automated Employment Decisions{state_label}",
+                    "article": "NYC Admin. Code § 20-871 — Annual Independent Bias Audit",
+                    "status": "FAIL",
+                    "reason": (
+                        f"NYC LL144 requires an annual independent bias audit for any automated "
+                        f"employment decision tool used for NYC candidates. "
+                        f"Tool '{screening_tool}' is in use but no bias audit is on file. "
+                        "Civil penalties up to $1,500/day."
+                    ),
+                    "suggested_action": (
+                        f"Pause use of '{screening_tool}' for NYC candidates until an independent "
+                        "bias audit is completed and published. Engage an EEOC-qualified auditor. "
+                        "Post the audit summary on your careers page as required by LL144."
+                    ),
+                })
+            notif_negative = _has(candidate_notified, {"not sent","not provided","not notified","no notice","no","missing"})
+            notif_positive = _has(candidate_notified, {"yes","sent","provided","notified"}) and not notif_negative
+            if screening_tool and (notif_negative or (candidate_notified and not notif_positive) or not candidate_notified):
+                results.append({
+                    "regulation": f"NYC Local Law 144 — Automated Employment Decisions{state_label}",
+                    "article": "NYC Admin. Code § 20-871(b)(1) — Candidate Notice Requirement",
+                    "status": "FAIL",
+                    "reason": (
+                        "NYC LL144 requires employers to notify candidates at least 10 business days "
+                        "before an automated employment decision tool is used, and to provide an opt-out "
+                        "pathway upon request. No candidate notification is documented."
+                    ),
+                    "suggested_action": (
+                        "Send the LL144 candidate notice at least 10 business days before the "
+                        "automated tool is used. The notice must describe how the AI works, "
+                        "what data it uses, and how candidates can request an alternative process."
+                    ),
+                })
+            if ctx.get("prior_compensation") and denial:
+                results.append({
+                    "regulation": f"New York Salary History Ban{state_label}",
+                    "article": "N.Y. Lab. Law § 194-a — Prohibition on Salary History Inquiry",
+                    "status": "FAIL",
+                    "reason": (
+                        "New York law prohibits relying on prior salary history in hiring or "
+                        "compensation decisions. Prior compensation was a factor in this denial."
+                    ),
+                    "suggested_action": (
+                        "Remove prior compensation as a decision factor. Set compensation based on "
+                        "the role's market rate and the candidate's skills. Document your pay-setting rationale."
+                    ),
+                })
             results.append({
-                "regulation": "Colorado Equal Pay for Equal Work Act (EPEWA)",
-                "article": "Colo. Rev. Stat. § 8-5-102 — Wage Discrimination Prohibition",
-                "status": "FAIL",
-                "reason": (
-                    "Colorado EPEWA prohibits reliance on prior salary history in employment "
-                    "compensation decisions. Prior compensation was used as a factor in this denial."
-                ),
-            })
-        # EPEWA also requires salary range disclosure in job postings
-        job_post = _s(ctx.get("job_posting", ctx.get("job_post", "")))
-        salary_range_disclosed = _s(ctx.get("salary_range_disclosed", ctx.get("pay_range_posted", "")))
-        if job_post and not _has(salary_range_disclosed, {"yes", "included", "posted", "disclosed"}):
-            results.append({
-                "regulation": "Colorado Equal Pay for Equal Work Act (EPEWA)",
-                "article": "Colo. Rev. Stat. § 8-5-201 — Pay Range Disclosure in Job Postings",
+                "regulation": f"NY DFS — AI Fairness Guidance{state_label}",
+                "article": "NY DFS Circular Letter No. 1 (2019) — Unfair Discrimination",
                 "status": "FLAG",
                 "reason": (
-                    "Colorado EPEWA requires employers to include a salary range in all job postings "
-                    "for positions that could be performed in Colorado. "
-                    "Verify the job posting includes the required compensation range."
+                    "NY DFS requires AI/ML models used in decisions affecting New York residents "
+                    "to be tested for unfair discrimination before deployment and monitored ongoing."
+                ),
+                "suggested_action": (
+                    "Document your model fairness testing results. Run disparate impact analysis "
+                    "across protected classes and retain records for NY DFS examination."
                 ),
             })
 
-    elif state == "WA":
-        # Washington Equal Pay and Opportunities Act (RCW 49.58)
-        if ctx.get("prior_compensation") and denial:
+        elif state == "IL":
+            video_interview = _s(ctx.get("interview_method", ctx.get("assessment_method", "")))
+            if _has(video_interview, {"video","ai interview","automated interview","hirevue","pymetrics"}):
+                consent = _s(ctx.get("aivia_consent", ""))
+                _consent_neg = _has(consent, {"not obtained","not confirmed","not provided","no consent","not given"})
+                _consent_pos = _has(consent, {"yes","obtained","confirmed"}) and not _consent_neg
+                if not _consent_pos:
+                    results.append({
+                        "regulation": f"Illinois AIVIA — AI Video Interview Act{state_label}",
+                        "article": "820 ILCS 42 — Consent and Disclosure Requirements",
+                        "status": "FAIL",
+                        "reason": (
+                            "Illinois AIVIA requires employers to: (1) notify applicants before using AI "
+                            "video interview analysis, (2) obtain explicit consent, and (3) explain how "
+                            "the AI works. No AIVIA consent is documented for this AI-assessed interview."
+                        ),
+                        "suggested_action": (
+                            "Do not use AI analysis of this video interview without consent. "
+                            "Send the candidate an AIVIA disclosure notice and obtain written consent "
+                            "before any AI-based evaluation. Retain consent records for 1 year."
+                        ),
+                    })
             results.append({
-                "regulation": "Washington Equal Pay and Opportunities Act",
-                "article": "RCW § 49.58.110 — Prohibition on Salary History Reliance",
-                "status": "FAIL",
-                "reason": (
-                    "Washington law (RCW § 49.58.110) prohibits employers from seeking or relying on "
-                    "prior salary history to determine compensation. Prior compensation was a factor "
-                    "in this denial."
-                ),
-            })
-        job_post = _s(ctx.get("job_posting", ctx.get("job_post", "")))
-        salary_range_disclosed = _s(ctx.get("salary_range_disclosed", ctx.get("pay_range_posted", "")))
-        if job_post and not _has(salary_range_disclosed, {"yes", "included", "posted", "disclosed"}):
-            results.append({
-                "regulation": "Washington Equal Pay and Opportunities Act",
-                "article": "RCW § 49.58.110 — Pay Scale Disclosure",
+                "regulation": f"Illinois Human Rights Act{state_label}",
+                "article": "775 ILCS 5 — Broader Protected Classes",
                 "status": "FLAG",
                 "reason": (
-                    "Washington law requires employers with 15+ employees to include a wage scale "
-                    "or salary range in all job postings. Verify the posting includes the required range."
+                    "The Illinois Human Rights Act covers additional protected classes beyond federal law, "
+                    "including order of protection status, military status, and sexual orientation."
+                ),
+                "suggested_action": (
+                    "Review decision criteria against Illinois-specific protected classes. "
+                    "Ensure your screening criteria do not disproportionately screen out "
+                    "applicants based on any Illinois-protected characteristic."
                 ),
             })
+            # IL Equal Pay Act pay scale transparency (effective Jan 1, 2025)
+            job_post_il = _s(ctx.get("job_posting", ctx.get("job_post", "")))
+            sal_il = _s(ctx.get("salary_range_disclosed", ctx.get("pay_range_posted", "")))
+            _sal_il_neg = _has(sal_il, {"not included", "not posted", "not disclosed", "no range", "missing", "not provided", "no"})
+            _sal_il_pos = _has(sal_il, {"yes", "included", "posted", "disclosed", "provided"}) and not _sal_il_neg
+            if job_post_il and _pay_range_not_disclosed(sal_il):
+                results.append({
+                    "regulation": f"Illinois Equal Pay Act — Pay Scale Transparency{state_label}",
+                    "article": "820 ILCS 112/10 — Pay Scale in Job Postings (Jan 2025)",
+                    "status": "FLAG",
+                    "reason": (
+                        "Illinois amended the Equal Pay Act to require employers with 15+ employees to "
+                        "include a pay scale and benefits description in all job postings (effective Jan 1, 2025)."
+                    ),
+                    "suggested_action": (
+                        "Add the pay scale (minimum and maximum) and a benefits overview to this Illinois "
+                        "job posting. Retain posting records for at least 5 years."
+                    ),
+                })
+
+        elif state == "CO":
+            if ctx.get("prior_compensation") and denial:
+                results.append({
+                    "regulation": f"Colorado Equal Pay for Equal Work Act (EPEWA){state_label}",
+                    "article": "Colo. Rev. Stat. § 8-5-102 — Wage Discrimination Prohibition",
+                    "status": "FAIL",
+                    "reason": (
+                        "Colorado EPEWA prohibits reliance on prior salary history in employment "
+                        "decisions. Prior compensation was used as a factor in this denial."
+                    ),
+                    "suggested_action": (
+                        "Remove prior compensation as a factor. Determine pay based on the role's "
+                        "defined pay range. Document that salary history was not used."
+                    ),
+                })
+            job_post = _s(ctx.get("job_posting", ctx.get("job_post", "")))
+            salary_range_disclosed = _s(ctx.get("salary_range_disclosed", ctx.get("pay_range_posted", "")))
+            if job_post and _pay_range_not_disclosed(salary_range_disclosed):
+                results.append({
+                    "regulation": f"Colorado Equal Pay for Equal Work Act (EPEWA){state_label}",
+                    "article": "Colo. Rev. Stat. § 8-5-201 — Pay Range Disclosure in Job Postings",
+                    "status": "FLAG",
+                    "reason": (
+                        "Colorado EPEWA requires employers to include a salary range in all job "
+                        "postings for positions that could be performed in Colorado."
+                    ),
+                    "suggested_action": (
+                        "Add the compensation range to the job posting before publishing. "
+                        "The range must include both a minimum and maximum salary."
+                    ),
+                })
+
+        elif state == "WA":
+            if ctx.get("prior_compensation") and denial:
+                results.append({
+                    "regulation": f"Washington Equal Pay and Opportunities Act{state_label}",
+                    "article": "RCW § 49.58.110 — Prohibition on Salary History Reliance",
+                    "status": "FAIL",
+                    "reason": (
+                        "Washington RCW § 49.58.110 prohibits seeking or relying on prior salary "
+                        "history to determine compensation. Prior compensation was a factor in this denial."
+                    ),
+                    "suggested_action": (
+                        "Remove prior compensation as a factor. Set pay based on the role's "
+                        "defined wage scale. Document that salary history was not used."
+                    ),
+                })
+            job_post = _s(ctx.get("job_posting", ctx.get("job_post", "")))
+            salary_range_disclosed = _s(ctx.get("salary_range_disclosed", ctx.get("pay_range_posted", "")))
+            if job_post and _pay_range_not_disclosed(salary_range_disclosed):
+                results.append({
+                    "regulation": f"Washington Equal Pay and Opportunities Act{state_label}",
+                    "article": "RCW § 49.58.110 — Pay Scale Disclosure",
+                    "status": "FLAG",
+                    "reason": (
+                        "Washington requires employers with 15+ employees to include a wage scale "
+                        "or salary range in all job postings."
+                    ),
+                    "suggested_action": (
+                        "Add the salary range to the job posting. Washington requires both "
+                        "minimum and maximum compensation to be disclosed."
+                    ),
+                })
+
+        elif state == "TX":
+            # Texas follows federal EEOC law closely; no statewide salary history ban.
+            # Austin and Dallas have local ban-the-box ordinances.
+            results.append({
+                "regulation": f"Texas Labor Code — TCHRA{state_label}",
+                "article": "Tex. Lab. Code § 21 — Texas Commission on Human Rights Act",
+                "status": "FLAG",
+                "reason": (
+                    "Texas TCHRA mirrors federal EEOC protections for race, color, sex, religion, "
+                    "national origin, age (40+), and disability. Texas has no statewide salary history "
+                    "ban but Austin and Dallas have local fair chance / ban-the-box ordinances."
+                ),
+                "suggested_action": (
+                    "Verify hiring criteria do not violate TCHRA-protected classes. If the position "
+                    "is in Austin or Dallas, comply with local fair chance ordinances — do not ask "
+                    "about criminal history on the initial application."
+                ),
+            })
+            automated = _s(ctx.get("model_used", ctx.get("screening_tool", "")))
+            if automated and denial:
+                results.append({
+                    "regulation": f"Texas AI Policy — EEOC Automated Systems Guidance{state_label}",
+                    "article": "EEOC Guidance (May 2023) — Use of Software, Algorithms, and AI in Employment",
+                    "status": "FLAG",
+                    "reason": (
+                        "EEOC's 2023 guidance applies to AI/automated hiring tools in all states. "
+                        "Employers are responsible for discriminatory outcomes of third-party AI tools "
+                        "even if they did not design the system."
+                    ),
+                    "suggested_action": (
+                        "Audit the AI tool for disparate impact across protected classes. "
+                        "Document that any criteria causing disparate impact are job-related and "
+                        "consistent with business necessity."
+                    ),
+                })
+
+        elif state == "MA":
+            # Massachusetts: CORI Reform (ban-the-box), MEPA (salary history ban), FEPA
+            criminal_check = _s(ctx.get("criminal_history_check", ctx.get("background_check_used", "")))
+            application_stage = _s(ctx.get("application_stage", ""))
+            if criminal_check and _has(criminal_check, {"yes", "used", "obtained", "ran"}):
+                if not application_stage or _has(application_stage, {"initial", "application", "screening", "resume"}):
+                    results.append({
+                        "regulation": f"Massachusetts CORI Reform Act{state_label}",
+                        "article": "M.G.L. c. 276, § 100A — Criminal Record Inquiry Restrictions",
+                        "status": "FAIL",
+                        "reason": (
+                            "Massachusetts CORI Reform prohibits employers from asking about criminal "
+                            "history on an initial job application or before the first interview. "
+                            "Criminal records may only be considered after a conditional offer."
+                        ),
+                        "suggested_action": (
+                            "Remove criminal history questions from the initial application. "
+                            "Criminal background checks may only be run after a conditional offer of "
+                            "employment is extended. Conduct an individualized assessment if a record is found."
+                        ),
+                    })
+            if ctx.get("prior_compensation") and denial:
+                results.append({
+                    "regulation": f"Massachusetts Equal Pay Act (MEPA){state_label}",
+                    "article": "M.G.L. c. 149, § 105A — Salary History Ban",
+                    "status": "FAIL",
+                    "reason": (
+                        "MEPA prohibits Massachusetts employers from seeking or using prior salary "
+                        "history in compensation or hiring decisions. Prior compensation was a factor."
+                    ),
+                    "suggested_action": (
+                        "Remove prior compensation as a decision factor. Set pay based on the role's "
+                        "market rate and internal pay bands. Document that salary history was not used."
+                    ),
+                })
+            results.append({
+                "regulation": f"Massachusetts Fair Employment Practices Act (FEPA){state_label}",
+                "article": "M.G.L. c. 151B — Broader Protected Classes",
+                "status": "FLAG",
+                "reason": (
+                    "Massachusetts FEPA covers broader protected classes than federal law, including "
+                    "sexual orientation, gender identity, and genetic information. AI tools must be "
+                    "audited for disparate impact across all Massachusetts-protected classes."
+                ),
+                "suggested_action": (
+                    "Review your screening criteria against Massachusetts-specific protected classes. "
+                    "Ensure your AI tools have been tested for disparate impact under M.G.L. c. 151B."
+                ),
+            })
+
+        elif state == "NJ":
+            # New Jersey: Opportunity to Compete Act (ban-the-box), NJ Equal Pay Act, NJLAD
+            criminal_check = _s(ctx.get("criminal_history_check", ctx.get("background_check_used", "")))
+            application_stage = _s(ctx.get("application_stage", ""))
+            if criminal_check and _has(criminal_check, {"yes", "used", "obtained", "ran"}):
+                if not application_stage or _has(application_stage, {"initial", "application", "screening", "resume"}):
+                    results.append({
+                        "regulation": f"New Jersey Opportunity to Compete Act{state_label}",
+                        "article": "N.J.S.A. § 34:6B-14 — Ban the Box",
+                        "status": "FAIL",
+                        "reason": (
+                            "New Jersey's Opportunity to Compete Act prohibits employers with 15+ "
+                            "employees from asking about criminal history on an initial employment "
+                            "application or during the initial interview stage."
+                        ),
+                        "suggested_action": (
+                            "Remove criminal history questions from the initial application and first "
+                            "interview. Criminal history checks may only be conducted after the first "
+                            "interview. If a record is found, conduct an individualized assessment."
+                        ),
+                    })
+            if ctx.get("prior_compensation") and denial:
+                results.append({
+                    "regulation": f"New Jersey Equal Pay Act{state_label}",
+                    "article": "N.J.S.A. § 10:5-12 — Salary History Ban",
+                    "status": "FAIL",
+                    "reason": (
+                        "New Jersey's Equal Pay Act prohibits using prior salary history to set "
+                        "compensation. Prior compensation was used as a factor in this decision."
+                    ),
+                    "suggested_action": (
+                        "Remove prior compensation from this decision. Set pay based solely on the "
+                        "role's requirements and market rate. Document that salary history was not used."
+                    ),
+                })
+            results.append({
+                "regulation": f"New Jersey Law Against Discrimination (NJLAD){state_label}",
+                "article": "N.J.S.A. § 10:5-1 — Broader Protected Classes",
+                "status": "FLAG",
+                "reason": (
+                    "NJLAD is one of the broadest state anti-discrimination laws, covering perceived "
+                    "membership in any protected class, domestic partnership / civil union status, "
+                    "and atypical hereditary cellular or blood trait. AI systems must be audited "
+                    "against the full NJLAD protected class list."
+                ),
+                "suggested_action": (
+                    "Review all screening criteria against NJLAD's protected classes. NJLAD covers "
+                    "'perceived' membership — disparate impact liability extends to proxy variables "
+                    "that correlate with any protected class, even if the class itself was not considered."
+                ),
+            })
+
+        elif state == "OR":
+            # Oregon: salary history ban + Oregon Fair Chance Act (ban-the-box after conditional offer)
+            if ctx.get("prior_compensation") and denial:
+                results.append({
+                    "regulation": f"Oregon Equal Pay Act{state_label}",
+                    "article": "ORS § 652.220 — Salary History Ban",
+                    "status": "FAIL",
+                    "reason": (
+                        "Oregon ORS § 652.220 prohibits employers from seeking or using an applicant's "
+                        "salary history to determine compensation. Prior compensation was used in this decision."
+                    ),
+                    "suggested_action": (
+                        "Remove prior compensation from this decision. Set pay based on the role's "
+                        "defined pay equity range. Document that salary history was not used or sought."
+                    ),
+                })
+            criminal_check = _s(ctx.get("criminal_history_check", ctx.get("background_check_used", "")))
+            application_stage = _s(ctx.get("application_stage", ""))
+            if _has(criminal_check, {"yes", "used", "obtained", "ran"}):
+                if not application_stage or _has(application_stage, {"initial", "application", "screening", "resume", "interview"}):
+                    results.append({
+                        "regulation": f"Oregon Fair Chance Act{state_label}",
+                        "article": "ORS § 659A.030 — Criminal History Inquiry Restrictions",
+                        "status": "FAIL",
+                        "reason": (
+                            "Oregon's Fair Chance Act prohibits employers from asking about or using "
+                            "criminal history until after a conditional offer of employment is extended. "
+                            "Criminal history was checked before the conditional offer stage."
+                        ),
+                        "suggested_action": (
+                            "Move criminal history checks to after a conditional offer is made. "
+                            "If a record is found post-offer, conduct an individualized assessment "
+                            "before withdrawing the offer."
+                        ),
+                    })
+
+        elif state == "CT":
+            # Connecticut: salary history ban + pay range disclosure + ban-the-box
+            if ctx.get("prior_compensation") and denial:
+                results.append({
+                    "regulation": f"Connecticut Salary History Ban{state_label}",
+                    "article": "Conn. Gen. Stat. § 31-40z — Prohibition on Salary History Inquiry",
+                    "status": "FAIL",
+                    "reason": (
+                        "Connecticut law prohibits employers from asking about or using prior salary "
+                        "history to determine compensation. Prior compensation was a factor in this decision."
+                    ),
+                    "suggested_action": (
+                        "Remove prior compensation as a decision factor. Set pay based on the role's "
+                        "market rate and internal pay bands. Document that salary history was not used."
+                    ),
+                })
+            job_post = _s(ctx.get("job_posting", ctx.get("job_post", "")))
+            salary_range_disclosed = _s(ctx.get("salary_range_disclosed", ctx.get("pay_range_posted", "")))
+            if job_post and _pay_range_not_disclosed(salary_range_disclosed):
+                results.append({
+                    "regulation": f"Connecticut Pay Range Disclosure Law{state_label}",
+                    "article": "Conn. Gen. Stat. § 31-75 — Wage Range Disclosure",
+                    "status": "FLAG",
+                    "reason": (
+                        "Connecticut requires employers to provide the wage range for a position to "
+                        "applicants upon request, or automatically before making an offer. "
+                        "No pay range is documented for this posting."
+                    ),
+                    "suggested_action": (
+                        "Include the wage range in the job posting or be prepared to disclose it "
+                        "before making an offer. The range must reflect good faith — not an artificially "
+                        "wide band. Retain wage range records for each posted position."
+                    ),
+                })
+            criminal_check = _s(ctx.get("criminal_history_check", ctx.get("background_check_used", "")))
+            application_stage = _s(ctx.get("application_stage", ""))
+            if _has(criminal_check, {"yes", "used", "obtained", "ran"}) and \
+                    _has(application_stage, {"initial", "application", "screening", "resume"}):
+                results.append({
+                    "regulation": f"Connecticut Fair Chance Employment{state_label}",
+                    "article": "Conn. Gen. Stat. § 46a-79 — Criminal Record Inquiry Timing",
+                    "status": "FAIL",
+                    "reason": (
+                        "Connecticut law restricts criminal history inquiries on initial employment "
+                        "applications. Criminal check ran at initial application stage."
+                    ),
+                    "suggested_action": (
+                        "Move criminal history inquiries to after the initial application stage. "
+                        "Consider deferring until after a conditional offer is extended."
+                    ),
+                })
+
+        elif state == "MN":
+            # Minnesota: salary history ban (2024) + pay transparency in job postings (2025) + ban-the-box
+            if ctx.get("prior_compensation") and denial:
+                results.append({
+                    "regulation": f"Minnesota Salary History Ban{state_label}",
+                    "article": "Minn. Stat. § 181.173 — Prohibition on Salary History Use",
+                    "status": "FAIL",
+                    "reason": (
+                        "Minnesota law (effective Jan 1, 2024) prohibits employers from asking about or "
+                        "using prior salary, benefits, or compensation history to determine pay. "
+                        "Prior compensation was a factor in this decision."
+                    ),
+                    "suggested_action": (
+                        "Remove prior compensation from this decision. Determine pay based on the role's "
+                        "defined pay range and the candidate's qualifications. Document non-use of salary history."
+                    ),
+                })
+            job_post = _s(ctx.get("job_posting", ctx.get("job_post", "")))
+            salary_range_disclosed = _s(ctx.get("salary_range_disclosed", ctx.get("pay_range_posted", "")))
+            if job_post and _pay_range_not_disclosed(salary_range_disclosed):
+                results.append({
+                    "regulation": f"Minnesota Pay Transparency Law{state_label}",
+                    "article": "Minn. Stat. § 181.173 — Pay Range in Job Postings (Jan 2025)",
+                    "status": "FLAG",
+                    "reason": (
+                        "Minnesota requires employers with 30+ employees to include a starting salary "
+                        "range or fixed pay rate in all job postings (effective January 1, 2025). "
+                        "No pay range is documented for this posting."
+                    ),
+                    "suggested_action": (
+                        "Add the starting salary range or fixed pay rate to the job posting. "
+                        "Applies to all job postings for Minnesota positions with 30+ employee companies."
+                    ),
+                })
+            criminal_check = _s(ctx.get("criminal_history_check", ctx.get("background_check_used", "")))
+            application_stage = _s(ctx.get("application_stage", ""))
+            if _has(criminal_check, {"yes", "used", "obtained", "ran"}) and \
+                    _has(application_stage, {"initial", "application", "screening", "resume"}):
+                results.append({
+                    "regulation": f"Minnesota Ban-the-Box Law{state_label}",
+                    "article": "Minn. Stat. § 364.021 — Criminal History Inquiry Restrictions",
+                    "status": "FAIL",
+                    "reason": (
+                        "Minnesota prohibits employers from asking about criminal history on an initial "
+                        "job application or before the first interview. Criminal check ran at initial stage."
+                    ),
+                    "suggested_action": (
+                        "Remove criminal history questions from initial applications. "
+                        "Criminal inquiries may begin at or after the first interview stage."
+                    ),
+                })
+
+        elif state == "DC":
+            # DC: salary history ban + strong ban-the-box (conditional offer required) + pay transparency
+            if ctx.get("prior_compensation") and denial:
+                results.append({
+                    "regulation": f"DC Salary History Non-Disclosure Act{state_label}",
+                    "article": "D.C. Code § 32-1462 — Prohibition on Salary History Use",
+                    "status": "FAIL",
+                    "reason": (
+                        "The DC Salary History Non-Disclosure Act prohibits employers from asking about "
+                        "or using an applicant's prior wages, benefits, or compensation in any employment "
+                        "decision. Prior compensation was a factor in this decision."
+                    ),
+                    "suggested_action": (
+                        "Remove prior compensation from this decision. DC enforces this aggressively — "
+                        "document that salary history was not sought or used. Set pay using the role's "
+                        "market rate and internal pay bands."
+                    ),
+                })
+            criminal_check = _s(ctx.get("criminal_history_check", ctx.get("background_check_used", "")))
+            application_stage = _s(ctx.get("application_stage", ""))
+            if _has(criminal_check, {"yes", "used", "obtained", "ran"}):
+                if not application_stage or not _has(application_stage, {"conditional offer", "post-offer", "offer"}):
+                    results.append({
+                        "regulation": f"DC Fair Criminal Record Screening Act{state_label}",
+                        "article": "D.C. Code § 32-1342 — Criminal Record Inquiry After Conditional Offer Only",
+                        "status": "FAIL",
+                        "reason": (
+                            "DC's Fair Criminal Record Screening Amendment Act prohibits employers from "
+                            "asking about criminal history until after a conditional offer of employment. "
+                            "This is one of the strongest ban-the-box laws in the country — it applies "
+                            "to all DC employers regardless of size."
+                        ),
+                        "suggested_action": (
+                            "Move all criminal history checks to after a conditional offer is extended. "
+                            "If a record is found, you must provide written notice and allow 10 business "
+                            "days for the applicant to respond before withdrawing the offer."
+                        ),
+                    })
+            job_post = _s(ctx.get("job_posting", ctx.get("job_post", "")))
+            salary_range_disclosed = _s(ctx.get("salary_range_disclosed", ctx.get("pay_range_posted", "")))
+            if job_post and _pay_range_not_disclosed(salary_range_disclosed):
+                results.append({
+                    "regulation": f"DC Wage Transparency Act{state_label}",
+                    "article": "D.C. Code § 32-1451 — Pay Range Disclosure in Job Postings",
+                    "status": "FLAG",
+                    "reason": (
+                        "DC requires employers to include the minimum and maximum projected salary "
+                        "or hourly pay range in all job postings and to provide it to applicants "
+                        "before any discussion of compensation."
+                    ),
+                    "suggested_action": (
+                        "Add a pay range (min and max) to the job posting. DC also requires disclosing "
+                        "the pay range before discussing compensation with any applicant."
+                    ),
+                })
+
+        elif state == "MD":
+            # Maryland: ban-the-box + pay transparency (Oct 2024) + facial recognition disclosure
+            criminal_check = _s(ctx.get("criminal_history_check", ctx.get("background_check_used", "")))
+            application_stage = _s(ctx.get("application_stage", ""))
+            if _has(criminal_check, {"yes", "used", "obtained", "ran"}) and \
+                    _has(application_stage, {"initial", "application", "screening", "resume"}):
+                results.append({
+                    "regulation": f"Maryland Job Applicant Fairness Act{state_label}",
+                    "article": "Md. Code, Labor & Employment § 3-711 — Criminal Record Inquiry Timing",
+                    "status": "FAIL",
+                    "reason": (
+                        "Maryland's Job Applicant Fairness Act restricts when employers can inquire "
+                        "about criminal history — not on initial applications, and only for positions "
+                        "where a prior conviction is substantially related to the job duties."
+                    ),
+                    "suggested_action": (
+                        "Move criminal history inquiries off the initial application. Conduct inquiries "
+                        "only after a conditional offer and only when the conviction is substantially "
+                        "related to the specific job duties. Document the job-relatedness analysis."
+                    ),
+                })
+            job_post = _s(ctx.get("job_posting", ctx.get("job_post", "")))
+            salary_range_disclosed = _s(ctx.get("salary_range_disclosed", ctx.get("pay_range_posted", "")))
+            if job_post and _pay_range_not_disclosed(salary_range_disclosed):
+                results.append({
+                    "regulation": f"Maryland Pay Transparency Act{state_label}",
+                    "article": "Md. Code, Labor & Employment § 3-304.3 — Pay Range in Job Postings (Oct 2024)",
+                    "status": "FLAG",
+                    "reason": (
+                        "Maryland requires employers with 15+ employees to include a wage range and "
+                        "a general description of benefits in all job postings (effective October 1, 2024)."
+                    ),
+                    "suggested_action": (
+                        "Add the wage range (min and max) and a benefits summary to this job posting. "
+                        "Applies to all Maryland employers with 15 or more employees."
+                    ),
+                })
+            facial_analysis = _s(ctx.get("facial_analysis_used", ctx.get("interview_method", "")))
+            if _has(facial_analysis, {"facial", "face", "hirevue", "video interview", "ai interview"}):
+                candidate_notified_facial = _s(ctx.get("candidate_notified", ctx.get("ai_disclosure_made", "")))
+                _cn_neg = _has(candidate_notified_facial, {"not sent", "not provided", "not notified", "not disclosed", "no", "none", "missing"})
+                _cn_pos = _has(candidate_notified_facial, {"yes", "sent", "provided", "notified", "disclosed"}) and not _cn_neg
+                if not _cn_pos:
+                    results.append({
+                        "regulation": f"Maryland Facial Recognition Law{state_label}",
+                        "article": "Md. Code, Labor & Employment — HB 1202 — Facial Recognition Disclosure",
+                        "status": "FAIL",
+                        "reason": (
+                            "Maryland requires employers to disclose to applicants when facial recognition "
+                            "technology is used during the hiring process. No disclosure is documented."
+                        ),
+                        "suggested_action": (
+                            "Notify candidates in writing before any interview that facial recognition "
+                            "technology may be used to analyze their expressions or identity. "
+                            "Obtain acknowledgment of the disclosure and retain it on file."
+                        ),
+                    })
+
 
     return results
 
 
-def _check_userra_decision(decision: str, ctx: dict) -> list:
-    """USERRA — 38 U.S.C. § 4311 — Prohibition on military-status employment discrimination."""
+# ── Ban-the-box / fair chance hiring laws ─────────────────────────────────────
+
+_BAN_THE_BOX_STATES = {"CA", "NY", "IL", "CO", "WA", "MA", "NJ", "OR", "CT", "MN", "DC", "MD"}
+_BAN_THE_BOX_CITIES = {
+    "austin", "dallas",                  # TX local ordinances
+    "philadelphia", "pittsburgh",         # PA cities
+    "chicago",                            # IL (state + city)
+    "seattle",                            # WA (state + city)
+    "boston", "cambridge",                # MA (state + city)
+    "newark", "jersey city",              # NJ (state + city)
+}
+
+
+def _check_ban_the_box(decision: str, ctx: dict) -> list:
+    """
+    Fair chance / ban-the-box compliance.
+    Checks: (1) criminal inquiry timing, (2) individualized assessment,
+    (3) per-state/city ban-the-box ordinances, (4) EEOC criminal history guidance.
+    """
+    results = []
+    criminal_check = _s(ctx.get("criminal_history_check", ctx.get("background_check_used", "")))
+    criminal_used = _s(ctx.get("criminal_history_used", ctx.get("criminal_record_factor", "")))
+    application_stage = _s(ctx.get("application_stage", ""))
+    individualized = _s(ctx.get("individualized_assessment", ""))
     denial = _is_denial(decision, ctx)
-    mil_status = _s(ctx.get("military_status", ctx.get("veteran_status", "")))
-    if not mil_status:
-        return [{"regulation": "USERRA — Uniformed Services Employment and Reemployment Rights Act",
-                 "article": "38 U.S.C. § 4311 — Prohibition on Discrimination",
-                 "status": "PASS",
-                 "reason": "No military or veteran status indicator detected in evaluation context."}]
-    status = "FAIL" if denial else "FLAG"
-    if denial:
-        reason = (
-            "Military or veteran status appears as a factor in an employment denial. "
-            "USERRA (38 U.S.C. § 4311) prohibits denying initial employment, reemployment, "
-            "retention, promotion, or any benefit of employment based on uniformed service "
-            "obligations. The Department of Labor VETS office investigates complaints and "
-            "may refer to the Department of Justice for federal court enforcement."
-        )
-    else:
-        reason = (
-            "Military or veteran status is present in the evaluation context. "
-            "USERRA (38 U.S.C. § 4311) prohibits using uniformed service status as a negative "
-            "factor in any employment decision. Document that military service was not a "
-            "disqualifying factor; retain records per USERRA §§ 4311–4318."
-        )
-    return [{"regulation": "USERRA — Uniformed Services Employment and Reemployment Rights Act",
-             "article": "38 U.S.C. § 4311 — Prohibition on Discrimination",
-             "status": status,
-             "reason": reason}]
+
+    has_criminal_check = _has(criminal_check, {"yes", "used", "obtained", "ran", "completed"})
+    criminal_was_factor = _has(criminal_used, {"yes", "factor", "used", "flagged", "disqualified"})
+
+    if not has_criminal_check and not criminal_was_factor:
+        return [{
+            "regulation": "EEOC — Fair Chance / Criminal History",
+            "article": "EEOC Enforcement Guidance (2012) — Consideration of Arrest and Conviction Records",
+            "status": "PASS",
+            "reason": "No criminal history check detected in this hiring decision.",
+            "suggested_action": "No action required.",
+        }]
+
+    # Check inquiry timing — ban-the-box requires criminal history inquiry only AFTER first interview
+    states = _detect_states(ctx)
+    loc = _s(ctx.get("applicant_location", ctx.get("applicant_state", "")))
+    in_btb_state = any(s in _BAN_THE_BOX_STATES for s in states)
+    in_btb_city = any(city in loc for city in _BAN_THE_BOX_CITIES)
+
+    if (in_btb_state or in_btb_city) and _has(application_stage, {"initial", "application", "resume", "screening"}):
+        state_label = f" [{', '.join(states)}]" if states else ""
+        results.append({
+            "regulation": f"Ban-the-Box / Fair Chance Hiring{state_label}",
+            "article": "State/Local Fair Chance Ordinances",
+            "status": "FAIL",
+            "reason": (
+                "Criminal history was checked at the initial application/screening stage. "
+                "Ban-the-box laws in this jurisdiction prohibit criminal history inquiries until "
+                "after the first interview (or conditional offer, depending on state)."
+            ),
+            "suggested_action": (
+                "Move the criminal history check to after the first interview or conditional offer. "
+                "Remove any criminal history question from the initial application form. "
+                "Review your ATS configuration to enforce this sequencing."
+            ),
+        })
+
+    # EEOC guidance: automatic disqualification on criminal record without individualized assessment
+    if criminal_was_factor and denial:
+        _indiv_neg = _has(individualized, {"not conducted", "not completed", "not done", "not performed", "no assessment", "not performed"})
+        indiv_done = _has(individualized, {"yes", "completed", "done", "performed", "conducted"}) and not _indiv_neg
+        if not indiv_done:
+            conviction_type = _s(ctx.get("conviction_type", ""))
+            conviction_age = ctx.get("conviction_age_years", "")
+            job_related = _s(ctx.get("job_related_justification", ""))
+
+            results.append({
+                "regulation": "EEOC — Criminal History Individualized Assessment",
+                "article": "EEOC Enforcement Guidance (Apr. 2012) — Arrest and Conviction Records in Employment",
+                "status": "FAIL",
+                "reason": (
+                    "Applicant was rejected based on criminal history without a documented "
+                    "individualized assessment. EEOC guidance requires employers to consider: "
+                    "(1) the nature and gravity of the offense, "
+                    "(2) time elapsed since the offense, "
+                    "(3) the nature of the job. "
+                    "Automatic disqualification policies have been found to cause disparate impact on "
+                    "Black and Hispanic applicants and violate Title VII."
+                    + (f" Conviction type on record: '{conviction_type}'." if conviction_type else "")
+                    + (f" Conviction age: {conviction_age} years." if conviction_age else "")
+                ),
+                "suggested_action": (
+                    "Conduct an individualized assessment before finalizing this rejection. "
+                    "Document: (1) nature of the offense, (2) how long ago it occurred, "
+                    "(3) how it relates to the specific duties of this job. "
+                    "If the conviction is not job-related, the rejection may not withstand EEOC scrutiny."
+                    + (" Add a job-related justification." if not job_related else "")
+                ),
+            })
+        else:
+            results.append({
+                "regulation": "EEOC — Criminal History Individualized Assessment",
+                "article": "EEOC Enforcement Guidance (Apr. 2012) — Arrest and Conviction Records in Employment",
+                "status": "PASS",
+                "reason": "Individualized assessment completed before criminal-history-based rejection.",
+                "suggested_action": "Retain the individualized assessment documentation for at least 3 years.",
+            })
+
+    # Arrest records — EEOC says arrests alone cannot be used as basis for denial
+    arrest_used = _s(ctx.get("arrest_record_used", ctx.get("arrest_factor", "")))
+    if _has(arrest_used, {"yes", "factor", "used", "flagged"}) and denial:
+        results.append({
+            "regulation": "EEOC — Arrest Records",
+            "article": "EEOC Enforcement Guidance (Apr. 2012) — Arrest Records Cannot Justify Exclusion",
+            "status": "FAIL",
+            "reason": (
+                "An arrest record (not a conviction) was used as a basis for this rejection. "
+                "EEOC guidance is clear: arrest records alone do not establish that criminal conduct occurred "
+                "and cannot be used as a standalone basis for an adverse employment decision."
+            ),
+            "suggested_action": (
+                "Remove the arrest record as a decision factor. Arrests without conviction cannot be "
+                "used to deny employment. If a conviction exists for the same conduct, conduct an "
+                "individualized assessment to determine job-relatedness."
+            ),
+        })
+
+    if not results:
+        results.append({
+            "regulation": "EEOC — Fair Chance / Criminal History",
+            "article": "EEOC Enforcement Guidance (Apr. 2012) — Arrest and Conviction Records",
+            "status": "PASS",
+            "reason": "Criminal history handled in compliance with EEOC fair chance guidance.",
+            "suggested_action": "Retain all individualized assessment documentation for 3 years.",
+        })
+    return results
 
 
-# ── Updated checkers map with all new checks ───────────────────────────────────
+# ── Gap 4: EU AI Act hiring-specific checks (Annex III, point 4) ──────────────
+
+def _check_eu_ai_act_hiring(decision: str, ctx: dict) -> list:
+    """
+    EU AI Act Annex III point 4 — AI systems used in hiring and employment
+    are classified as HIGH-RISK and must meet Art. 9/10/13/14/17 requirements.
+    """
+    # Only applies to EU/UK candidates or systems deployed in the EU
+    loc = _s(ctx.get("applicant_location", ctx.get("candidate_location", ctx.get("applicant_country", ""))))
+    eu_countries = {
+        "eu", "european union", "germany", "france", "netherlands", "spain", "italy",
+        "poland", "sweden", "belgium", "austria", "denmark", "finland", "ireland",
+        "portugal", "czech republic", "hungary", "romania", "uk", "united kingdom",
+        "great britain", "england", "scotland", "wales",
+    }
+    is_eu = any(c in loc for c in eu_countries) or _s(ctx.get("eu_applicant", "")) in ("yes", "true", "1")
+    if not is_eu:
+        return []
+
+    results = []
+    screening_tool = _s(ctx.get("screening_tool", ctx.get("model_used", ctx.get("ai_model", ""))))
+    has_ai = bool(screening_tool)
+
+    if not has_ai:
+        return []
+
+    # Annex III point 4 — high-risk classification
+    conformity = _s(ctx.get("conformity_assessment", ctx.get("eu_conformity_assessment", "")))
+    if not _has(conformity, {"completed", "done", "passed", "yes"}):
+        results.append({
+            "regulation": "EU AI Act — High-Risk AI (Hiring)",
+            "article": "Regulation (EU) 2024/1689 Art. 6 + Annex III §4 — High-Risk Classification",
+            "status": "FAIL",
+            "reason": (
+                f"AI system '{screening_tool}' used in hiring/employment decisions is classified "
+                "as HIGH-RISK under EU AI Act Annex III point 4. A conformity assessment under "
+                "Art. 43 must be completed before deployment. "
+                "Non-compliance carries fines up to €15M or 3% of global annual turnover."
+            ),
+            "suggested_action": (
+                "Conduct a conformity assessment per Art. 43. This includes: technical documentation "
+                "(Art. 11), registration in the EU AI database (Art. 49), and CE marking. "
+                "Engage a notified body if required under Annex VII."
+            ),
+        })
+
+    # Art. 9 — Risk management system
+    risk_mgmt = _s(ctx.get("risk_management_system", ctx.get("eu_risk_management", "")))
+    if not _has(risk_mgmt, {"yes", "in place", "documented", "completed"}):
+        results.append({
+            "regulation": "EU AI Act — Risk Management",
+            "article": "Regulation (EU) 2024/1689 Art. 9 — Risk Management System",
+            "status": "FLAG",
+            "reason": (
+                "EU AI Act Art. 9 requires a continuous risk management system throughout the "
+                "AI system lifecycle. No risk management documentation is recorded for this system."
+            ),
+            "suggested_action": (
+                "Establish and document a risk management system covering: risk identification, "
+                "risk evaluation, residual risk assessment, and post-market monitoring. "
+                "Review and update this documentation at least annually."
+            ),
+        })
+
+    # Art. 13 — Transparency to candidates
+    candidate_notified = _s(ctx.get("candidate_notified", ctx.get("ai_disclosure_made", "")))
+    if not _has(candidate_notified, {"yes", "sent", "provided", "notified", "disclosed"}):
+        results.append({
+            "regulation": "EU AI Act — Transparency",
+            "article": "Regulation (EU) 2024/1689 Art. 13 — Transparency and Provision of Information",
+            "status": "FAIL",
+            "reason": (
+                "EU AI Act Art. 13 requires that candidates subject to high-risk AI hiring systems "
+                "be informed that AI is being used, what data it processes, and the logic of the decision."
+            ),
+            "suggested_action": (
+                "Notify candidates in writing before using AI in their evaluation. The disclosure "
+                "must explain: what AI system is used, what data it processes, how decisions are reached, "
+                "and how to request human review. Retain evidence of disclosure."
+            ),
+        })
+
+    # Art. 14 — Human oversight
+    human_review = _s(ctx.get("human_review_offered", ctx.get("human_review_available", "")))
+    if not _has(human_review, {"yes", "offered", "available", "scheduled"}):
+        results.append({
+            "regulation": "EU AI Act — Human Oversight",
+            "article": "Regulation (EU) 2024/1689 Art. 14 — Human Oversight",
+            "status": "FAIL",
+            "reason": (
+                "EU AI Act Art. 14 requires that high-risk AI systems in hiring allow qualified "
+                "humans to oversee, intervene in, and override AI-generated decisions. "
+                "No human oversight mechanism is documented."
+            ),
+            "suggested_action": (
+                "Designate a qualified reviewer who can override AI hiring decisions. "
+                "Document the human oversight process and train all users. "
+                "The override pathway must be accessible — not just theoretical."
+            ),
+        })
+
+    return results
+
+
+# ── Gap 5: Disparate impact computation — 4/5ths rule with real numbers ────────
+
+def _check_disparate_impact_hiring(decision: str, ctx: dict) -> list:
+    """
+    Compute disparate impact using the 4/5ths rule (EEOC Uniform Guidelines).
+    Requires context fields: selection_rate_overall, selection_rate_protected,
+    protected_group, comparison_group.
+    Falls back to proxy-based flagging if outcome data not provided.
+    """
+    rate_overall = ctx.get("selection_rate_overall")
+    rate_protected = ctx.get("selection_rate_protected")
+    protected_group = ctx.get("protected_group", "protected group")
+    comparison_group = ctx.get("comparison_group", "majority group")
+
+    # If actual outcome rates are provided, compute the 4/5ths rule precisely
+    if rate_overall is not None and rate_protected is not None:
+        try:
+            r_overall = float(rate_overall)
+            r_protected = float(rate_protected)
+            if r_overall <= 0:
+                return []
+            ratio = r_protected / r_overall
+            pct_protected = round(r_protected * 100, 1)
+            pct_overall = round(r_overall * 100, 1)
+            if ratio < 0.80:
+                return [{
+                    "regulation": "EEOC — Disparate Impact (4/5ths Rule)",
+                    "article": "29 CFR § 1607.4(D) — Uniform Guidelines on Employee Selection Procedures",
+                    "status": "FAIL",
+                    "reason": (
+                        f"Disparate impact detected: {protected_group} selection rate is "
+                        f"{pct_protected}% vs {pct_overall}% for {comparison_group} "
+                        f"(ratio = {ratio:.2f}, threshold = 0.80). "
+                        "This fails the EEOC 4/5ths rule — a prima facie case of adverse impact."
+                    ),
+                    "suggested_action": (
+                        f"Immediately review your selection criteria for factors that "
+                        f"disproportionately screen out {protected_group} candidates. "
+                        "Document a business necessity justification for any criterion that causes "
+                        "disparate impact, or modify the criterion to reduce the disparity. "
+                        "Consider running a full adverse impact analysis across your applicant pool."
+                    ),
+                }]
+            elif ratio < 0.90:
+                return [{
+                    "regulation": "EEOC — Disparate Impact (4/5ths Rule)",
+                    "article": "29 CFR § 1607.4(D) — Uniform Guidelines on Employee Selection Procedures",
+                    "status": "FLAG",
+                    "reason": (
+                        f"Near-threshold disparate impact: {protected_group} selection rate is "
+                        f"{pct_protected}% vs {pct_overall}% for {comparison_group} "
+                        f"(ratio = {ratio:.2f}). Passes the 4/5ths rule but warrants monitoring."
+                    ),
+                    "suggested_action": (
+                        "Monitor this ratio over the next quarter. If it drops below 0.80, "
+                        "a business necessity review is required. Document current selection criteria."
+                    ),
+                }]
+            else:
+                return [{
+                    "regulation": "EEOC — Disparate Impact (4/5ths Rule)",
+                    "article": "29 CFR § 1607.4(D) — Uniform Guidelines on Employee Selection Procedures",
+                    "status": "PASS",
+                    "reason": (
+                        f"No disparate impact: {protected_group} selection rate is {pct_protected}% "
+                        f"vs {pct_overall}% for {comparison_group} (ratio = {ratio:.2f} ≥ 0.80)."
+                    ),
+                    "suggested_action": "No action required. Continue monitoring selection rates quarterly.",
+                }]
+        except (ValueError, TypeError):
+            pass
+
+    # No outcome data — return empty (proxy-based flagging handled by _check_disparate_impact_risk)
+    return []
+
+
+# ── Checkers map ───────────────────────────────────────────────────────────────
 
 _DECISION_CHECKERS = {
     "finance": [
@@ -1443,20 +2270,24 @@ _DECISION_CHECKERS = {
         _check_decision_text,
         _check_eeoc_decision,
         _check_fcra_employment_decision,
-        _check_userra_decision,
+        _check_ban_the_box,
         _check_eu_ai_act_decision,
+        _check_eu_ai_act_hiring,
         _check_compound_proxies,
         _check_disparate_impact_risk,
+        _check_disparate_impact_hiring,
         _check_state_laws,
     ],
     "hr": [
         _check_decision_text,
         _check_eeoc_decision,
         _check_fcra_employment_decision,
-        _check_userra_decision,
+        _check_ban_the_box,
         _check_eu_ai_act_decision,
+        _check_eu_ai_act_hiring,
         _check_compound_proxies,
         _check_disparate_impact_risk,
+        _check_disparate_impact_hiring,
         _check_state_laws,
     ],
     "other": [
@@ -1489,8 +2320,6 @@ def run_compliance_checks(
     """
     import inspect as _inspect
     checkers = _DECISION_CHECKERS.get(category.lower(), _DECISION_CHECKERS["other"])
-    context = dict(context)
-    context["_category"] = category.lower()
     results = []
     failed = []
     for checker in checkers:
@@ -1514,4 +2343,16 @@ def run_compliance_checks(
             "run_compliance_checks degraded: %d of %d checkers failed: %s",
             len(failed), len(checkers), ", ".join(failed),
         )
-    return {"checks": results, "failed_checkers": failed}
+
+    # Aggregate risk score: FAIL=30pts, FLAG=10pts, capped at 100
+    fail_count = sum(1 for c in results if c.get("status") == "FAIL")
+    flag_count = sum(1 for c in results if c.get("status") == "FLAG")
+    risk_score = min(100, fail_count * 30 + flag_count * 10)
+
+    return {
+        "checks": results,
+        "failed_checkers": failed,
+        "risk_score": risk_score,
+        "fail_count": fail_count,
+        "flag_count": flag_count,
+    }

@@ -395,6 +395,7 @@
     <div class="nav-links">
       <a href="#how-it-works" class="nav-link">How it works</a>
       <a href="#journeys" class="nav-link">User journeys</a>
+      <a href="#demo" class="nav-link">Try it</a>
       <a href="#features" class="nav-link">Features</a>
       <a href="#use-cases" class="nav-link">Use cases</a>
       <a href="#api" class="nav-link">API</a>
@@ -586,15 +587,19 @@
         <div style="padding:28px 24px;background:var(--surface2);border-right:1px solid var(--border);">
           <div style="font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--text-sub);margin-bottom:8px;">Stage 1</div>
           <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px;">Resume Screening</div>
-          <div style="font-size:12px;color:var(--text-muted);">HireAI, Workday AI, Greenhouse, Lever</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">HireAI, Workday AI, Greenhouse, Lever</div>
+          <div style="font-size:11px;padding:4px 8px;background:var(--fail-dim);color:var(--fail);border-radius:4px;font-weight:700;display:inline-block;">Risk score: 70</div>
         </div>
         <div style="padding:24px 28px;">
           <div style="font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:14px;">AI ranks 300 applicants, recruiter advances the top 50. Ranking signals include graduation year, university name, employment gaps, and zip code — all legal proxies for age, race, disability, and national origin.</div>
-          <div style="display:flex;flex-wrap:wrap;gap:7px;">
+          <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px;">
             <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:var(--fail-dim);color:var(--fail);">ADEA — graduation year → age proxy</span>
             <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:var(--fail-dim);color:var(--fail);">Title VII — HBCU excluded from preferred schools list</span>
             <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:rgba(245,158,11,0.12);color:var(--flag);">NYC LL144 — bias audit required before use</span>
             <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:rgba(245,158,11,0.12);color:var(--flag);">NYC LL144 — 10-day candidate notice required</span>
+          </div>
+          <div style="font-size:12px;padding:10px 14px;background:var(--surface2);border-left:3px solid var(--accent);border-radius:0 4px 4px 0;color:var(--text-muted);line-height:1.6;">
+            <strong style="color:var(--accent);">Pragma tells the recruiter:</strong> Remove graduation year from scoring. Add Howard University and other HBCUs to the preferred schools list or remove the preference filter entirely. Pause this ATS tool for NYC candidates until an independent bias audit is completed and posted publicly.
           </div>
         </div>
       </div>
@@ -604,14 +609,18 @@
         <div style="padding:28px 24px;background:var(--surface2);border-right:1px solid var(--border);">
           <div style="font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--text-sub);margin-bottom:8px;">Stage 2</div>
           <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px;">Skills Assessment</div>
-          <div style="font-size:12px;color:var(--text-muted);">Pymetrics, HireVue Assess, Codility</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Pymetrics, HireVue Assess, Codility</div>
+          <div style="font-size:11px;padding:4px 8px;background:var(--fail-dim);color:var(--fail);border-radius:4px;font-weight:700;display:inline-block;">Risk score: 40</div>
         </div>
         <div style="padding:24px 28px;">
-          <div style="font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:14px;">AI scores cognitive or skills tests. Without reasonable accommodations, timed assessments screen out candidates with disabilities. Cognitive tests trained on younger cohorts produce lower scores for protected age groups.</div>
-          <div style="display:flex;flex-wrap:wrap;gap:7px;">
+          <div style="font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:14px;">AI scores cognitive or skills tests. Without reasonable accommodations, timed assessments screen out candidates with disabilities. Selection rates: Black candidates 28% vs White candidates 52% — ratio 0.54, fails the EEOC 4/5ths rule.</div>
+          <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px;">
             <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:var(--fail-dim);color:var(--fail);">ADA — no accommodation process for timed assessments</span>
+            <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:var(--fail-dim);color:var(--fail);">EEOC 4/5ths Rule — disparate impact (ratio 0.54 &lt; 0.80)</span>
             <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:rgba(245,158,11,0.12);color:var(--flag);">ADEA — assessment model trained on younger cohort</span>
-            <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:rgba(245,158,11,0.12);color:var(--flag);">EEOC UGESP — disparate impact across protected groups</span>
+          </div>
+          <div style="font-size:12px;padding:10px 14px;background:var(--surface2);border-left:3px solid var(--accent);border-radius:0 4px 4px 0;color:var(--text-muted);line-height:1.6;">
+            <strong style="color:var(--accent);">Pragma tells the recruiter:</strong> Immediately review assessment criteria — the 4/5ths rule is violated. Document a business necessity justification or modify the test. Add a reasonable accommodation pathway for timed cognitive tests before using results in any rejection.
           </div>
         </div>
       </div>
@@ -621,14 +630,18 @@
         <div style="padding:28px 24px;background:var(--surface2);border-right:1px solid var(--border);">
           <div style="font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--text-sub);margin-bottom:8px;">Stage 3</div>
           <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px;">AI Video Interview</div>
-          <div style="font-size:12px;color:var(--text-muted);">HireVue, Spark Hire, Modern Hire</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">HireVue, Spark Hire, Modern Hire</div>
+          <div style="font-size:11px;padding:4px 8px;background:var(--fail-dim);color:var(--fail);border-radius:4px;font-weight:700;display:inline-block;">Risk score: 60</div>
         </div>
         <div style="padding:24px 28px;">
           <div style="font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:14px;">Facial expression analysis and speech pattern scoring run behind what candidates think is a regular video call. Illinois AIVIA requires explicit written consent and the right to request data deletion before any AI video analysis begins.</div>
-          <div style="display:flex;flex-wrap:wrap;gap:7px;">
+          <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px;">
             <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:var(--fail-dim);color:var(--fail);">IL AIVIA — no consent obtained before AI video analysis</span>
             <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:var(--fail-dim);color:var(--fail);">ADA — speech pattern models penalize speech disabilities</span>
-            <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:rgba(245,158,11,0.12);color:var(--flag);">ADEA — facial analysis models trained on younger faces</span>
+            <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:rgba(245,158,11,0.12);color:var(--flag);">IL Human Rights Act — broader protected classes apply</span>
+          </div>
+          <div style="font-size:12px;padding:10px 14px;background:var(--surface2);border-left:3px solid var(--accent);border-radius:0 4px 4px 0;color:var(--text-muted);line-height:1.6;">
+            <strong style="color:var(--accent);">Pragma tells the recruiter:</strong> Do not use AI analysis of this video without consent. Send the candidate an AIVIA disclosure notice and obtain written consent before any AI-based evaluation. Retain consent records for 1 year per 820 ILCS 42.
           </div>
         </div>
       </div>
@@ -638,14 +651,18 @@
         <div style="padding:28px 24px;background:var(--surface2);border-right:1px solid var(--border);">
           <div style="font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--text-sub);margin-bottom:8px;">Stage 4</div>
           <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px;">Background Check</div>
-          <div style="font-size:12px;color:var(--text-muted);">Checkr, Sterling, First Advantage</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Checkr, Sterling, First Advantage</div>
+          <div style="font-size:11px;padding:4px 8px;background:var(--fail-dim);color:var(--fail);border-radius:4px;font-weight:700;display:inline-block;">Risk score: 60</div>
         </div>
         <div style="padding:24px 28px;">
           <div style="font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:14px;">CRA report returns a hit. Recruiter sends a generic rejection email. FCRA §604(b)(3) requires a specific two-step workflow before any rejection is communicated — most companies skip it entirely, creating $1,000/applicant statutory exposure.</div>
-          <div style="display:flex;flex-wrap:wrap;gap:7px;">
+          <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px;">
             <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:var(--fail-dim);color:var(--fail);">FCRA §604(b)(3) — Pre-Adverse Notice not sent before rejection</span>
             <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:var(--fail-dim);color:var(--fail);">FCRA §615(a) — Final Adverse Notice missing CRA disclosure</span>
             <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:rgba(245,158,11,0.12);color:var(--flag);">EEOC — background check criteria must be job-related</span>
+          </div>
+          <div style="font-size:12px;padding:10px 14px;background:var(--surface2);border-left:3px solid var(--accent);border-radius:0 4px 4px 0;color:var(--text-muted);line-height:1.6;">
+            <strong style="color:var(--accent);">Pragma tells the recruiter:</strong> STOP — do not send this rejection. Send the candidate a copy of the background report + CFPB rights summary. Wait 5 business days, then send the Final Adverse Action Notice with the CRA's name, address, and phone number.
           </div>
         </div>
       </div>
@@ -655,15 +672,19 @@
         <div style="padding:28px 24px;background:var(--surface2);border-right:1px solid var(--border);">
           <div style="font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--text-sub);margin-bottom:8px;">Stage 5</div>
           <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px;">Final Hiring Decision</div>
-          <div style="font-size:12px;color:var(--text-muted);">Hiring manager + AI confidence score</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Hiring manager + AI confidence score</div>
+          <div style="font-size:11px;padding:4px 8px;background:var(--fail-dim);color:var(--fail);border-radius:4px;font-weight:700;display:inline-block;">Risk score: 100</div>
         </div>
         <div style="padding:24px 28px;">
-          <div style="font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:14px;">Hiring manager rejects based on AI recommendation. The AI's confidence score was shaped by graduation year and an unexplained employment gap — both protected proxies. EU candidates have the right to human review of any automated decision.</div>
-          <div style="display:flex;flex-wrap:wrap;gap:7px;">
-            <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:var(--fail-dim);color:var(--fail);">ADEA — AI score penalizes graduation year (age proxy)</span>
-            <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:var(--fail-dim);color:var(--fail);">ADA — employment gap penalized without gap reason captured</span>
-            <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:rgba(245,158,11,0.12);color:var(--flag);">EU AI Act Art. 14 — human oversight not documented</span>
-            <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:rgba(245,158,11,0.12);color:var(--flag);">EEOC UGESP — selection rate below 80% threshold</span>
+          <div style="font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:14px;">EU candidate rejected based on AI confidence score. No conformity assessment on file, no candidate disclosure, no human oversight pathway. EU AI Act Annex III classifies hiring AI as HIGH-RISK with mandatory Art. 9/13/14 requirements.</div>
+          <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px;">
+            <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:var(--fail-dim);color:var(--fail);">EU AI Act Annex III §4 — conformity assessment required</span>
+            <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:var(--fail-dim);color:var(--fail);">EU AI Act Art. 13 — candidate not informed AI was used</span>
+            <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:var(--fail-dim);color:var(--fail);">EU AI Act Art. 14 — no human oversight pathway documented</span>
+            <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:rgba(245,158,11,0.12);color:var(--flag);">EU AI Act Art. 9 — risk management system not documented</span>
+          </div>
+          <div style="font-size:12px;padding:10px 14px;background:var(--surface2);border-left:3px solid var(--accent);border-radius:0 4px 4px 0;color:var(--text-muted);line-height:1.6;">
+            <strong style="color:var(--accent);">Pragma tells the recruiter:</strong> Halt EU candidate processing. Complete Art. 43 conformity assessment, notify candidate in writing that AI was used and what data it processed, designate a qualified human reviewer who can override the AI decision.
           </div>
         </div>
       </div>
@@ -673,14 +694,19 @@
         <div style="padding:28px 24px;background:var(--surface2);border-right:1px solid var(--border);">
           <div style="font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--text-sub);margin-bottom:8px;">Stage 6</div>
           <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px;">Offer &amp; Compensation</div>
-          <div style="font-size:12px;color:var(--text-muted);">Comp bands, salary negotiation, ATS offer</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Comp bands, salary negotiation, ATS offer</div>
+          <div style="font-size:11px;padding:4px 8px;background:var(--fail-dim);color:var(--fail);border-radius:4px;font-weight:700;display:inline-block;">Risk score: 90</div>
         </div>
         <div style="padding:24px 28px;">
-          <div style="font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:14px;">Recruiter anchors comp to the candidate's prior salary — a known proxy for the gender pay gap. In California, New York, Colorado, and Washington, using salary history in compensation decisions is illegal regardless of whether an AI system surfaces it.</div>
-          <div style="display:flex;flex-wrap:wrap;gap:7px;">
-            <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:var(--fail-dim);color:var(--fail);">CA AB-168 — prior salary used in CA compensation decision</span>
-            <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:var(--fail-dim);color:var(--fail);">NY §194-a — salary history ban violated in NY offer</span>
-            <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:rgba(245,158,11,0.12);color:var(--flag);">CO EPEWA — pay range must appear in CO job postings</span>
+          <div style="font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:14px;">Recruiter anchors comp to the candidate's prior salary — a known proxy for the gender pay gap. Candidate works across NY, CA, and CO offices. All three states ban salary history in compensation decisions, and Pragma fires the multi-state rollup simultaneously.</div>
+          <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px;">
+            <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:var(--fail-dim);color:var(--fail);">CA AB-168 [CA] — prior salary used in CA compensation</span>
+            <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:var(--fail-dim);color:var(--fail);">NY §194-a [NY] — salary history ban violated</span>
+            <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:var(--fail-dim);color:var(--fail);">CO EPEWA [CO] — prior salary history used in CO offer</span>
+            <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;background:rgba(245,158,11,0.12);color:var(--flag);">CO EPEWA [CO] — pay range missing from CO job posting</span>
+          </div>
+          <div style="font-size:12px;padding:10px 14px;background:var(--surface2);border-left:3px solid var(--accent);border-radius:0 4px 4px 0;color:var(--text-muted);line-height:1.6;">
+            <strong style="color:var(--accent);">Pragma tells the recruiter:</strong> Remove prior compensation from this offer. Set pay based on the role's market rate across all three states. Add the salary range to the CO job posting — minimum and maximum required. Document that salary history was not used in any of the three jurisdictions.
           </div>
         </div>
       </div>
@@ -688,10 +714,251 @@
     </div>
 
     <div style="margin-top:24px;padding:16px 20px;background:var(--accent-dim);border:1px solid rgba(139,92,246,0.25);border-radius:var(--radius-sm);font-size:13px;color:var(--text-muted);line-height:1.6;">
-      <strong style="color:var(--accent);">Pragma intercepts at every stage.</strong> Pass the decision text and context fields for that stage — the engine runs the applicable regulations automatically based on candidate location, tools used, and decision type.
+      <strong style="color:var(--accent);">Pragma intercepts at every stage.</strong> Each check returns a risk score (0–100), a FAIL/FLAG/PASS verdict per regulation, and a plain-English <strong style="color:var(--text);">suggested_action</strong> telling the recruiter exactly what to do next.
     </div>
   </div>
 </section>
+
+<!-- ── Interactive Demo ───────────────────────────────────────────────────── -->
+<section class="section" id="demo">
+  <div class="container">
+    <div class="eyebrow">Live Engine</div>
+    <h2 style="font-size:clamp(22px,3vw,34px);font-weight:700;text-wrap:balance;line-height:1.3;">
+      Try the compliance engine
+    </h2>
+    <p style="font-size:15px;color:var(--text-muted);max-width:560px;margin-top:16px;line-height:1.7;">
+      Click any scenario to see exactly what Pragma returns — regulation, status, reason, and the recruiter action.
+    </p>
+
+    <div style="margin-top:40px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;" id="demoScenarioGrid">
+      <button onclick="showDemo(0)" id="ds0" class="demo-scenario-btn active-scenario">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-sub);margin-bottom:4px;">Stage 1</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);">Resume Screen · NYC</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">ADEA + Title VII + LL144</div>
+        <div style="margin-top:8px;font-size:11px;font-weight:700;color:var(--fail);">Risk 70 · 2 FAIL 2 FLAG</div>
+      </button>
+      <button onclick="showDemo(1)" id="ds1" class="demo-scenario-btn">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-sub);margin-bottom:4px;">Stage 2</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);">Skills Test · Disparate Impact</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">ADA + 4/5ths Rule FAIL</div>
+        <div style="margin-top:8px;font-size:11px;font-weight:700;color:var(--fail);">Risk 40 · 2 FAIL 1 FLAG</div>
+      </button>
+      <button onclick="showDemo(2)" id="ds2" class="demo-scenario-btn">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-sub);margin-bottom:4px;">Stage 3</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);">AI Video Interview · Chicago</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">IL AIVIA no consent</div>
+        <div style="margin-top:8px;font-size:11px;font-weight:700;color:var(--fail);">Risk 60 · 2 FAIL 1 FLAG</div>
+      </button>
+      <button onclick="showDemo(3)" id="ds3" class="demo-scenario-btn">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-sub);margin-bottom:4px;">Stage 4</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);">Background Check · FCRA</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">Pre-Adverse + Final Notice</div>
+        <div style="margin-top:8px;font-size:11px;font-weight:700;color:var(--fail);">Risk 60 · 2 FAIL 1 FLAG</div>
+      </button>
+      <button onclick="showDemo(4)" id="ds4" class="demo-scenario-btn">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-sub);margin-bottom:4px;">Stage 5</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);">Final Decision · EU Candidate</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">EU AI Act Annex III §4</div>
+        <div style="margin-top:8px;font-size:11px;font-weight:700;color:var(--fail);">Risk 100 · 3 FAIL 1 FLAG</div>
+      </button>
+      <button onclick="showDemo(5)" id="ds5" class="demo-scenario-btn">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-sub);margin-bottom:4px;">Stage 6</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);">Offer · NY + CA + CO</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">Multi-state salary ban rollup</div>
+        <div style="margin-top:8px;font-size:11px;font-weight:700;color:var(--fail);">Risk 90 · 3 FAIL 1 FLAG</div>
+      </button>
+    </div>
+
+    <!-- Demo result panel -->
+    <div id="demoPanel" style="margin-top:24px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;"></div>
+  </div>
+</section>
+
+<style>
+.demo-scenario-btn {
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:16px;text-align:left;cursor:pointer;transition:border-color .15s,background .15s;
+  width:100%;
+}
+.demo-scenario-btn:hover { border-color:var(--accent);background:var(--accent-dim); }
+.active-scenario { border-color:var(--accent) !important;background:var(--accent-dim) !important; }
+.check-row { display:grid;grid-template-columns:72px 1fr;gap:0;border-bottom:1px solid var(--border); }
+.check-row:last-child { border-bottom:none; }
+.check-status { padding:16px 14px;display:flex;align-items:flex-start;justify-content:center;border-right:1px solid var(--border); }
+.check-body { padding:14px 18px; }
+.badge-fail { font-size:10px;font-weight:800;padding:3px 8px;border-radius:4px;background:var(--fail-dim);color:var(--fail);letter-spacing:.5px; }
+.badge-flag { font-size:10px;font-weight:800;padding:3px 8px;border-radius:4px;background:rgba(245,158,11,0.12);color:var(--flag);letter-spacing:.5px; }
+.badge-pass { font-size:10px;font-weight:800;padding:3px 8px;border-radius:4px;background:var(--pass-dim);color:var(--pass);letter-spacing:.5px; }
+@media (max-width:640px) { #demoScenarioGrid { grid-template-columns:1fr 1fr; } }
+</style>
+
+<script>
+const DEMO_SCENARIOS = [
+  {
+    label: "Stage 1 — Resume Screening · NYC (Greenhouse AI)",
+    decision: "Reject applicant — ATS score 0.31",
+    context: { graduation_year: "1980", university_attended: "Howard University", preferred_schools_list: "MIT, Stanford, Harvard", applicant_location: "New York, NY", screening_tool: "Greenhouse AI" },
+    verdict: "BLOCKED", risk_score: 70, fail_count: 2, flag_count: 2,
+    checks: [
+      { regulation: "ADEA — Age Discrimination in Employment Act", article: "29 U.S.C. § 623 — Age Discrimination", status: "FAIL",
+        reason: "Graduation year 1980 implies ~46 years of age (protected class 40+). Screening by graduation year is a proxy for age discrimination.",
+        suggested_action: "Remove graduation year from screening criteria. Use years of experience or specific skill requirements instead. Document that age was not a factor in this decision." },
+      { regulation: "EEOC Title VII — Civil Rights Act", article: "42 U.S.C. § 2000e-2 — Race Discrimination", status: "FAIL",
+        reason: "'Howard University' is an HBCU. Excluding HBCUs from preferred school lists is a race discrimination proxy under Title VII.",
+        suggested_action: "Add Howard University and other HBCUs to the preferred schools list or remove the school preference filter entirely. Evaluate this candidate on skills and experience, not institution." },
+      { regulation: "NYC Local Law 144 — Automated Employment Decisions [NY]", article: "NYC Admin. Code § 20-871 — Annual Independent Bias Audit", status: "FAIL",
+        reason: "NYC LL144 requires an annual independent bias audit for any automated employment decision tool used for NYC candidates. Tool 'Greenhouse AI' is in use but no bias audit is on file.",
+        suggested_action: "Pause use of Greenhouse AI for NYC candidates until an independent bias audit is completed and published. Engage an EEOC-qualified auditor. Post the audit summary on your careers page." },
+      { regulation: "NYC Local Law 144 — Automated Employment Decisions [NY]", article: "NYC Admin. Code § 20-871(b)(1) — Candidate Notice Requirement", status: "FLAG",
+        reason: "NYC LL144 requires employers to notify candidates at least 10 business days before an automated employment decision tool is used.",
+        suggested_action: "Send the LL144 candidate notice at least 10 business days before the automated tool is used. The notice must describe how the AI works and how candidates can request an alternative process." },
+    ]
+  },
+  {
+    label: "Stage 2 — Skills Assessment · Disparate Impact (Pymetrics)",
+    decision: "Reject applicant — assessment score below threshold",
+    context: { employment_gap_months: "14", gap_reason: "medical leave", selection_rate_overall: "0.52", selection_rate_protected: "0.28", protected_group: "Black candidates", comparison_group: "White candidates" },
+    verdict: "BLOCKED", risk_score: 40, fail_count: 2, flag_count: 1,
+    checks: [
+      { regulation: "ADA — Americans with Disabilities Act", article: "42 U.S.C. § 12112 — Disability Discrimination", status: "FAIL",
+        reason: "Penalizing a medical/disability gap is ADA discrimination.",
+        suggested_action: "Do not use this employment gap as a rejection factor. Evaluate the candidate on their skills and qualifications. Document that the gap was not a basis for this decision." },
+      { regulation: "EEOC — Disparate Impact (4/5ths Rule)", article: "29 CFR § 1607.4(D) — Uniform Guidelines on Employee Selection Procedures", status: "FAIL",
+        reason: "Disparate impact detected: Black candidates selection rate is 28.0% vs 52.0% for White candidates (ratio = 0.54, threshold = 0.80). This fails the EEOC 4/5ths rule — a prima facie case of adverse impact.",
+        suggested_action: "Immediately review assessment criteria for factors disproportionately screening out Black candidates. Document a business necessity justification for any criterion that causes disparate impact, or modify the criterion to reduce the disparity." },
+      { regulation: "ADEA — Age Discrimination in Employment Act", article: "29 U.S.C. § 623 — Age Discrimination", status: "FLAG",
+        reason: "Cognitive assessments trained predominantly on younger cohorts may produce systematically lower scores for protected-age candidates. Monitor score distributions by age group.",
+        suggested_action: "Run selection rate analysis by age group. If ratio falls below 0.80, the assessment must be validated for age-neutrality or replaced." },
+    ]
+  },
+  {
+    label: "Stage 3 — AI Video Interview · Chicago (HireVue)",
+    decision: "Reject finalist — AI video score 0.41",
+    context: { interview_method: "AI video interview", aivia_consent: "not obtained", applicant_location: "Chicago, IL", screening_tool: "HireVue" },
+    verdict: "BLOCKED", risk_score: 60, fail_count: 2, flag_count: 1,
+    checks: [
+      { regulation: "Illinois AIVIA — AI Video Interview Act [IL]", article: "820 ILCS 42 — Consent and Disclosure Requirements", status: "FAIL",
+        reason: "Illinois AIVIA requires employers to obtain explicit consent before using AI video interview analysis. No AIVIA consent is documented for this AI-assessed interview.",
+        suggested_action: "Do not use AI analysis of this video interview without consent. Send the candidate an AIVIA disclosure notice and obtain written consent before any AI-based evaluation. Retain consent records for 1 year." },
+      { regulation: "ADA — Americans with Disabilities Act", article: "42 U.S.C. § 12112 — Disability Discrimination", status: "FAIL",
+        reason: "Speech pattern and facial expression AI models may systematically score lower for candidates with speech disabilities, stuttering, or neurodivergent communication styles.",
+        suggested_action: "Add an alternative interview pathway for candidates who cannot participate in AI video analysis due to a disability. Document accommodation offers in the applicant record." },
+      { regulation: "Illinois Human Rights Act [IL]", article: "775 ILCS 5 — Broader Protected Classes", status: "FLAG",
+        reason: "The Illinois Human Rights Act covers additional protected classes beyond federal law, including order of protection status, military status, and sexual orientation.",
+        suggested_action: "Review decision criteria against Illinois-specific protected classes. Ensure your screening criteria do not disproportionately screen out applicants based on any Illinois-protected characteristic." },
+    ]
+  },
+  {
+    label: "Stage 4 — Background Check · FCRA Two-Step (Checkr)",
+    decision: "Reject applicant — background check hit",
+    context: { background_check_used: "yes", pre_adverse_action_notice: "not sent", adverse_action_notice: "not sent" },
+    verdict: "BLOCKED", risk_score: 60, fail_count: 2, flag_count: 1,
+    checks: [
+      { regulation: "FCRA — Fair Credit Reporting Act", article: "15 U.S.C. § 1681b(b)(3)(A) — Pre-Adverse Action Notice", status: "FAIL",
+        reason: "Background check used in employment denial but no Pre-Adverse Action Notice issued. FCRA § 604(b)(3) requires providing the applicant a copy of the consumer report and a dispute window before making the final decision.",
+        suggested_action: "STOP — do not finalize this rejection. Send the applicant: (1) a copy of the background report, (2) the CFPB's 'Summary of Your Rights Under the FCRA'. Wait at least 5 business days before sending the final rejection letter." },
+      { regulation: "FCRA — Fair Credit Reporting Act", article: "15 U.S.C. § 1681m(a) — Adverse Action Notice", status: "FAIL",
+        reason: "Final Adverse Action Notice not documented. FCRA § 615(a) requires written notice including the CRA name, address, phone number, and the applicant's right to a free copy of the report within 60 days.",
+        suggested_action: "Send the Final Adverse Action Notice after the 5-day dispute window. Must include: CRA name/address/phone, statement that the CRA did not make the decision, and the applicant's right to a free report copy within 60 days." },
+      { regulation: "FCRA — Fair Credit Reporting Act", article: "15 U.S.C. § 1681b(b)(3) — Pre-Adverse Action Notice", status: "FLAG",
+        reason: "Verify the background check criteria are job-related and consistent with business necessity. EEOC guidance requires individualized assessment before rejecting based on criminal history.",
+        suggested_action: "Document that the specific background check finding is directly related to the job's duties and responsibilities. Consider the nature of the offense, time elapsed, and evidence of rehabilitation." },
+    ]
+  },
+  {
+    label: "Stage 5 — Final Decision · EU Candidate (Frankfurt, Germany)",
+    decision: "Reject candidate — AI confidence score 0.44",
+    context: { applicant_location: "germany", screening_tool: "HireVue", conformity_assessment: "not completed", candidate_notified: "not sent", human_review_offered: "no" },
+    verdict: "BLOCKED", risk_score: 100, fail_count: 3, flag_count: 1,
+    checks: [
+      { regulation: "EU AI Act — High-Risk AI (Hiring)", article: "Regulation (EU) 2024/1689 Art. 6 + Annex III §4 — High-Risk Classification", status: "FAIL",
+        reason: "AI system 'HireVue' used in hiring decisions is classified as HIGH-RISK under EU AI Act Annex III point 4. A conformity assessment under Art. 43 must be completed before deployment. Fines up to €15M or 3% of global annual turnover.",
+        suggested_action: "Conduct a conformity assessment per Art. 43. This includes: technical documentation (Art. 11), registration in the EU AI database (Art. 49), and CE marking. Engage a notified body if required under Annex VII." },
+      { regulation: "EU AI Act — Transparency", article: "Regulation (EU) 2024/1689 Art. 13 — Transparency and Provision of Information", status: "FAIL",
+        reason: "EU AI Act Art. 13 requires that candidates subject to high-risk AI hiring systems be informed that AI is being used, what data it processes, and the logic of the decision.",
+        suggested_action: "Notify the candidate in writing before using AI in their evaluation. The disclosure must explain: what AI system is used, what data it processes, how decisions are reached, and how to request human review." },
+      { regulation: "EU AI Act — Human Oversight", article: "Regulation (EU) 2024/1689 Art. 14 — Human Oversight", status: "FAIL",
+        reason: "EU AI Act Art. 14 requires that high-risk AI hiring systems allow qualified humans to oversee, intervene in, and override AI-generated decisions. No human oversight mechanism is documented.",
+        suggested_action: "Designate a qualified reviewer who can override AI hiring decisions. Document the human oversight process and train all users. The override pathway must be accessible — not just theoretical." },
+      { regulation: "EU AI Act — Risk Management", article: "Regulation (EU) 2024/1689 Art. 9 — Risk Management System", status: "FLAG",
+        reason: "EU AI Act Art. 9 requires a continuous risk management system throughout the AI system lifecycle. No risk management documentation is recorded for this system.",
+        suggested_action: "Establish and document a risk management system covering: risk identification, evaluation, residual risk assessment, and post-market monitoring. Review and update at least annually." },
+    ]
+  },
+  {
+    label: "Stage 6 — Offer · Multi-State Rollup (NY + CA + CO)",
+    decision: "Extend offer — compensation anchored to prior salary $87,000",
+    context: { candidate_states: "NY,CA,CO", prior_compensation: "87000", job_posting: "yes", salary_range_disclosed: "not included" },
+    verdict: "BLOCKED", risk_score: 90, fail_count: 3, flag_count: 1,
+    checks: [
+      { regulation: "New York Salary History Ban [NY]", article: "N.Y. Lab. Law § 194-a — Prohibition on Salary History Inquiry", status: "FAIL",
+        reason: "New York law prohibits relying on prior salary history in hiring or compensation decisions. Prior compensation ($87,000) was a factor in this offer.",
+        suggested_action: "Remove prior compensation as a decision factor. Set compensation based on the role's market rate and the candidate's skills. Document your pay-setting rationale." },
+      { regulation: "California AB-168 — Salary History Ban [CA]", article: "Cal. Lab. Code § 432.3", status: "FAIL",
+        reason: "California AB-168 prohibits using prior salary history in compensation or hiring decisions. Prior compensation was a factor in this offer.",
+        suggested_action: "Remove prior compensation from this decision. Re-evaluate the candidate using only market rate for the role. Document that salary history was not used." },
+      { regulation: "Colorado Equal Pay for Equal Work Act (EPEWA) [CO]", article: "Colo. Rev. Stat. § 8-5-102 — Wage Discrimination Prohibition", status: "FAIL",
+        reason: "Colorado EPEWA prohibits reliance on prior salary history in employment decisions. Prior compensation was used as a factor in this offer.",
+        suggested_action: "Remove prior compensation as a factor. Determine pay based on the role's defined pay range. Document that salary history was not used." },
+      { regulation: "Colorado Equal Pay for Equal Work Act (EPEWA) [CO]", article: "Colo. Rev. Stat. § 8-5-201 — Pay Range Disclosure in Job Postings", status: "FLAG",
+        reason: "Colorado EPEWA requires employers to include a salary range in all job postings for positions that could be performed in Colorado.",
+        suggested_action: "Add the compensation range to the job posting before publishing. The range must include both a minimum and maximum salary." },
+    ]
+  },
+];
+
+function showDemo(idx) {
+  const s = DEMO_SCENARIOS[idx];
+  document.querySelectorAll('.demo-scenario-btn').forEach((b,i) => {
+    b.classList.toggle('active-scenario', i === idx);
+  });
+  const isBlock = s.verdict === 'BLOCKED';
+  const scoreColor = s.risk_score >= 70 ? 'var(--fail)' : s.risk_score >= 40 ? 'var(--flag)' : 'var(--pass)';
+
+  let html = `
+    <div style="padding:16px 20px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:3px;">${s.label}</div>
+        <div style="font-size:13px;color:var(--text-sub);font-family:monospace;">"${s.decision}"</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="text-align:center;">
+          <div style="font-size:22px;font-weight:800;color:${scoreColor};line-height:1;">${s.risk_score}</div>
+          <div style="font-size:10px;font-weight:700;color:var(--text-sub);letter-spacing:.5px;text-transform:uppercase;">Risk Score</div>
+        </div>
+        <div style="padding:6px 14px;border-radius:6px;font-size:12px;font-weight:800;letter-spacing:.5px;
+          background:${isBlock ? 'var(--fail-dim)' : 'var(--pass-dim)'};
+          color:${isBlock ? 'var(--fail)' : 'var(--pass)'};">
+          ${isBlock ? '⛔ BLOCKED' : '✅ ALLOWED'}
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);">${s.fail_count} FAIL · ${s.flag_count} FLAG</div>
+      </div>
+    </div>`;
+
+  s.checks.forEach(c => {
+    const badgeCls = c.status === 'FAIL' ? 'badge-fail' : c.status === 'FLAG' ? 'badge-flag' : 'badge-pass';
+    const borderColor = c.status === 'FAIL' ? 'var(--fail)' : c.status === 'FLAG' ? 'var(--flag)' : 'var(--pass)';
+    html += `
+    <div class="check-row">
+      <div class="check-status" style="border-color:${borderColor};">
+        <span class="${badgeCls}">${c.status}</span>
+      </div>
+      <div class="check-body">
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:2px;">${c.regulation}</div>
+        <div style="font-size:11px;color:var(--text-sub);margin-bottom:8px;">${c.article}</div>
+        <div style="font-size:12px;color:var(--text-muted);line-height:1.6;margin-bottom:8px;">${c.reason}</div>
+        <div style="font-size:12px;padding:8px 12px;background:var(--surface2);border-left:3px solid var(--accent);border-radius:0 4px 4px 0;color:var(--text-muted);line-height:1.6;">
+          <strong style="color:var(--accent);">Action: </strong>${c.suggested_action}
+        </div>
+      </div>
+    </div>`;
+  });
+
+  document.getElementById('demoPanel').innerHTML = html;
+}
+
+showDemo(0);
+</script>
 
 <!-- ── Features ───────────────────────────────────────────────────────────── -->
 <section class="section" id="features">
