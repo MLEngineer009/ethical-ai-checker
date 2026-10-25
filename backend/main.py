@@ -324,18 +324,18 @@ async def admin_analytics(user: dict = Depends(get_current_user)):
 @app.post("/evaluate-decision", response_model=EthicalAnalysis, dependencies=[Depends(get_current_user)])
 @limiter.limit("30/minute")
 async def evaluate_decision(
-    req_obj: Request,
-    request: DecisionRequest,
+    request: Request,
+    body: DecisionRequest,
     user: dict = Depends(get_current_user),
 ) -> EthicalAnalysis:
     """Evaluate a decision using ethical reasoning frameworks."""
-    if not request.decision or not request.decision.strip():
+    if not body.decision or not body.decision.strip():
         raise HTTPException(status_code=400, detail="Decision cannot be empty")
-    if len(request.decision) > 4000:
+    if len(body.decision) > 4000:
         raise HTTPException(status_code=400, detail="Decision text exceeds 4,000 character limit")
-    if not request.context:
+    if not body.context:
         raise HTTPException(status_code=400, detail="Context cannot be empty")
-    if len(str(request.context)) > 8000:
+    if len(str(body.context)) > 8000:
         raise HTTPException(status_code=400, detail="Context exceeds size limit")
 
     GUEST_EVAL_LIMIT = 10
@@ -362,20 +362,19 @@ async def evaluate_decision(
                     detail=f"Monthly evaluation limit of {limit} reached for your {plan} plan.",
                 )
 
-    category = request.category if request.category in VALID_CATEGORIES else "other"
+    category = body.category if body.category in VALID_CATEGORIES else "other"
     try:
-        analysis = _run_evaluation(request.decision, request.context, category, request.block_threshold)
+        analysis = _run_evaluation(body.decision, body.context, category, body.block_threshold)
     except NoLLMProviderError as e:
-        # Server misconfiguration, not a client error: no model to evaluate with.
         raise HTTPException(status_code=503, detail=str(e))
 
     from .risk_detector import get_proxy_variable_report
     from .semantic_layer import score_semantic_proxies
-    proxy_report = get_proxy_variable_report(request.context)
+    proxy_report = get_proxy_variable_report(body.context)
 
     # L1.5 — semantic proxy detection on combined decision + context text
-    combined_text = request.decision + " " + " ".join(
-        str(v) for v in request.context.values() if isinstance(v, str)
+    combined_text = body.decision + " " + " ".join(
+        str(v) for v in body.context.values() if isinstance(v, str)
     )
     semantic_flags = score_semantic_proxies(combined_text)
     if semantic_flags:
@@ -385,7 +384,6 @@ async def evaluate_decision(
             if label not in existing_flags:
                 analysis.setdefault("risk_flags", []).append(label)
                 analysis.setdefault("regulatory_refs", []).append(sf["regulation"])
-        # Escalate firewall action if semantic flags found and action was allow
         if analysis["firewall_action"] == "allow" and any(
             sf["severity"] == "high" for sf in semantic_flags
         ):
@@ -408,8 +406,8 @@ async def evaluate_decision(
 
     database.log_request(
         google_sub=user["sub"],
-        decision=request.decision,
-        context=request.context,
+        decision=body.decision,
+        context=body.context,
         provider=analysis["provider"],
         confidence=analysis["confidence_score"],
         risk_flags=analysis["risk_flags"],
@@ -417,8 +415,8 @@ async def evaluate_decision(
     )
     audit_log_id = database.log_audit(
         google_sub=user["sub"],
-        decision=request.decision,
-        context=request.context,
+        decision=body.decision,
+        context=body.context,
         firewall_action=analysis["firewall_action"],
         confidence=analysis["confidence_score"],
         risk_flags=analysis["risk_flags"],
