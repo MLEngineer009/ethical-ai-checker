@@ -1297,6 +1297,213 @@ def _pay_range_not_disclosed(val: str) -> bool:
     return not _has(v, _PAY_RANGE_POS)
 
 
+# ── Colorado AI Act (SB 26-189) ──────────────────────────────────────────────
+# Transplanted: deployer duties for ADMT in consequential decisions.
+# Enforcement currently stayed pending AG rulemaking / xAI challenge —
+# see function docstring. Statute citations not yet verified against
+# primary sources; verify before citing externally.
+
+def _check_colorado_ai_act(decision: str, ctx: dict) -> list:
+    """
+    Colorado Automated Decision-Making Technology Act (SB 26-189, signed May 14,
+    2026) — deployer duties for ADMT that materially influences consequential
+    decisions (employment, education, housing, financial/lending, insurance,
+    healthcare, essential government services). Effective January 1, 2027.
+    Enforcement by the CO Attorney General only (no private right of action);
+    60-day cure period after AG notice of violation.
+
+    SB 26-189 REPEALED AND REPLACED SB 24-205 (repealed before it ever took
+    effect). The old regime's duties are GONE: no mandatory impact assessments,
+    no risk management program, no algorithmic-discrimination duty of care, no
+    rebuttable presumption of reasonable care. The new law is a
+    disclosure-and-rights regime, and this checker encodes that regime.
+
+    LAWYER REVIEW NEEDED: the scope of "materially influences", the conditional
+    ≤40-employee exemption, and sector-specific exemptions for federally
+    regulated entities are fact-specific. NOTE: enforcement of both the
+    original and the replacement law is currently stayed by a federal court
+    pending AG rulemaking and resolution of the xAI constitutional challenge —
+    counsel should confirm the current enforcement posture before relying on
+    these dates.
+
+    Rule id intentionally kept as "colorado_ai_act" (this function's name) so
+    existing audit records keep their provenance; the regulation label and
+    logic reflect SB 26-189.
+    """
+    REG = "Colorado ADM Act (SB 26-189)"
+    results = []
+    denial = _is_denial(decision, ctx)
+
+    # Covered technology: ADMT that materially influences a consequential
+    # decision. Accepts the new-law keys plus legacy keys (screening_tool,
+    # model_used, ai_model) so existing evidence feeds keep working.
+    admt = _s(ctx.get("admt_used", ctx.get("automated_decision_tool",
+                 ctx.get("model_used", ctx.get("screening_tool", ctx.get("ai_model", ""))))))
+    material = _s(ctx.get("materially_influences",
+                   ctx.get("high_risk_ai", ctx.get("consequential_ai", ""))))
+    ai_involved = admt or _has(material, {"yes", "true", "materially", "material", "substantial"})
+    if not ai_involved:
+        return []
+
+    # 1. Point-of-interaction notice — clear and conspicuous notice before or
+    #    at the interaction with a covered ADMT in a consequential decision,
+    #    with instructions on how to obtain additional information.
+    #    No opt-out required.
+    notice = _s(ctx.get("co_point_of_interaction_notice",
+                ctx.get("co_consumer_notice", ctx.get("ai_disclosure_given", ""))))
+    if not _has(notice, {"yes", "provided", "given", "disclosed", "clear and conspicuous"}):
+        results.append({
+            "regulation": REG,
+            "article": "SB 26-189 — Point-of-Interaction Notice",
+            "status": "FAIL",
+            "reason": (
+                "Deployers must give consumers clear and conspicuous notice before or at the "
+                "point of interaction with a covered ADMT used in a consequential decision, "
+                "with instructions on how to obtain additional information. No such notice "
+                "is documented for this decision."
+            ),
+        })
+
+    # 2. Post-adverse disclosure within 30 days — plain-language description of
+    #    the decision and the ADMT's role, instructions to request additional
+    #    information, and an explanation of consumer rights.
+    if denial:
+        adverse = _s(ctx.get("co_adverse_disclosure",
+                     ctx.get("adverse_disclosure_sent", ctx.get("adverse_disclosure_30day", ""))))
+        reasons = _s(ctx.get("denial_factors", ctx.get("denial_reason_candidate", "")))
+        if not _has(adverse, {"yes", "sent", "provided", "within 30 days"}):
+            results.append({
+                "regulation": REG,
+                "article": "SB 26-189 — Post-Adverse Disclosure (30 Days)",
+                "status": "FAIL",
+                "reason": (
+                    "Within 30 days of an adverse consequential decision, the deployer must "
+                    "provide a plain-language description of the decision and the ADMT's role, "
+                    "instructions to request additional information about the ADMT, and an "
+                    "explanation of the consumer's rights (data access/correction, meaningful "
+                    "human review). No 30-day post-adverse disclosure is documented."
+                ),
+            })
+        elif not reasons or _has(reasons, _VAGUE_REASON_KW):
+            results.append({
+                "regulation": REG,
+                "article": "SB 26-189 — Post-Adverse Disclosure (30 Days)",
+                "status": "FAIL",
+                "reason": (
+                    "The 30-day disclosure is documented but the principal reasons for the "
+                    "decision are missing or too vague/model-based to satisfy the "
+                    "plain-language requirement: "
+                    + ("no reasons given." if not reasons else
+                       f"'{reasons[:100]}'")
+                ),
+            })
+
+    # 3. Consumer rights after an adverse decision — (a) request the personal
+    #    data used, (b) correct factually incorrect data, (c) meaningful human
+    #    review / reconsideration "to the extent commercially reasonable".
+    if denial:
+        data_access = _s(ctx.get("data_access_provided", ctx.get("personal_data_access", "")))
+        if not _has(data_access, {"yes", "provided", "offered"}):
+            results.append({
+                "regulation": REG,
+                "article": "SB 26-189 — Right to Access Data Used",
+                "status": "FLAG",
+                "reason": (
+                    "Consumers subject to an adverse decision may request the personal data "
+                    "the ADMT used. No data-access opportunity is documented."
+                ),
+            })
+        correction = _s(ctx.get("data_correction_offered", ""))
+        if not _has(correction, {"yes", "offered", "provided"}):
+            results.append({
+                "regulation": REG,
+                "article": "SB 26-189 — Right to Correct Inaccurate Data",
+                "status": "FLAG",
+                "reason": (
+                    "Consumers may request correction of factually incorrect personal data "
+                    "the ADMT used. No correction opportunity is documented."
+                ),
+            })
+        review = _s(ctx.get("appeal_process", ctx.get("human_review_offered", "")))
+        if not _has(review, {"yes", "offered", "available", "human review"}):
+            results.append({
+                "regulation": REG,
+                "article": "SB 26-189 — Meaningful Human Review",
+                "status": "FLAG",
+                "reason": (
+                    "Consumers may request meaningful human review / reconsideration of an "
+                    "adverse decision to the extent commercially reasonable. No human-review "
+                    "opportunity is documented."
+                ),
+            })
+
+    # 4. Record retention — records necessary to demonstrate compliance must
+    #    be retained for at least 3 years.
+    retention = _s(ctx.get("co_record_retention", ctx.get("compliance_records_retained", "")))
+    if not _has(retention, {"yes", "retained", "3 years", "three years", "documented"}):
+        results.append({
+            "regulation": REG,
+            "article": "SB 26-189 — 3-Year Record Retention",
+            "status": "FLAG",
+            "reason": (
+                "Deployers must retain records necessary to demonstrate compliance for at "
+                "least 3 years. No retention practice is documented."
+            ),
+        })
+
+    # 5. Developer technical documentation — developers must give deployers
+    #    documentation of intended uses, training-data categories, known
+    #    limitations, and material-update notices. Only checked when this
+    #    party acts as the developer.
+    if _has(_s(ctx.get("role", ctx.get("party_role", ""))), {"developer", "provider"}):
+        dev_docs = _s(ctx.get("developer_docs", ctx.get("technical_documentation", "")))
+        if not _has(dev_docs, {"yes", "provided", "documented"}):
+            results.append({
+                "regulation": REG,
+                "article": "SB 26-189 — Developer Technical Documentation",
+                "status": "FLAG",
+                "reason": (
+                    "Developers of a covered ADMT must provide deployers with technical "
+                    "documentation covering intended uses, training-data categories, known "
+                    "limitations, and notices of material updates. No documentation is "
+                    "documented for this party acting as developer."
+                ),
+            })
+
+    # 6. Conditional small-employer exemption — flag for counsel, don't
+    #    auto-exempt.
+    employees = _s(ctx.get("employee_count", ctx.get("company_size", "")))
+    try:
+        emp_n = int("".join(c for c in employees if c.isdigit()) or "0")
+    except ValueError:
+        emp_n = 0
+    if emp_n and emp_n <= 40:
+        results.append({
+            "regulation": REG,
+            "article": "Conditional Small-Employer Exemption — Counsel Review",
+            "status": "FLAG",
+            "reason": (
+                f"Deployer reports {emp_n} employees. SB 26-189 provides a conditional "
+                "exemption for employers with 40 or fewer employees, but applicability is "
+                "fact-specific (it does not cover all duties). Have counsel confirm which "
+                "obligations apply before relying on it."
+            ),
+        })
+
+    if not results:
+        results.append({
+            "regulation": REG,
+            "article": "Deployer Duties — Notice, 30-Day Disclosure, Consumer Rights, Retention",
+            "status": "PASS",
+            "reason": (
+                "Core Colorado ADM Act (SB 26-189) deployer duties appear documented for "
+                "this decision. Applies from January 1, 2027; enforcement is currently "
+                "stayed pending AG rulemaking and the xAI litigation."
+            ),
+        })
+    return results
+
+
 def _check_state_laws(decision: str, ctx: dict) -> list:
     """Apply state-specific compliance rules on top of federal baseline (multi-state aware)."""
     states = _detect_states(ctx)
@@ -1495,6 +1702,9 @@ def _check_state_laws(decision: str, ctx: dict) -> list:
                         "The range must include both a minimum and maximum salary."
                     ),
                 })
+
+            # Colorado ADM Act (SB 26-189) — AI/ADMT in consequential decisions
+            results.extend(_check_colorado_ai_act(decision, ctx))
 
         elif state == "WA":
             if ctx.get("prior_compensation") and denial:
