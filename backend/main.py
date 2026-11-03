@@ -892,7 +892,33 @@ def _merge_compliance_checks(rule_checks: list, llm_checks: list) -> list:
 
 def _run_evaluation(decision: str, context: Dict[str, Any], category: str, block_threshold: float = 0.8) -> Dict[str, Any]:
     """Shared evaluation logic used by single and batch endpoints."""
-    llm_analysis = orchestrator.evaluate(decision, context, category)
+    # 1. Deterministic compliance engine always runs first — never gated on LLM availability.
+    try:
+        effective_rules = database.get_effective_rules(org_id=None)
+        rule_config = {r["rule_key"]: r["config"] for r in effective_rules if r["enabled"]}
+    except Exception:
+        rule_config = None
+
+    rule_result = run_compliance_checks(decision, context, category, rule_config=rule_config)
+    rule_checks = rule_result["checks"]
+    degraded_checks = rule_result["failed_checkers"]
+
+    # 2. LLM analysis is additive — degrade gracefully if any provider fails.
+    try:
+        llm_analysis = orchestrator.evaluate(decision, context, category)
+    except Exception as e:
+        logger.warning("LLM evaluation failed, returning compliance-only result: %s", e)
+        llm_analysis = {
+            "kantian_analysis": "",
+            "utilitarian_analysis": "",
+            "virtue_ethics_analysis": "",
+            "risk_flags": [],
+            "confidence_score": 0.5,
+            "recommendation": "LLM analysis unavailable — deterministic compliance checks completed successfully.",
+            "provider": "unavailable",
+            "compliance_checks": [],
+        }
+
     risk_flags = detect_all_risks(decision, context)
     if llm_analysis.get("risk_flags"):
         risk_flags = sorted(list(set(risk_flags) | set(llm_analysis["risk_flags"])))
@@ -900,19 +926,6 @@ def _run_evaluation(decision: str, context: Dict[str, Any], category: str, block
     if not isinstance(confidence_score, (int, float)) or not 0 <= confidence_score <= 1:
         confidence_score = 0.5
 
-    # Load DB-backed rule config (thresholds, patterns) — falls back to defaults if unavailable
-    try:
-        effective_rules = database.get_effective_rules(org_id=None)
-        rule_config = {r["rule_key"]: r["config"] for r in effective_rules if r["enabled"]}
-    except Exception:
-        rule_config = None
-
-    # Always run deterministic rule-based compliance checks.
-    # run_compliance_checks never fails silently: crashed checkers are reported
-    # in failed_checkers and surfaced to the caller as degraded coverage.
-    rule_result = run_compliance_checks(decision, context, category, rule_config=rule_config)
-    rule_checks = rule_result["checks"]
-    degraded_checks = rule_result["failed_checkers"]
     compliance_checks = _merge_compliance_checks(rule_checks, llm_analysis.get("compliance_checks", []))
 
     return {

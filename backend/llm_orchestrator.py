@@ -187,9 +187,14 @@ class LLMOrchestrator:
         self._max_tokens = int(os.getenv("LLM_MAX_TOKENS", "16000"))
 
         self._custom = CustomModelClient()
-        self._claude: Optional[anthropic.Anthropic] = (
-            anthropic.Anthropic(api_key=anthropic_key) if anthropic_key else None
-        )
+        if anthropic_key:
+            _claude_kwargs: dict = {"api_key": anthropic_key}
+            _workspace_id = os.getenv("ANTHROPIC_WORKSPACE_ID", "")
+            if _workspace_id:
+                _claude_kwargs["default_headers"] = {"anthropic-workspace-id": _workspace_id}
+            self._claude: Optional[anthropic.Anthropic] = anthropic.Anthropic(**_claude_kwargs)
+        else:
+            self._claude = None
         self._openai: Optional[OpenAI] = (
             OpenAI(api_key=openai_key)
             if openai_key and openai_key != "your-openai-key-here"

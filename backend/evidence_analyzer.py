@@ -27,7 +27,11 @@ def _client():
     key = os.getenv("ANTHROPIC_API_KEY", "")
     if not key:
         raise RuntimeError("ANTHROPIC_API_KEY is not set")
-    return anthropic.Anthropic(api_key=key)
+    kwargs = {"api_key": key}
+    workspace_id = os.getenv("ANTHROPIC_WORKSPACE_ID", "")
+    if workspace_id:
+        kwargs["default_headers"] = {"anthropic-workspace-id": workspace_id}
+    return anthropic.Anthropic(**kwargs)
 
 
 def _extract_pdf_text(data: bytes) -> str:
