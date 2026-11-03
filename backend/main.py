@@ -5,6 +5,7 @@ import io
 import logging
 import os
 import secrets
+from html import escape as esc
 from typing import Any, Dict, List, Optional
 from pathlib import Path
 
