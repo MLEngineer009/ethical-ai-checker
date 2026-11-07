@@ -730,12 +730,14 @@ def detect_bias_risks(context: dict) -> List[str]:
     """Detect bias risks based on presence of sensitive attributes."""
     flags = []
     context_str = str(context).lower()
-    
+
     for attr in SENSITIVE_ATTRIBUTES:
-        if attr.lower() in context_str:
+        # Use word-boundary match to avoid false positives like
+        # "age" inside "manager", "sex" inside "osexism", etc.
+        if re.search(r'\b' + re.escape(attr.lower()) + r'\b', context_str):
             flags.append("bias")
             break
-    
+
     return flags
 
 
