@@ -20,12 +20,36 @@ Pragma is a single-deployment SaaS application: one FastAPI backend serves the w
 └────┬────────────────────────────────────────────────────────────┘
      │
      ├──► L1 Compliance Engine (deterministic, <5ms, always runs)
-     │     ├── HOLC geo redlining (500+ zip codes, 35 US cities)
-     │     ├── ECOA proxy variable detection
-     │     ├── Text scanner (14 direct + indirect phrasing patterns)
-     │     ├── Compound proxy threshold scoring
-     │     ├── Disparate impact risk (4/5ths rule)
-     │     └── State law overlays (CA, NY, IL)
+     │     │
+     │     ├── Generic layer (runs for every sector)
+     │     │     ├── Text scanner (14 direct + indirect phrasing patterns)
+     │     │     ├── EU AI Act Art. 13/14 — transparency + human oversight
+     │     │     ├── GDPR Art. 22 — automated decision rights (EU/UK)
+     │     │     ├── Compound proxy threshold scoring
+     │     │     ├── Disparate impact risk (general bias signals)
+     │     │     └── State AI laws (Colorado ADM Act, CA CPRA, NYC LL144, IL AIVIA)
+     │     │
+     │     ├── Hiring layer  (external candidates)
+     │     │     ├── EEOC — Title VII / ADEA / ADA employment discrimination
+     │     │     ├── FCRA — pre-adverse + adverse action notices
+     │     │     ├── Ban-the-box — criminal history inquiry timing
+     │     │     ├── EU AI Act Annex III §4 — high-risk AI in hiring
+     │     │     └── EEOC 4/5ths rule — quantitative disparate impact
+     │     │
+     │     ├── Workplace layer  (existing employees)
+     │     │     ├── EEOC — all employment actions (promotions, terminations)
+     │     │     ├── EU AI Act Annex III §4 — employment decisions
+     │     │     └── EEOC 4/5ths rule — promotion / termination rates
+     │     │
+     │     ├── Lending / Finance layer  (credit, loans, insurance)
+     │     │     ├── ECOA — Equal Credit Opportunity Act + proxy detection
+     │     │     ├── FCRA — Fair Credit Reporting Act
+     │     │     ├── FHA — Fair Housing Act (mortgage / housing credit)
+     │     │     ├── UDAAP — CFPB unfair / deceptive / abusive acts
+     │     │     └── ECOA §1002.9 — adverse action notice requirements
+     │     │
+     │     └── Healthcare layer  (clinical AI, prior auth, risk scoring)
+     │           └── [HIPAA / 21st Century Cures / CMS AI rules — coming soon]
      │
      ├──► L2 LLM Orchestrator (optional, waterfall)
      │     └── Pragma model → Claude → GPT-4o-mini → heuristic mock (opt-in only)
@@ -61,19 +85,58 @@ Key design choices:
 
 ### 2. L1 Compliance Engine (`backend/compliance_engine.py`)
 
-Deterministic compliance checking that runs on every request — no LLM, no external call, no variable latency. Checks:
+Deterministic compliance checking that runs on every request — no LLM, no external call, no variable latency.
 
-- **HOLC geo redlining** — 500+ historically redlined zip codes across 35 US cities (`geo_data.py`). `is_redlined(zip_code)` returns `(bool, city_name)`.
-- **ECOA proxy variable detection** — `zip_code`, `last_name`, `ip_country`, `email_domain`, `birth_date`, `age` and 6+ others flagged as protected-class proxies.
-- **Text scanner** — 14 regex pattern groups covering direct and indirect protected-class language:
-  - Direct: race, national_origin, sex, age, disability, religion, familial_status, public_assistance
-  - Indirect: "that part of town", "near retirement", "family obligations", "non-native speaker", etc.
-- **Compound proxy threshold** — flags when N proxy variables appear in the same decision context.
-- **Disparate impact risk** — flags when the decision pattern suggests group-level adverse impact.
-- **State law overlays** — jurisdiction-specific rules for CA (FEHA), NY (HRL), IL (HRA).
-- **ECOA §1002.9** — checks for required written adverse action reasons.
+**Two-layer architecture:**
 
-Each check accepts an optional `rule_config` dict from the dynamic rule engine (see below).
+```
+_GENERIC_CHECKERS               ← run for every sector
+  _check_decision_text          text quality + protected-class language (14 pattern groups)
+  _check_eu_ai_act_decision     EU AI Act Art. 13/14 — transparency + human oversight
+  _check_gdpr_decision          GDPR Art. 22 — right to human review (EU/UK applicants)
+  _check_compound_proxies       proxy discrimination detection (cross-domain)
+  _check_disparate_impact_risk  general bias signal detection
+  _check_state_laws             Colorado ADM Act · CA CPRA · NYC LL144 · IL AIVIA · others
+
+_HIRING_SPECIFIC                ← external candidates only
+  _check_eeoc_decision          Title VII / ADEA / ADA employment discrimination
+  _check_fcra_employment_decision  FCRA pre-adverse + adverse action notices
+  _check_ban_the_box            criminal history inquiry timing
+  _check_eu_ai_act_hiring       EU AI Act Annex III §4 — high-risk AI in hiring
+  _check_disparate_impact_hiring  EEOC 4/5ths rule (quantitative selection rates)
+
+_WORKPLACE_SPECIFIC             ← existing employees only (promotions, terminations, etc.)
+  _check_eeoc_decision          Title VII / ADEA / ADA — all employment actions
+  _check_eu_ai_act_hiring       Annex III §4 covers promotions and terminations
+  _check_disparate_impact_hiring  4/5ths rule applied to promotion/termination rates
+
+_LENDING_SPECIFIC               ← credit, loans, BNPL, insurance underwriting
+  _check_ecoa_decision          Equal Credit Opportunity Act + proxy variable detection
+  _check_fcra_decision          Fair Credit Reporting Act
+  _check_fha_decision           Fair Housing Act (mortgage / housing credit)
+  _check_udaap_decision         CFPB — Unfair, Deceptive, or Abusive Acts
+  _check_ecoa_adverse_action_reasons  ECOA §1002.9 adverse action notice requirements
+
+_HEALTHCARE_SPECIFIC            ← placeholder (HIPAA · 21st Century Cures · CMS AI rules)
+  (empty — checkers slot in here when healthcare sector ships)
+```
+
+Checkers compose at startup:
+```python
+_DECISION_CHECKERS = {
+    "hiring":     _GENERIC_CHECKERS + _HIRING_SPECIFIC,
+    "workplace":  _GENERIC_CHECKERS + _WORKPLACE_SPECIFIC,
+    "finance":    _GENERIC_CHECKERS + _LENDING_SPECIFIC,
+    "lending":    _GENERIC_CHECKERS + _LENDING_SPECIFIC,
+    "healthcare": _GENERIC_CHECKERS + _HEALTHCARE_SPECIFIC,
+    "other":      _GENERIC_CHECKERS,
+}
+```
+
+**Adding a new cross-sector law:** edit `_GENERIC_CHECKERS` once — all sectors pick it up automatically.
+**Adding a new sector:** define `_NEW_SPECIFIC = [...]` and add one line to `_DECISION_CHECKERS`.
+
+Each check accepts an optional `rule_config` dict from the dynamic rule engine (see §3).
 
 **Rule result statuses:** `FAIL` (block), `FLAG` (human review), `PASS` (allowed)
 
@@ -213,13 +276,22 @@ POST /evaluate-decision
         │
         ▼
   run_compliance_checks(decision, context, category, rule_config)
-    ├── HOLC geo redlining check
-    ├── ECOA proxy variable detection
-    ├── Text scanner (direct + indirect patterns)
-    ├── Compound proxy threshold (rule_config.flag_at / fail_at)
-    ├── Disparate impact risk (rule_config.flag_at / fail_at)
-    ├── State law overlays (CA/NY/IL if enabled)
-    └── ECOA adverse action notice check
+    │
+    ├── Generic layer (every category)
+    │     ├── text scanner — 14 protected-class pattern groups
+    │     ├── EU AI Act Art. 13/14 — transparency
+    │     ├── GDPR Art. 22 — human review rights (EU/UK)
+    │     ├── compound proxies (rule_config thresholds)
+    │     ├── disparate impact risk (rule_config thresholds)
+    │     └── state AI laws — Colorado / CA / NY / IL
+    │
+    └── Sector-specific layer (selected by category)
+          hiring     → EEOC · FCRA employment · ban-the-box · EU AI Act §4 · 4/5ths rule
+          workplace  → EEOC · EU AI Act §4 · 4/5ths rule
+          finance    → ECOA · FCRA · FHA · UDAAP · adverse action reasons
+          lending    → (same as finance)
+          healthcare → (placeholder — HIPAA · CMS AI rules coming)
+          other      → generic only
         │
         ▼
   llm_orchestrator.evaluate(decision, context)  [L2, optional]

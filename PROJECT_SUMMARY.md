@@ -14,6 +14,18 @@ Every evaluation returns a structured firewall verdict:
 - `risk_flags`: list of detected risks (bias, discrimination, fairness, transparency…)
 - `regulatory_refs`: regulations triggered, with jurisdiction and citation URL
 
+**Two-layer compliance engine** (`backend/compliance_engine.py`):
+
+| Layer | What runs | When |
+|---|---|---|
+| Generic | EU AI Act Art. 13/14 · GDPR Art. 22 · text scanner · compound proxies · disparate impact · state AI laws | Every sector |
+| Hiring | EEOC · FCRA employment · ban-the-box · EU AI Act Annex III §4 · 4/5ths rule | `hiring` only |
+| Workplace | EEOC · EU AI Act Annex III §4 · 4/5ths rule | `workplace` / `hr` |
+| Lending / Finance | ECOA · FCRA · FHA · UDAAP · adverse action reasons | `finance` / `lending` |
+| Healthcare | HIPAA · 21st Century Cures · CMS AI rules *(placeholder)* | `healthcare` |
+
+Hiring and workplace are separate domains with different regulations. Ban-the-box and FCRA pre-adverse action apply to job applications; they do not apply to promotions, terminations, or performance reviews.
+
 ### 2. Multi-Framework Ethical Reasoning
 Every decision is analyzed across three frameworks simultaneously:
 - **Kantian** — duty-based, treats people as ends not means
