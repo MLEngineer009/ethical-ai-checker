@@ -5,52 +5,43 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pragma — AI Compliance Platform</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: authoritative publication — full-width bands, left-aligned, enforcement-first */
 :root {
-  --bg:              #F4F1EB;
-  --fg:              #0F1319;
-  --surface:         #FFFFFF;
-  --surface-2:       #ECEAE2;
-  --accent:          #1A3A6E;
-  --accent-fg:       #FFFFFF;
-  --muted:           #5C6878;
-  --border:          #D8D4C8;
-  --enforcement:     #9B1B1B;
-  --enforcement-bg:  #FEF0F0;
-  --hire-col:        #1E3A5F;
-  --pay-col:         #14532D;
-  --work-col:        #7C2D12;
-  --health-col:      #312E81;
-  --ff-display:      'Syne', system-ui, sans-serif;
-  --ff-edit:         'Libre Baskerville', Georgia, serif;
-  --ff-body:         'IBM Plex Sans', system-ui, sans-serif;
-  --ff-mono:         'IBM Plex Mono', 'Courier New', monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg:             #0C1017;
-    --fg:             #E4E0D6;
-    --surface:        #131921;
-    --surface-2:      #1B2435;
-    --accent:         #5B8FDF;
-    --accent-fg:      #0C1017;
-    --muted:          #8396A8;
-    --border:         #263347;
-    --enforcement:    #FCA5A5;
-    --enforcement-bg: #2D0808;
-  }
+  --bg:          #0a0b0f;
+  --surface:     #111318;
+  --surface2:    #161922;
+  --border:      #1e2232;
+  --border2:     #252838;
+  --text:        rgba(255,255,255,0.92);
+  --text-muted:  rgba(255,255,255,0.45);
+  --text-sub:    rgba(255,255,255,0.22);
+  --accent:      #6366f1;
+  --accent2:     #818cf8;
+  --accent-dim:  rgba(99,102,241,0.12);
+  --accent-glow: rgba(99,102,241,0.08);
+  --red:         #ef4444;
+  --red-dim:     rgba(239,68,68,0.12);
+  --green:       #22c55e;
+  --yellow:      #f59e0b;
+  --radius:      10px;
+  --radius-sm:   8px;
+  --shadow:      0 1px 3px rgba(0,0,0,0.5), 0 4px 16px rgba(0,0,0,0.4);
+  --ff:          'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --ff-mono:     'IBM Plex Mono', 'Courier New', monospace;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+html { overflow-x: hidden; }
+
 body {
-  font-family: var(--ff-body);
+  font-family: var(--ff);
   background: var(--bg);
-  color: var(--fg);
-  font-size: 16px;
+  color: var(--text);
+  font-size: 15px;
   line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* ── Nav ──────────────────────────────────────────────── */
@@ -58,82 +49,88 @@ body {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: var(--bg);
+  background: rgba(10,11,15,0.88);
+  backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
   padding: 0 24px;
 }
 .nav-inner {
-  max-width: 1200px;
+  max-width: 1160px;
   margin: 0 auto;
   display: flex;
   align-items: center;
-  gap: 24px;
-  height: 54px;
+  gap: 20px;
+  height: 52px;
 }
 .nav-logo {
-  font-family: var(--ff-display);
+  font-size: 17px;
   font-weight: 800;
-  font-size: 20px;
-  color: var(--fg);
+  letter-spacing: -0.5px;
+  color: var(--text);
   text-decoration: none;
-  letter-spacing: -0.02em;
   flex-shrink: 0;
 }
-.nav-modules { display: flex; gap: 2px; flex: 1; }
+.nav-logo span { color: var(--accent2); }
+.nav-links { display: flex; gap: 2px; flex: 1; }
 .nav-link {
   font-size: 13px;
   font-weight: 500;
-  color: var(--muted);
+  color: var(--text-muted);
   text-decoration: none;
   padding: 4px 10px;
-  border-radius: 4px;
+  border-radius: 6px;
   transition: color 0.15s, background 0.15s;
 }
-.nav-link:hover { color: var(--fg); background: var(--surface-2); }
+.nav-link:hover { color: var(--text); background: var(--surface2); }
 .nav-cta {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   background: var(--accent);
-  color: var(--accent-fg);
+  color: #fff;
   padding: 7px 16px;
-  border-radius: 4px;
+  border-radius: 7px;
   text-decoration: none;
+  transition: background 0.15s;
   white-space: nowrap;
-  transition: opacity 0.15s;
 }
-.nav-cta:hover { opacity: 0.85; }
+.nav-cta:hover { background: #5457e8; }
 
 /* ── Hero ─────────────────────────────────────────────── */
 .hero {
-  max-width: 1200px;
+  max-width: 1160px;
   margin: 0 auto;
-  padding: 72px 24px 60px;
+  padding: 80px 24px 64px;
 }
-.eyebrow {
-  font-family: var(--ff-mono);
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--accent-dim);
+  border: 1px solid rgba(99,102,241,0.3);
+  border-radius: 6px;
+  padding: 4px 12px;
   font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.1em;
+  font-weight: 600;
+  letter-spacing: 0.7px;
   text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 20px;
-}
-.hero h1 {
-  font-family: var(--ff-edit);
-  font-size: clamp(30px, 4.8vw, 52px);
-  font-weight: 700;
-  line-height: 1.12;
-  letter-spacing: -0.02em;
-  text-wrap: balance;
-  max-width: 760px;
+  color: var(--accent2);
   margin-bottom: 24px;
 }
-.hero h1 em { font-style: italic; color: var(--enforcement); }
+.hero h1 {
+  font-size: clamp(28px, 4.5vw, 50px);
+  font-weight: 800;
+  letter-spacing: -1.2px;
+  line-height: 1.1;
+  text-wrap: balance;
+  max-width: 760px;
+  margin-bottom: 20px;
+}
+.hero h1 em { font-style: normal; color: var(--red); }
 .hero-sub {
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1.65;
-  color: var(--muted);
-  max-width: 580px;
+  color: var(--text-muted);
+  max-width: 560px;
   margin-bottom: 36px;
 }
 .module-pills { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -141,26 +138,25 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-family: var(--ff-display);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   padding: 7px 14px;
-  border-radius: 3px;
+  border-radius: 7px;
   text-decoration: none;
-  transition: opacity 0.15s;
+  border: 1px solid transparent;
+  transition: opacity 0.15s, transform 0.15s;
 }
-.mpill:hover { opacity: 0.82; }
-.mpill-hire   { background: var(--hire-col);   color: #fff; }
-.mpill-pay    { background: var(--pay-col);    color: #fff; }
-.mpill-work   { background: var(--work-col);   color: #fff; }
-.mpill-health { background: var(--health-col); color: #fff; opacity: 0.72; }
+.mpill:hover { opacity: 0.85; transform: translateY(-1px); }
+.mpill-hire   { background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.35); color: #a5b4fc; }
+.mpill-pay    { background: rgba(34,197,94,0.1);   border-color: rgba(34,197,94,0.3);   color: #86efac; }
+.mpill-work   { background: rgba(245,158,11,0.1);  border-color: rgba(245,158,11,0.3);  color: #fcd34d; }
+.mpill-health { background: rgba(167,139,250,0.1); border-color: rgba(167,139,250,0.25); color: #c4b5fd; opacity: 0.65; }
 .pill-soon {
-  font-family: var(--ff-body);
   font-size: 9px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  opacity: 0.75;
+  opacity: 0.65;
 }
 
 /* ── Enforcement ticker ────────────────────────────────── */
@@ -168,7 +164,7 @@ body {
   overflow: hidden;
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
-  background: var(--surface-2);
+  background: var(--surface);
 }
 .ticker-track {
   display: flex;
@@ -183,236 +179,304 @@ body {
 .t-item {
   font-family: var(--ff-mono);
   font-size: 11.5px;
-  color: var(--muted);
-  padding: 10px 40px 10px 0;
+  color: var(--text-muted);
+  padding: 10px 48px 10px 0;
   white-space: nowrap;
 }
-.t-name { color: var(--fg); font-weight: 500; }
-.t-amt  { color: var(--enforcement); font-weight: 500; }
-.t-sep  { display: inline-block; width: 1px; height: 10px; background: var(--border); margin: 0 24px; vertical-align: middle; }
+.t-name { color: var(--text); font-weight: 500; }
+.t-amt  { color: var(--red); font-weight: 500; }
+.t-sep  {
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--border2);
+  margin: 0 20px;
+  vertical-align: middle;
+}
 
 /* ── Modules section ──────────────────────────────────── */
 .modules {
-  max-width: 1200px;
+  max-width: 1160px;
   margin: 0 auto;
   padding: 72px 24px;
 }
-.section-label {
-  font-family: var(--ff-mono);
+.section-eyebrow {
   font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.1em;
+  font-weight: 600;
+  letter-spacing: 0.8px;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--accent2);
   margin-bottom: 10px;
 }
 .section-title {
-  font-family: var(--ff-edit);
-  font-size: clamp(22px, 2.8vw, 30px);
+  font-size: clamp(20px, 2.5vw, 28px);
   font-weight: 700;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.5px;
+  color: var(--text);
   text-wrap: balance;
-  margin-bottom: 48px;
+  margin-bottom: 44px;
 }
+.section-title span { color: var(--text-muted); }
+
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 520px), 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 500px), 1fr));
+  gap: 14px;
 }
+
 .mcard {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  transition: border-color 0.2s;
 }
+.mcard:hover { border-color: var(--border2); }
+
 .mcard-head {
-  padding: 24px 28px 20px;
+  padding: 20px 24px 18px;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: flex-start;
-  gap: 14px;
+  gap: 12px;
 }
-.badge {
-  font-family: var(--ff-display);
+.module-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 7px;
+}
+.dot-hire   { background: #818cf8; }
+.dot-pay    { background: #4ade80; }
+.dot-work   { background: #fbbf24; }
+.dot-health { background: #c084fc; }
+
+.mcard-label {
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.8px;
   text-transform: uppercase;
-  padding: 4px 8px;
-  border-radius: 2px;
-  flex-shrink: 0;
-  margin-top: 3px;
-  color: #fff;
+  color: var(--text-sub);
+  margin-bottom: 2px;
 }
-.b-hire   { background: var(--hire-col); }
-.b-pay    { background: var(--pay-col); }
-.b-work   { background: var(--work-col); }
-.b-health { background: var(--health-col); }
-
 .mcard-name {
-  font-family: var(--ff-display);
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
+  letter-spacing: -0.4px;
+  color: var(--text);
+  line-height: 1.2;
 }
-.mcard-tagline { font-size: 13px; color: var(--muted); margin-top: 3px; }
+.mcard-tagline { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
 
+/* Enforcement block */
 .enf-block {
-  margin: 20px 28px 0;
-  background: var(--enforcement-bg);
-  border-left: 3px solid var(--enforcement);
+  margin: 16px 24px;
+  background: var(--red-dim);
+  border: 1px solid rgba(239,68,68,0.2);
+  border-radius: var(--radius-sm);
   padding: 14px 16px;
-  border-radius: 0 4px 4px 0;
 }
 .enf-label {
   font-family: var(--ff-mono);
   font-size: 10px;
   font-weight: 500;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--enforcement);
+  color: var(--red);
   margin-bottom: 6px;
 }
 .enf-case {
   font-family: var(--ff-mono);
   font-size: 12px;
   font-weight: 500;
-  color: var(--fg);
-  margin-bottom: 5px;
+  color: var(--text);
+  margin-bottom: 6px;
   line-height: 1.4;
 }
-.enf-desc { font-size: 13px; color: var(--muted); line-height: 1.55; }
-
-.mcard-body {
-  padding: 20px 28px 28px;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
+.enf-desc {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.55;
 }
-.mcard-desc { font-size: 14px; line-height: 1.65; color: var(--muted); }
-.regs-label {
+
+/* Signal block (non-enforcement) */
+.sig-block {
+  margin: 16px 24px;
+  background: rgba(245,158,11,0.07);
+  border: 1px solid rgba(245,158,11,0.2);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+}
+.sig-label {
   font-family: var(--ff-mono);
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--yellow);
+  margin-bottom: 6px;
+}
+
+.mcard-body {
+  padding: 4px 24px 24px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.mcard-desc { font-size: 13.5px; line-height: 1.65; color: var(--text-muted); }
+
+.regs-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-sub);
   margin-bottom: 8px;
 }
 .regs { display: flex; flex-wrap: wrap; gap: 6px; }
 .reg {
   font-family: var(--ff-mono);
   font-size: 11px;
-  background: var(--surface-2);
-  color: var(--fg);
+  background: var(--surface2);
+  color: var(--text-muted);
   padding: 3px 8px;
-  border-radius: 2px;
-  border: 1px solid var(--border);
+  border-radius: 5px;
+  border: 1px solid var(--border2);
 }
-.mcard-cta { margin-top: auto; }
+
+.mcard-cta { margin-top: auto; padding-top: 4px; }
 .mcard-cta a {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   font-size: 13px;
-  font-weight: 500;
-  color: var(--accent);
+  font-weight: 600;
+  color: var(--accent2);
   text-decoration: none;
   transition: gap 0.15s;
 }
-.mcard-cta a:hover { gap: 10px; }
-.cta-soon { font-size: 13px; color: var(--muted); font-style: italic; }
+.mcard-cta a:hover { gap: 9px; }
+.cta-soon { font-size: 13px; color: var(--text-sub); }
 
 /* ── How it works ─────────────────────────────────────── */
 .how-band {
-  background: var(--surface-2);
+  background: var(--surface);
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
 }
 .how-inner {
-  max-width: 1200px;
+  max-width: 1160px;
   margin: 0 auto;
-  padding: 64px 24px;
+  padding: 60px 24px;
 }
 .how-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 48px;
-  margin-top: 40px;
+  margin-top: 36px;
 }
-@media (max-width: 680px) {
-  .how-grid { grid-template-columns: 1fr; gap: 32px; }
-}
+@media (max-width: 680px) { .how-grid { grid-template-columns: 1fr; gap: 28px; } }
+
 .how-col-title {
-  font-family: var(--ff-edit);
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 700;
-  margin-bottom: 18px;
+  letter-spacing: -0.2px;
+  color: var(--text);
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
 }
-.how-items { display: flex; flex-direction: column; gap: 13px; }
-.how-item { display: flex; gap: 12px; align-items: flex-start; }
+.how-items { display: flex; flex-direction: column; gap: 12px; }
+.how-item { display: flex; gap: 10px; align-items: flex-start; }
 .how-dot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: var(--accent);
   margin-top: 8px;
   flex-shrink: 0;
 }
-.how-text { font-size: 14px; line-height: 1.6; color: var(--muted); min-width: 0; }
-.how-text strong { color: var(--fg); font-weight: 500; }
+.how-text { font-size: 13px; line-height: 1.6; color: var(--text-muted); min-width: 0; }
+.how-text strong { color: var(--text); font-weight: 600; }
+
+/* ── Stats strip ──────────────────────────────────────── */
+.stats-strip {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 48px 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+.stat-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 20px 16px;
+}
+.stat-num {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  color: var(--text);
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.stat-num span { color: var(--accent2); }
+.stat-label { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
 
 /* ── Footer CTA ───────────────────────────────────────── */
 .fcta {
-  max-width: 1200px;
+  max-width: 1160px;
   margin: 0 auto;
-  padding: 80px 24px;
+  padding: 72px 24px 80px;
 }
 .fcta h2 {
-  font-family: var(--ff-edit);
-  font-size: clamp(22px, 3.2vw, 36px);
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-size: clamp(22px, 3vw, 34px);
+  font-weight: 800;
+  letter-spacing: -0.8px;
   text-wrap: balance;
-  max-width: 620px;
-  margin-bottom: 32px;
+  max-width: 580px;
+  margin-bottom: 28px;
+  line-height: 1.18;
 }
-.fcta-btns { display: flex; flex-wrap: wrap; gap: 12px; }
+.fcta-btns { display: flex; flex-wrap: wrap; gap: 10px; }
 .btn-p {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   background: var(--accent);
-  color: var(--accent-fg);
+  color: #fff;
   padding: 10px 22px;
-  border-radius: 4px;
+  border-radius: 8px;
   text-decoration: none;
-  transition: opacity 0.15s;
+  transition: background 0.15s;
 }
-.btn-p:hover { opacity: 0.85; }
+.btn-p:hover { background: #5457e8; }
 .btn-s {
   font-size: 14px;
   font-weight: 500;
   background: transparent;
-  color: var(--fg);
+  color: var(--text-muted);
   padding: 10px 22px;
-  border-radius: 4px;
-  border: 1px solid var(--border);
+  border-radius: 8px;
+  border: 1px solid var(--border2);
   text-decoration: none;
-  transition: background 0.15s;
+  transition: color 0.15s, border-color 0.15s;
 }
-.btn-s:hover { background: var(--surface-2); }
+.btn-s:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
 
 /* ── Footer ───────────────────────────────────────────── */
 .site-footer {
   border-top: 1px solid var(--border);
-  padding: 24px;
+  padding: 20px 24px;
 }
 .footer-inner {
-  max-width: 1200px;
+  max-width: 1160px;
   margin: 0 auto;
   display: flex;
   justify-content: space-between;
@@ -420,15 +484,16 @@ body {
   flex-wrap: wrap;
   gap: 12px;
 }
-.footer-brand { font-family: var(--ff-display); font-size: 15px; font-weight: 800; }
+.footer-brand { font-size: 15px; font-weight: 800; letter-spacing: -0.3px; }
 .footer-links { display: flex; gap: 20px; }
-.footer-links a { font-size: 12.5px; color: var(--muted); text-decoration: none; }
-.footer-links a:hover { color: var(--fg); }
-.footer-legal { font-family: var(--ff-mono); font-size: 11px; color: var(--muted); }
+.footer-links a { font-size: 12px; color: var(--text-muted); text-decoration: none; }
+.footer-links a:hover { color: var(--text); }
+.footer-legal { font-family: var(--ff-mono); font-size: 11px; color: var(--text-sub); }
 
 @media (max-width: 520px) {
-  .nav-modules { display: none; }
+  .nav-links { display: none; }
   .hero { padding-top: 48px; }
+  .footer-inner { flex-direction: column; align-items: flex-start; }
 }
 </style>
 </head>
@@ -438,19 +503,19 @@ body {
 <nav class="nav">
   <div class="nav-inner">
     <a href="/" class="nav-logo">Pragma</a>
-    <div class="nav-modules">
+    <div class="nav-links">
       <a href="#hire"   class="nav-link">Hire</a>
       <a href="#pay"    class="nav-link">Pay</a>
       <a href="#work"   class="nav-link">Work</a>
       <a href="#health" class="nav-link">Health</a>
     </div>
-    <a href="/" class="nav-cta">Get access →</a>
+    <a href="/?demo=1&uc=hiring" class="nav-cta">Try demo →</a>
   </div>
 </nav>
 
 <!-- Hero -->
 <section class="hero">
-  <div class="eyebrow">AI Governance Platform</div>
+  <div class="hero-badge">AI Governance Platform</div>
   <h1>Your AI decisions are creating <em>legal liability.</em><br>Pragma intercepts them first.</h1>
   <p class="hero-sub">Deterministic checks against 40+ regulations — EEOC, ECOA, FCRA, EU AI Act, Colorado AI Act and more — before your AI decision executes. No LLM required. Under 5ms.</p>
   <div class="module-pills">
@@ -465,33 +530,54 @@ body {
 <div class="ticker-wrap" aria-hidden="true">
   <div class="ticker-track">
     <span class="t-item"><span class="t-name">EEOC v. iTutorGroup</span> · <span class="t-amt">$365K settlement</span> · AI screening excluded 200+ applicants over 40 · 2023<span class="t-sep"></span></span>
-    <span class="t-item"><span class="t-name">CFPB v. City National Bank</span> · <span class="t-amt">$99M consent order</span> · algorithmic redlining in mortgage lending · largest in US history · 2023<span class="t-sep"></span></span>
+    <span class="t-item"><span class="t-name">CFPB v. City National Bank</span> · <span class="t-amt">$99M consent order</span> · algorithmic redlining in mortgage lending · 2023<span class="t-sep"></span></span>
     <span class="t-item"><span class="t-name">NYC Local Law 144</span> · <span class="t-amt">$1,500/day per violation</span> · AI hiring tools without annual bias audit · active enforcement<span class="t-sep"></span></span>
     <span class="t-item"><span class="t-name">EU AI Act Annex III</span> · <span class="t-amt">enforcement Aug 2026</span> · hiring + employment AI systems classified high-risk<span class="t-sep"></span></span>
     <span class="t-item"><span class="t-name">Colorado AI Act SB 26-189</span> · <span class="t-amt">effective Jan 2027</span> · employment · healthcare · housing · financial services<span class="t-sep"></span></span>
-    <span class="t-item"><span class="t-name">EEOC Strategic Enforcement Plan 2024–2028</span> · <span class="t-amt">AI in employment decisions</span> · named top enforcement priority<span class="t-sep"></span></span>
+    <span class="t-item"><span class="t-name">EEOC Strategic Plan 2024–2028</span> · <span class="t-amt">AI in employment decisions</span> · named top enforcement priority<span class="t-sep"></span></span>
     <!-- duplicate for seamless loop -->
     <span class="t-item"><span class="t-name">EEOC v. iTutorGroup</span> · <span class="t-amt">$365K settlement</span> · AI screening excluded 200+ applicants over 40 · 2023<span class="t-sep"></span></span>
-    <span class="t-item"><span class="t-name">CFPB v. City National Bank</span> · <span class="t-amt">$99M consent order</span> · algorithmic redlining in mortgage lending · largest in US history · 2023<span class="t-sep"></span></span>
+    <span class="t-item"><span class="t-name">CFPB v. City National Bank</span> · <span class="t-amt">$99M consent order</span> · algorithmic redlining in mortgage lending · 2023<span class="t-sep"></span></span>
     <span class="t-item"><span class="t-name">NYC Local Law 144</span> · <span class="t-amt">$1,500/day per violation</span> · AI hiring tools without annual bias audit · active enforcement<span class="t-sep"></span></span>
     <span class="t-item"><span class="t-name">EU AI Act Annex III</span> · <span class="t-amt">enforcement Aug 2026</span> · hiring + employment AI systems classified high-risk<span class="t-sep"></span></span>
     <span class="t-item"><span class="t-name">Colorado AI Act SB 26-189</span> · <span class="t-amt">effective Jan 2027</span> · employment · healthcare · housing · financial services<span class="t-sep"></span></span>
-    <span class="t-item"><span class="t-name">EEOC Strategic Enforcement Plan 2024–2028</span> · <span class="t-amt">AI in employment decisions</span> · named top enforcement priority<span class="t-sep"></span></span>
+    <span class="t-item"><span class="t-name">EEOC Strategic Plan 2024–2028</span> · <span class="t-amt">AI in employment decisions</span> · named top enforcement priority<span class="t-sep"></span></span>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="stats-strip">
+  <div class="stat-box">
+    <div class="stat-num">40<span>+</span></div>
+    <div class="stat-label">Regulations checked deterministically</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-num">&lt;5<span>ms</span></div>
+    <div class="stat-label">Per evaluation, no LLM required</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-num">$99<span>M</span></div>
+    <div class="stat-label">Largest AI lending enforcement action to date</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-num">4</div>
+    <div class="stat-label">Sectors: Hire · Pay · Work · Health</div>
   </div>
 </div>
 
 <!-- Modules -->
 <section class="modules">
-  <div class="section-label">Product modules</div>
-  <h2 class="section-title">Four modules. One platform.<br>Each sector covered by its own compliance engine.</h2>
+  <div class="section-eyebrow">Product modules</div>
+  <h2 class="section-title">Four modules. One platform. <span>Each sector covered by its own compliance engine.</span></h2>
 
   <div class="card-grid">
 
     <!-- Pragma Hire -->
     <div class="mcard" id="hire">
       <div class="mcard-head">
-        <span class="badge b-hire">Hire</span>
+        <div class="module-dot dot-hire"></div>
         <div>
+          <div class="mcard-label">Module 01</div>
           <div class="mcard-name">Pragma Hire</div>
           <div class="mcard-tagline">AI compliance for recruiting and candidate screening</div>
         </div>
@@ -499,7 +585,7 @@ body {
       <div class="enf-block">
         <div class="enf-label">Enforcement anchor</div>
         <div class="enf-case">EEOC v. iTutorGroup, Inc. — $365,000 settlement · 2023</div>
-        <div class="enf-desc">The company's AI screening tool automatically rejected applicants over 40, violating the ADEA. EEOC found reasonable cause and secured a settlement affecting 200+ candidates. The tool had no bias audit and no human review override.</div>
+        <div class="enf-desc">The company's AI screening tool automatically rejected applicants over 40, violating the ADEA. EEOC found reasonable cause and secured a settlement affecting 200+ candidates. No bias audit. No human review override.</div>
       </div>
       <div class="mcard-body">
         <p class="mcard-desc">Pragma Hire checks every AI hiring decision — resume screens, interview scores, offer or rejection — against EEOC requirements, FCRA adverse action rules, ban-the-box laws, and NYC LL144 audit mandates before the decision executes.</p>
@@ -516,15 +602,16 @@ body {
             <span class="reg">Colorado AI Act</span>
           </div>
         </div>
-        <div class="mcard-cta"><a href="/">Try Pragma Hire <span>→</span></a></div>
+        <div class="mcard-cta"><a href="/?demo=1&uc=hiring">Try 6 Hiring Scenarios <span>→</span></a></div>
       </div>
     </div>
 
     <!-- Pragma Pay -->
     <div class="mcard" id="pay">
       <div class="mcard-head">
-        <span class="badge b-pay">Pay</span>
+        <div class="module-dot dot-pay"></div>
         <div>
+          <div class="mcard-label">Module 02</div>
           <div class="mcard-name">Pragma Pay</div>
           <div class="mcard-tagline">ECOA and FCRA compliance for lending and credit decisions</div>
         </div>
@@ -532,7 +619,7 @@ body {
       <div class="enf-block">
         <div class="enf-label">Enforcement anchor</div>
         <div class="enf-case">CFPB v. City National Bank — $99M consent order · 2023</div>
-        <div class="enf-desc">Algorithmic models systematically disadvantaged Black and Hispanic applicants in majority-minority neighborhoods. The largest redlining settlement in US history at time of filing — $31M penalty plus $68M in direct relief to affected borrowers.</div>
+        <div class="enf-desc">Algorithmic models systematically disadvantaged Black and Hispanic applicants in majority-minority neighborhoods. The largest redlining settlement in US history at time of filing — $31M penalty plus $68M in direct relief.</div>
       </div>
       <div class="mcard-body">
         <p class="mcard-desc">Pragma Pay runs ECOA, FCRA, FHA, and UDAAP checks on every credit and lending decision — flagging proxy variables, redlining risk, missing adverse action notices, and disparate impact before they create CFPB exposure.</p>
@@ -548,26 +635,27 @@ body {
             <span class="reg">Colorado AI Act</span>
           </div>
         </div>
-        <div class="mcard-cta"><a href="/">Try Pragma Pay <span>→</span></a></div>
+        <div class="mcard-cta"><a href="/?demo=1&uc=bnpl">Try 8 Lending Scenarios <span>→</span></a></div>
       </div>
     </div>
 
     <!-- Pragma Work -->
     <div class="mcard" id="work">
       <div class="mcard-head">
-        <span class="badge b-work">Work</span>
+        <div class="module-dot dot-work"></div>
         <div>
+          <div class="mcard-label">Module 03</div>
           <div class="mcard-name">Pragma Work</div>
           <div class="mcard-tagline">AI compliance for promotions, terminations, and performance reviews</div>
         </div>
       </div>
-      <div class="enf-block">
-        <div class="enf-label">Regulatory signal</div>
-        <div class="enf-case">EEOC 2024–2028 Strategic Enforcement Plan — priority area</div>
-        <div class="enf-desc">EEOC named AI in employment decisions — promotions, terminations, performance scoring — as a top enforcement priority. The enforcement window for workplace AI is opening. Litigation is early; compliance is not optional.</div>
+      <div class="sig-block">
+        <div class="sig-label">Regulatory signal</div>
+        <div class="enf-case" style="color:rgba(255,255,255,0.75)">EEOC 2024–2028 Strategic Enforcement Plan — priority area</div>
+        <div class="enf-desc">EEOC named AI in employment decisions — promotions, terminations, performance scoring — as a top enforcement priority. The enforcement window for workplace AI is opening now.</div>
       </div>
       <div class="mcard-body">
-        <p class="mcard-desc">Workplace AI decisions have different regulations than hiring. Pragma Work checks promotions, terminations, and performance evaluations against EEOC anti-discrimination requirements and the EU AI Act's employment provisions — without the hiring-intake rules that don't apply here.</p>
+        <p class="mcard-desc">Workplace decisions have different regulations than hiring. Pragma Work checks promotions, terminations, and performance evaluations against EEOC anti-discrimination requirements and the EU AI Act's employment provisions — without the hiring-intake rules that don't apply here.</p>
         <div>
           <div class="regs-label">Regulations checked</div>
           <div class="regs">
@@ -580,26 +668,27 @@ body {
             <span class="reg">Colorado AI Act</span>
           </div>
         </div>
-        <div class="mcard-cta"><a href="/">Try Pragma Work <span>→</span></a></div>
+        <div class="mcard-cta"><a href="/?demo=1&uc=gemini-hiring">Try Live AI Scenarios <span>→</span></a></div>
       </div>
     </div>
 
     <!-- Pragma Health -->
     <div class="mcard" id="health">
       <div class="mcard-head">
-        <span class="badge b-health">Health</span>
+        <div class="module-dot dot-health"></div>
         <div>
+          <div class="mcard-label">Module 04</div>
           <div class="mcard-name">Pragma Health</div>
           <div class="mcard-tagline">Clinical AI governance — coming soon</div>
         </div>
       </div>
-      <div class="enf-block">
-        <div class="enf-label">Regulatory signal</div>
-        <div class="enf-case">HHS OCR + CMS AI governance guidance · 2024–2025</div>
-        <div class="enf-desc">HHS Office for Civil Rights issued guidance on AI bias in clinical decision-making. CMS proposed mandatory AI governance requirements for Medicare and Medicaid systems. Healthcare AI regulation is accelerating faster than most compliance teams are prepared for.</div>
+      <div class="sig-block">
+        <div class="sig-label">Regulatory signal</div>
+        <div class="enf-case" style="color:rgba(255,255,255,0.75)">HHS OCR + CMS AI governance guidance · 2024–2025</div>
+        <div class="enf-desc">HHS Office for Civil Rights issued guidance on AI bias in clinical decision-making. CMS proposed mandatory AI governance for Medicare and Medicaid. Healthcare AI regulation is accelerating.</div>
       </div>
       <div class="mcard-body">
-        <p class="mcard-desc">Prior authorization, clinical risk scoring, care management triage — AI decisions in healthcare carry HIPAA, 21st Century Cures Act, and emerging CMS governance requirements. Pragma Health applies the same deterministic compliance engine to clinical AI.</p>
+        <p class="mcard-desc">Prior authorization, clinical risk scoring, care management triage — AI decisions in healthcare carry HIPAA, 21st Century Cures Act, and emerging CMS governance requirements. Pragma Health applies the same deterministic engine to clinical AI.</p>
         <div>
           <div class="regs-label">Regulations planned</div>
           <div class="regs">
@@ -621,16 +710,16 @@ body {
 <!-- How it works -->
 <div class="how-band">
   <div class="how-inner">
-    <div class="section-label">Architecture</div>
-    <h2 class="section-title">Generic + sector-specific. Built to be right, not just fast.</h2>
+    <div class="section-eyebrow">Architecture</div>
+    <h2 class="section-title">Generic + sector-specific. <span>Built to be right, not just fast.</span></h2>
     <div class="how-grid">
       <div>
         <div class="how-col-title">Generic layer — runs for every decision</div>
         <div class="how-items">
-          <div class="how-item"><div class="how-dot"></div><div class="how-text"><strong>EU AI Act Art. 13/14</strong> — transparency and human oversight requirements across all sectors</div></div>
-          <div class="how-item"><div class="how-dot"></div><div class="how-text"><strong>GDPR Art. 22</strong> — right to human review for every EU/UK individual in every domain</div></div>
-          <div class="how-item"><div class="how-dot"></div><div class="how-text"><strong>Compound proxy detection</strong> — variables that act as protected-class proxies, regardless of sector</div></div>
-          <div class="how-item"><div class="how-dot"></div><div class="how-text"><strong>Disparate impact signals</strong> — general bias detection applied before domain-specific analysis</div></div>
+          <div class="how-item"><div class="how-dot"></div><div class="how-text"><strong>EU AI Act Art. 13/14</strong> — transparency and human oversight across all sectors</div></div>
+          <div class="how-item"><div class="how-dot"></div><div class="how-text"><strong>GDPR Art. 22</strong> — right to human review for every EU/UK individual</div></div>
+          <div class="how-item"><div class="how-dot"></div><div class="how-text"><strong>Compound proxy detection</strong> — variables acting as protected-class proxies, any domain</div></div>
+          <div class="how-item"><div class="how-dot"></div><div class="how-text"><strong>Disparate impact signals</strong> — general bias detection applied before domain analysis</div></div>
           <div class="how-item"><div class="how-dot"></div><div class="how-text"><strong>State AI laws</strong> — Colorado ADM Act · CA CPRA · NYC LL144 · IL AIVIA</div></div>
         </div>
       </div>
@@ -641,7 +730,7 @@ body {
           <div class="how-item"><div class="how-dot"></div><div class="how-text"><strong>Pay:</strong> ECOA proxy variable detection, HOLC redlining zip codes, UDAAP abusive acts</div></div>
           <div class="how-item"><div class="how-dot"></div><div class="how-text"><strong>Work:</strong> EEOC employment actions, disparate impact in promotion and termination rates</div></div>
           <div class="how-item"><div class="how-dot"></div><div class="how-text"><strong>No cross-contamination</strong> — ban-the-box never fires on a promotion; ECOA never fires on a hire</div></div>
-          <div class="how-item"><div class="how-dot"></div><div class="how-text"><strong>Deterministic</strong> — no LLM required. FAIL · FLAG · PASS on every evaluation, under 5ms</div></div>
+          <div class="how-item"><div class="how-dot"></div><div class="how-text"><strong>Deterministic</strong> — FAIL · FLAG · PASS on every evaluation, under 5ms, no LLM required</div></div>
         </div>
       </div>
     </div>
@@ -652,8 +741,8 @@ body {
 <div class="fcta">
   <h2>The enforcement actions have already happened.<br>The question is whether you're next.</h2>
   <div class="fcta-btns">
-    <a href="/" class="btn-p">Try Pragma Hire free →</a>
-    <a href="/" class="btn-s">Talk to us about enterprise</a>
+    <a href="/?demo=1&uc=hiring" class="btn-p">Try Pragma Hire free →</a>
+    <a href="/?demo=1&uc=bnpl" class="btn-s">Try Pragma Pay →</a>
   </div>
 </div>
 

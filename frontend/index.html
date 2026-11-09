@@ -2035,6 +2035,7 @@ if verdict["firewall_action"] == "block":
       }
 
       // ?demo=1 — auto guest sign-in so demo links skip the auth screen
+      // ?demo=1&uc=hiring|bnpl|gemini|gemini-hiring — also pre-select a demo use case
       if (new URLSearchParams(window.location.search).get('demo') === '1') {
         try {
           const res  = await fetch(`${API}/auth/guest`, { method: 'POST' });
@@ -2049,6 +2050,15 @@ if verdict["firewall_action"] == "block":
             localStorage.setItem('userPic',  '');
             localStorage.setItem('isGuest',  'true');
             showMainApp();
+            const uc = new URLSearchParams(window.location.search).get('uc');
+            const validUCs = ['bnpl', 'hiring', 'gemini', 'gemini-hiring'];
+            if (uc && validUCs.includes(uc)) {
+              _demoUC = uc;
+              switchTab('demo');
+              document.querySelectorAll('.demo-uc-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.uc === uc);
+              });
+            }
             return;
           }
         } catch (_) {}
