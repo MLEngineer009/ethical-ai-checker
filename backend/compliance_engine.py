@@ -2448,75 +2448,73 @@ def _check_disparate_impact_hiring(decision: str, ctx: dict) -> list:
 
 
 # ── Checkers map ───────────────────────────────────────────────────────────────
+#
+# Two-layer architecture:
+#
+#   _GENERIC_CHECKERS   — laws that apply to every AI decision regardless of sector.
+#                         Add here when a regulation covers multiple verticals
+#                         (EU AI Act general, GDPR Art. 22, Colorado ADM Act, etc.)
+#
+#   _*_SPECIFIC         — laws that only apply within a particular sector.
+#                         Add here when a regulation is domain-scoped
+#                         (ECOA / FHA for lending, EEOC / ban-the-box for hiring, etc.)
+#
+#   _DECISION_CHECKERS  — composed per category: generic + sector-specific.
+#                         Adding a new sector = define _NEW_SPECIFIC + one dict entry.
+#                         Adding a cross-sector law = edit _GENERIC_CHECKERS once.
+
+# ── Layer 1: universal ─────────────────────────────────────────────────────────
+_GENERIC_CHECKERS = [
+    _check_decision_text,          # quality / completeness baseline
+    _check_eu_ai_act_decision,     # EU AI Act Art. 13/14 — transparency + human oversight
+    _check_gdpr_decision,          # GDPR Art. 22 — automated decision rights (EU/UK)
+    _check_compound_proxies,       # proxy discrimination across all domains
+    _check_disparate_impact_risk,  # general bias signal detection
+    _check_state_laws,             # Colorado ADM Act + CA CPRA + state AI laws (multi-sector)
+]
+
+# ── Layer 2: sector-specific ───────────────────────────────────────────────────
+
+# Hiring — external candidates: resume screening, interviews, offers, rejections
+_HIRING_SPECIFIC = [
+    _check_eeoc_decision,              # Title VII / ADEA / ADA employment discrimination
+    _check_fcra_employment_decision,   # FCRA pre-adverse + adverse action notices
+    _check_ban_the_box,                # criminal history inquiry timing
+    _check_eu_ai_act_hiring,           # EU AI Act Annex III §4 — high-risk AI in hiring
+    _check_disparate_impact_hiring,    # EEOC 4/5ths rule (quantitative selection rates)
+]
+
+# Workplace — existing employees: promotions, terminations, performance, discipline
+# Ban-the-box and FCRA pre-adverse action are hiring-intake concepts; not included.
+_WORKPLACE_SPECIFIC = [
+    _check_eeoc_decision,              # Title VII / ADEA / ADA — all employment actions
+    _check_eu_ai_act_hiring,           # Annex III §4 covers promotions and terminations too
+    _check_disparate_impact_hiring,    # 4/5ths rule applies to promotion/termination rates
+]
+
+# Lending / Finance — credit, loans, BNPL, insurance underwriting
+_LENDING_SPECIFIC = [
+    _check_ecoa_decision,              # Equal Credit Opportunity Act
+    _check_fcra_decision,              # Fair Credit Reporting Act
+    _check_fha_decision,               # Fair Housing Act (mortgage / housing credit)
+    _check_udaap_decision,             # CFPB — Unfair, Deceptive, or Abusive Acts
+    _check_ecoa_adverse_action_reasons, # ECOA adverse action notice requirements
+]
+
+# Healthcare — clinical decisions, prior auth, risk scoring, care management
+# Placeholder: HIPAA, 21st Century Cures Act, and CMS AI governance rules go here.
+_HEALTHCARE_SPECIFIC: list = []
+
+# ── Composed map ───────────────────────────────────────────────────────────────
 
 _DECISION_CHECKERS = {
-    "finance": [
-        _check_decision_text,
-        _check_ecoa_decision,
-        _check_fcra_decision,
-        _check_fha_decision,
-        _check_udaap_decision,
-        _check_eu_ai_act_decision,
-        _check_gdpr_decision,
-        _check_compound_proxies,
-        _check_ecoa_adverse_action_reasons,
-        _check_disparate_impact_risk,
-        _check_state_laws,
-    ],
-    "lending": [
-        _check_decision_text,
-        _check_ecoa_decision,
-        _check_fcra_decision,
-        _check_fha_decision,
-        _check_udaap_decision,
-        _check_eu_ai_act_decision,
-        _check_gdpr_decision,
-        _check_compound_proxies,
-        _check_ecoa_adverse_action_reasons,
-        _check_disparate_impact_risk,
-        _check_state_laws,
-    ],
-    "hiring": [
-        _check_decision_text,
-        _check_eeoc_decision,
-        _check_fcra_employment_decision,
-        _check_ban_the_box,
-        _check_eu_ai_act_decision,
-        _check_eu_ai_act_hiring,
-        _check_compound_proxies,
-        _check_disparate_impact_risk,
-        _check_disparate_impact_hiring,
-        _check_state_laws,
-    ],
-    # Workplace = existing-employee decisions (promotions, terminations, performance,
-    # disciplinary actions, accommodations). Ban-the-box and FCRA pre-adverse
-    # action are hiring-intake concepts and do NOT apply here.
-    "workplace": [
-        _check_decision_text,
-        _check_eeoc_decision,
-        _check_eu_ai_act_decision,
-        _check_eu_ai_act_hiring,   # Annex III §4 covers all employment decisions
-        _check_compound_proxies,
-        _check_disparate_impact_risk,
-        _check_disparate_impact_hiring,
-        _check_state_laws,
-    ],
-    "hr": [   # legacy alias — keep routing to workplace checkers
-        _check_decision_text,
-        _check_eeoc_decision,
-        _check_eu_ai_act_decision,
-        _check_eu_ai_act_hiring,
-        _check_compound_proxies,
-        _check_disparate_impact_risk,
-        _check_disparate_impact_hiring,
-        _check_state_laws,
-    ],
-    "other": [
-        _check_decision_text,
-        _check_ecoa_decision,
-        _check_fcra_decision,
-        _check_compound_proxies,
-    ],
+    "hiring":     _GENERIC_CHECKERS + _HIRING_SPECIFIC,
+    "workplace":  _GENERIC_CHECKERS + _WORKPLACE_SPECIFIC,
+    "hr":         _GENERIC_CHECKERS + _WORKPLACE_SPECIFIC,   # legacy alias
+    "finance":    _GENERIC_CHECKERS + _LENDING_SPECIFIC,
+    "lending":    _GENERIC_CHECKERS + _LENDING_SPECIFIC,
+    "healthcare": _GENERIC_CHECKERS + _HEALTHCARE_SPECIFIC,
+    "other":      _GENERIC_CHECKERS,
 }
 
 
