@@ -2269,6 +2269,14 @@ async def lending_landing():
     raise HTTPException(status_code=404, detail="Landing page not found")
 
 
+@app.get("/marketing", include_in_schema=False)
+async def marketing_landing():
+    page = Path(__file__).parent.parent / "frontend" / "marketing.html"
+    if page.exists():
+        return FileResponse(page)
+    raise HTTPException(status_code=404, detail="Marketing page not found")
+
+
 @app.get("/hiring", include_in_schema=False)
 async def hiring_landing():
     page = Path(__file__).parent.parent / "frontend" / "hiring.html"
