@@ -2594,11 +2594,11 @@ if verdict["firewall_action"] == "block":
         hitlSection.style.display = 'none';
       }
 
-      // Show adverse action button for: lending denial OR hiring/hr with FCRA flag
+      // Show adverse action button for: lending denial OR hiring/workplace with FCRA flag
       const fcraFail = (data.compliance_checks || []).some(c =>
         (c.status === 'FAIL' || c.status === 'FLAG') && c.regulation && c.regulation.includes('FCRA')
       );
-      const isEmployment = (lastCategory === 'hiring' || lastCategory === 'hr');
+      const isEmployment = (lastCategory === 'hiring' || lastCategory === 'workplace' || lastCategory === 'hr');
       const isCreditDenial = (lastCategory === 'lending' || lastCategory === 'finance') &&
         (data.firewall_action === 'block' || data.firewall_action === 'override_required');
       const showAAN = (isEmployment && fcraFail) || isCreditDenial;

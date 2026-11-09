@@ -2488,11 +2488,22 @@ _DECISION_CHECKERS = {
         _check_disparate_impact_hiring,
         _check_state_laws,
     ],
-    "hr": [
+    # Workplace = existing-employee decisions (promotions, terminations, performance,
+    # disciplinary actions, accommodations). Ban-the-box and FCRA pre-adverse
+    # action are hiring-intake concepts and do NOT apply here.
+    "workplace": [
         _check_decision_text,
         _check_eeoc_decision,
-        _check_fcra_employment_decision,
-        _check_ban_the_box,
+        _check_eu_ai_act_decision,
+        _check_eu_ai_act_hiring,   # Annex III §4 covers all employment decisions
+        _check_compound_proxies,
+        _check_disparate_impact_risk,
+        _check_disparate_impact_hiring,
+        _check_state_laws,
+    ],
+    "hr": [   # legacy alias — keep routing to workplace checkers
+        _check_decision_text,
+        _check_eeoc_decision,
         _check_eu_ai_act_decision,
         _check_eu_ai_act_hiring,
         _check_compound_proxies,
